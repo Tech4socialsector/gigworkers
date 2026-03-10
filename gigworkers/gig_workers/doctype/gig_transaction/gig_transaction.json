@@ -1,6 +1,5 @@
 {
     "actions": [],
-    "custom": 1,
     "allow_import": 1,
     "allow_rename": 1,
     "autoname": "Format: {gig_worker}:{aggregator}:{date}:{###}",
