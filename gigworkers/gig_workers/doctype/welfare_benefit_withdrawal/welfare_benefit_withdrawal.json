@@ -30,13 +30,14 @@
   {
    "fieldname": "status",
    "fieldtype": "Select",
-   "label": "Status"
+   "label": "Status",
+   "options": "\nRequested\nApproved\nRejected\nPaid"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-04 16:11:41.447627",
+ "modified": "2026-03-05 09:22:41.114056",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Welfare Benefit Withdrawal",
