@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "Format: {gig_worker}:{aggregator}:{date}:{###}",
  "creation": "2026-03-04 15:40:09.097905",
@@ -11,8 +12,13 @@
   "service",
   "role",
   "date",
+  "amount",
+  "welfare_percentage",
+  "welfare_amount",
+  "external_transaction_id",
   "trust_level",
-  "status"
+  "status",
+  "settlement_status"
  ],
  "fields": [
   {
@@ -62,12 +68,37 @@
    "in_list_view": 1,
    "label": "Status",
    "options": "\nRegistered\nPayment Pending\nCompleted\nCancelled"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "welfare_percentage",
+   "fieldtype": "Float",
+   "label": "Welfare Percentage"
+  },
+  {
+   "fieldname": "welfare_amount",
+   "fieldtype": "Currency",
+   "label": "Welfare Amount"
+  },
+  {
+   "fieldname": "external_transaction_id",
+   "fieldtype": "Data",
+   "label": "External Transaction ID"
+  },
+  {
+   "fieldname": "settlement_status",
+   "fieldtype": "Select",
+   "label": "Settlement Status"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-04 18:20:24.687097",
+ "modified": "2026-03-10 09:26:48.679312",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
