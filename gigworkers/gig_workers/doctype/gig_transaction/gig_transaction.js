@@ -58,14 +58,32 @@ frappe.ui.form.on("Gig Transaction", {
 							freeze_message: __("Confirming transaction…"),
 							callback(r) {
 								if (!r.exc && r.message) {
-									const email = r.message.worker_email || "";
 									const otp   = r.message.otp_reference || "";
-									frappe.show_alert({
-										message: __(
-											`✅ Confirmed! OTP Ref: <b>${otp}</b> — Notification sent to <b>${email}</b>`
-										),
-										indicator: "green",
-									}, 8);
+									const email = r.message.worker_email  || "";
+									const emailSent  = r.message.email_sent;
+									const emailError = r.message.email_error;
+
+									if (emailSent) {
+										// Both confirmed AND email delivered
+										frappe.show_alert({
+											message: __(
+												`✅ Confirmed! OTP Ref: <b>${otp}</b> — Notification sent to <b>${email}</b>`
+											),
+											indicator: "green",
+										}, 8);
+									} else {
+										// Transaction confirmed but email failed
+										frappe.msgprint({
+											title: __("Transaction Confirmed — Email Not Sent"),
+											indicator: "orange",
+											message: __(
+												`✅ Transaction confirmed successfully (OTP Ref: <b>${otp}</b>).<br><br>` +
+												`⚠️ However, the notification email to <b>${email}</b> could not be sent.<br>` +
+												`<b>SMTP Error:</b> ${emailError || "Unknown error"}<br><br>` +
+												`Please check <b>Settings → Email Account</b> and ensure you are using a <b>Gmail App Password</b>, not your regular Gmail password.`
+											),
+										});
+									}
 									frm.reload_doc();
 								}
 							},
