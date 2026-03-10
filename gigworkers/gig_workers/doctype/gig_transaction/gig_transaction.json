@@ -19,7 +19,10 @@
   "external_transaction_id",
   "trust_level",
   "status",
-  "settlement_status"
+  "confirmed_at",
+  "settlement_status",
+  "otp_section",
+  "otp_records"
  ],
  "fields": [
   {
@@ -44,8 +47,7 @@
    "in_list_view": 1,
    "label": "Service",
    "options": "Service",
-   "reqd": 1,
-   "unique": 1
+   "reqd": 1
   },
   {
    "fieldname": "role",
@@ -100,12 +102,32 @@
    "fieldname": "transaction_date",
    "fieldtype": "Date",
    "label": "transaction_date"
+  },
+  {
+   "fieldname": "confirmed_at",
+   "fieldtype": "Datetime",
+   "label": "Confirmed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "otp_section",
+   "fieldtype": "Section Break",
+   "label": "OTP Confirmation Records"
+  },
+  {
+   "fieldname": "otp_records",
+   "fieldtype": "Table",
+   "label": "OTP Records",
+   "options": "Gig Transaction OTP",
+   "cannot_add_rows": 1,
+   "cannot_delete_rows": 1,
+   "in_place_edit": 0
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-10 10:12:26.837282",
+ "modified": "2026-03-10 11:16:43.057186",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
