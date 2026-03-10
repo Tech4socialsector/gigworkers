@@ -12,7 +12,8 @@
   "payment",
   "bank_reference",
   "payment_date",
-  "payment_status"
+  "payment_status",
+  "settlement_status"
  ],
  "fields": [
   {
@@ -53,12 +54,18 @@
    "fieldtype": "Select",
    "label": "Payment Status",
    "options": "\nPending\nCompleted\nFailed"
+  },
+  {
+   "fieldname": "settlement_status",
+   "fieldtype": "Select",
+   "label": "Settlement Status",
+   "options": "\nInitiated\nSuccess\nFailed"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-04 17:11:16.211301",
+ "modified": "2026-03-10 10:13:25.461584",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Welfare Fee Payment",

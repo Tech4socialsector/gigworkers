@@ -13,6 +13,7 @@
   "role",
   "date",
   "amount",
+  "transaction_date",
   "welfare_percentage",
   "welfare_amount",
   "external_transaction_id",
@@ -92,13 +93,19 @@
   {
    "fieldname": "settlement_status",
    "fieldtype": "Select",
-   "label": "Settlement Status"
+   "label": "Settlement Status",
+   "options": "\nPending\nConfirmed\nSettled"
+  },
+  {
+   "fieldname": "transaction_date",
+   "fieldtype": "Date",
+   "label": "transaction_date"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-10 09:26:48.679312",
+ "modified": "2026-03-10 10:12:26.837282",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
