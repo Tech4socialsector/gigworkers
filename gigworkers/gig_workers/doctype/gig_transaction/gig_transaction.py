@@ -28,12 +28,11 @@ def _get_email(gig_worker_name):
     return email
 
 
-def _build_otp_record(otp_code, confirmed_at, email):
+def _build_otp_record(otp_code, sent_at, email):
     return {
         "otp_code": otp_code,
-        "sent_at": confirmed_at,
-        "confirmed_at": confirmed_at,
-        "confirm_status": "Confirmed",
+        "sent_at": sent_at,
+        "confirm_status": "OTP Sent",
         "email_sent_to": email,
     }
 
@@ -231,21 +230,52 @@ def confirm_transaction(transaction_name):
     email = _get_email(doc.gig_worker)
 
     otp_code = _generate_otp()
-    confirmed_at = now()
+    sent_at = now()
 
     doc.append(
         "otp_records",
-        _build_otp_record(otp_code, confirmed_at, email),
+        _build_otp_record(otp_code, sent_at, email),
     )
 
-    doc.status = "Completed"
-    doc.confirmed_at = confirmed_at
     doc.save(ignore_permissions=True)
 
-    send_confirmation_email(transaction_name, email, otp_code, confirmed_at)
+    frappe.enqueue(
+        "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.send_confirmation_email",
+        transaction_name=doc.name,
+        email=email,
+        otp_code=otp_code,
+        confirmed_at=sent_at,
+        is_async=False,
+    )
 
     return {
-        "message": "Transaction confirmed successfully",
-        "email": email,
+        "message": "OTP sent successfully",
         "otp_reference": otp_code,
     }
+
+
+# ------------------------------------------------------------
+# Verify OTP
+# ------------------------------------------------------------
+@frappe.whitelist()
+def verify_otp(transaction_name, otp):
+
+    doc = frappe.get_doc("Gig Transaction", transaction_name)
+
+    for row in doc.otp_records:
+
+        if row.otp_code == otp and row.confirm_status == "OTP Sent":
+
+            row.confirm_status = "Confirmed"
+            row.confirmed_at = now()
+
+            doc.status = "Completed"
+            doc.confirmed_at = row.confirmed_at
+
+            doc.save(ignore_permissions=True)
+
+            return {
+                "message": "OTP verified. Transaction confirmed."
+            }
+
+    frappe.throw("Invalid OTP")

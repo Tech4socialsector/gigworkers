@@ -1,116 +1,197 @@
 // Copyright (c) 2026, Jenifar and contributors
 // For license information, please see license.txt
 
-// ============================================================
-//  gigworkers — Gig Transaction Form Script
-// ============================================================
-
 frappe.ui.form.on("Gig Transaction", {
 
 	// ----------------------------------------------------------
-	//  gigworkers script — Form Refresh: render trust-level buttons
+	// FORM REFRESH
 	// ----------------------------------------------------------
 
 	refresh(frm) {
+
 		frm.clear_custom_buttons();
 
 		if (frm.is_new()) return;
 
 		const trustLevel = frm.doc.trust_level;
-		const status     = frm.doc.status;
+		const status = frm.doc.status;
 
-		// ---- HIGH TRUST: Auto Confirm button ----
+
+		// ----------------------------------------------------------
+		// HIGH TRUST FLOW
+		// ----------------------------------------------------------
+
 		if (trustLevel === "High" && status !== "Completed") {
+
 			frm.add_custom_button(__("Auto Confirm"), function () {
+
 				frappe.confirm(
 					"This transaction has <b>High Trust Level</b>.<br>" +
 					"It will be auto-confirmed immediately. Proceed?",
+
 					function () {
+
 						frm.save().then(() => {
+
 							frappe.show_alert({
-								message: __("✅ Transaction auto-confirmed successfully!"),
+								message: __("Transaction auto-confirmed successfully!"),
 								indicator: "green",
 							}, 5);
+
 							frm.reload_doc();
 						});
+
 					}
 				);
+
 			}, __("Trust Level Actions")).addClass("btn-success");
+
 		}
 
-		// ---- LOW TRUST: Single Confirm Transaction button ----
+
+		// ----------------------------------------------------------
+		// LOW TRUST FLOW
+		// ----------------------------------------------------------
+
 		if (trustLevel === "Low" && status !== "Completed") {
+
+			// -----------------------------
+			// CONFIRM TRANSACTION (SEND OTP)
+			// -----------------------------
+
 			frm.add_custom_button(__("Confirm Transaction"), function () {
+
 				frappe.confirm(
+
 					`<b>Confirm this transaction?</b><br><br>
 					This will:<br>
-					✅ Mark the transaction as <b>Completed</b><br>
-					📧 Send a confirmation notification to the worker's email<br>
-					📋 Record full OTP audit details in the OTP Records table`,
-					function () {
-						frappe.call({
-							// --------------------------------------------------------
-							//  gigworkers api code — confirm_transaction (Low Trust)
-							// --------------------------------------------------------
-							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.confirm_transaction",
-							args: { transaction_name: frm.doc.name },
-							freeze: true,
-							freeze_message: __("Confirming transaction…"),
-							callback(r) {
-								if (!r.exc && r.message) {
-									const otp   = r.message.otp_reference || "";
-									const email = r.message.worker_email  || "";
-									const emailSent  = r.message.email_sent;
-									const emailError = r.message.email_error;
+					📧 Send OTP to worker email<br>
+					📋 Record OTP in OTP table`,
 
-									if (emailSent) {
-										// Both confirmed AND email delivered
-										frappe.show_alert({
-											message: __(
-												`✅ Confirmed! OTP Ref: <b>${otp}</b> — Notification sent to <b>${email}</b>`
-											),
-											indicator: "green",
-										}, 8);
-									} else {
-										// Transaction confirmed but email failed
-										frappe.msgprint({
-											title: __("Transaction Confirmed — Email Not Sent"),
-											indicator: "orange",
-											message: __(
-												`✅ Transaction confirmed successfully (OTP Ref: <b>${otp}</b>).<br><br>` +
-												`⚠️ However, the notification email to <b>${email}</b> could not be sent.<br>` +
-												`<b>SMTP Error:</b> ${emailError || "Unknown error"}<br><br>` +
-												`Please check <b>Settings → Email Account</b> and ensure you are using a <b>Gmail App Password</b>, not your regular Gmail password.`
-											),
-										});
-									}
+					function () {
+
+						frappe.call({
+
+							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.confirm_transaction",
+
+							args: {
+								transaction_name: frm.doc.name
+							},
+
+							freeze: true,
+							freeze_message: __("Sending OTP..."),
+
+							callback(r) {
+
+								if (!r.exc && r.message) {
+
+									const otp = r.message.otp_reference || "";
+
+									frappe.show_alert({
+										message: __("OTP sent successfully (Ref: " + otp + ")"),
+										indicator: "green",
+									}, 5);
+
 									frm.reload_doc();
 								}
-							},
+
+							}
+
 						});
+
 					}
+
 				);
+
 			}, __("Trust Level Actions")).addClass("btn-primary");
+
+
+			// -----------------------------
+			// VERIFY OTP
+			// -----------------------------
+
+			frm.add_custom_button(__("Verify OTP"), function () {
+
+				frappe.prompt(
+
+					[
+						{
+							label: "Enter OTP",
+							fieldname: "otp",
+							fieldtype: "Data",
+							reqd: 1
+						}
+					],
+
+					function (values) {
+
+						frappe.call({
+
+							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.verify_otp",
+
+							args: {
+								transaction_name: frm.doc.name,
+								otp: values.otp
+							},
+
+							freeze: true,
+							freeze_message: __("Verifying OTP..."),
+
+							callback(r) {
+
+								if (!r.exc) {
+
+									frappe.show_alert({
+										message: __("OTP verified. Transaction completed."),
+										indicator: "green",
+									}, 5);
+
+									frm.reload_doc();
+								}
+
+							}
+
+						});
+
+					},
+
+					__("Verify OTP")
+
+				);
+
+			}, __("Trust Level Actions")).addClass("btn-success");
+
 		}
+
 	},
 
+
 	// ----------------------------------------------------------
-	//  gigworkers script — trust_level field change handler
+	// TRUST LEVEL CHANGE HANDLER
 	// ----------------------------------------------------------
 
 	trust_level(frm) {
+
 		frm.trigger("refresh");
 
 		if (frm.doc.trust_level === "High") {
+
 			frappe.show_alert({
 				message: __("High Trust — transaction will auto-confirm on save."),
 				indicator: "green",
 			}, 5);
-		} else if (frm.doc.trust_level === "Low") {
+
+		}
+
+		if (frm.doc.trust_level === "Low") {
+
 			frappe.show_alert({
-				message: __("Low Trust — use the 'Confirm Transaction' button to confirm."),
+				message: __("Low Trust — OTP verification required."),
 				indicator: "orange",
 			}, 5);
+
 		}
-	},
+
+	}
+
 });
