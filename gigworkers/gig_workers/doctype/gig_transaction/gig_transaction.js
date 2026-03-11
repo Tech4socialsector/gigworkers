@@ -139,14 +139,23 @@ frappe.ui.form.on("Gig Transaction", {
 
 							callback(r) {
 
-								if (!r.exc) {
+								if (!r.exc && r.message) {
 
-									frappe.show_alert({
-										message: __("OTP verified. Transaction completed."),
-										indicator: "green",
-									}, 5);
+									if (r.message.success) {
+										frappe.show_alert({
+											message: __(r.message.message),
+											indicator: "green",
+										}, 5);
 
-									frm.reload_doc();
+										frm.reload_doc();
+									} else {
+										frappe.msgprint({
+											title: __('Verification Failed'),
+											indicator: 'red',
+											message: __(r.message.message)
+										});
+									}
+
 								}
 
 							}
