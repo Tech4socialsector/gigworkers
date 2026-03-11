@@ -83,14 +83,17 @@
    "reqd": 1
   },
   {
+   "default": "1",
    "fieldname": "welfare_percentage",
    "fieldtype": "Float",
-   "label": "Welfare Percentage"
+   "label": "Welfare Percentage",
+   "reqd": 1
   },
   {
    "fieldname": "welfare_amount",
    "fieldtype": "Currency",
-   "label": "Welfare Amount"
+   "label": "Welfare Amount",
+   "read_only": 1
   },
   {
    "fieldname": "external_transaction_id",
@@ -128,7 +131,8 @@
   {
    "fieldname": "base_payout",
    "fieldtype": "Currency",
-   "label": "Base Payout"
+   "label": "Base Payout",
+   "reqd": 1
   },
   {
    "fieldname": "incentives",
@@ -139,13 +143,14 @@
    "fetch_from": "service.welfare_cap",
    "fieldname": "welfare_cap",
    "fieldtype": "Currency",
-   "label": "Welfare Cap"
+   "label": "Welfare Cap",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-11 10:05:13.100041",
+ "modified": "2026-03-11 10:48:42.668555",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
