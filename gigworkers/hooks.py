@@ -120,19 +120,13 @@ app_license = "mit"
 # -----------
 # Permissions evaluated in scripted ways
 
-permission_query_conditions = {
-	"Gig Worker": "gigworkers.permissions.gig_worker_query",
-	"Aggregator": "gigworkers.permissions.aggregator_query",
-	"Gig Transaction": "gigworkers.permissions.transaction_query",
-	"Welfare Fee Payment": "gigworkers.permissions.payment_query",
-}
-
-has_permission = {
-	"Gig Worker": "gigworkers.permissions.gig_worker_has_permission",
-	"Aggregator": "gigworkers.permissions.aggregator_has_permission",
-	"Gig Transaction": "gigworkers.permissions.transaction_has_permission",
-	"Welfare Fee Payment": "gigworkers.permissions.payment_has_permission",
-}
+# permission_query_conditions = {
+# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
+# }
+#
+# has_permission = {
+# 	"Event": "frappe.desk.doctype.event.event.has_permission",
+# }
 
 # Document Events
 # ---------------
