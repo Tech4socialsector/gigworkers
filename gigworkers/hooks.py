@@ -5,6 +5,21 @@ app_description = "Gig Workers Welfare Portal"
 app_email = "jenifar.a@azimpremjifoundation.org"
 app_license = "mit"
 
+permission_query_conditions = {
+    "Gig Worker": "gigworkers.permissions.user_based_query",
+    "Gig Transaction": "gigworkers.permissions.user_based_query",
+    "Aggregator": "gigworkers.permissions.user_based_query",
+    "Worker Service Mapping": "gigworkers.permissions.user_based_query",
+    "Welfare Fund Account": "gigworkers.permissions.user_based_query",
+}
+
+has_permission = {
+    "Gig Worker": "gigworkers.permissions.user_has_permission",
+    "Gig Transaction": "gigworkers.permissions.user_has_permission",
+    "Aggregator": "gigworkers.permissions.user_has_permission",
+    "Worker Service Mapping": "gigworkers.permissions.user_has_permission",
+    "Welfare Fund Account": "gigworkers.permissions.user_has_permission",
+}
 # Apps
 # ------------------
 
@@ -250,3 +265,15 @@ app_license = "mit"
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+fixtures = [
+    {
+        "dt": "Workspace",
+        "filters": [
+            [
+                "module",
+                "=",
+                "Gigworkers"
+            ]
+        ]
+    }
+]

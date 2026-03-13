@@ -1,0 +1,105 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}}]",
+ "creation": "2026-03-13 11:46:42.328995",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Aggregators",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Aggregator",
+   "link_count": 0,
+   "link_to": "Aggregator",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gig Worker",
+   "link_count": 0,
+   "link_to": "Gig Worker",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gig Transaction",
+   "link_count": 0,
+   "link_to": "Gig Transaction",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Welfare Fee Payment",
+   "link_count": 0,
+   "link_to": "Welfare Fee Payment",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-03-13 14:32:08.814784",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Aggregators",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Aggregator"
+  }
+ ],
+ "sequence_id": 2.0,
+ "shortcuts": [
+  {
+   "doc_view": "",
+   "label": "Aggregator",
+   "link_to": "Aggregator",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Worker Service Mapping",
+   "link_to": "Worker Service Mapping",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Gig Worker",
+   "link_to": "Gig Worker",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Gig Transaction",
+   "link_to": "Gig Transaction",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Welfare Fee Payment",
+   "link_to": "Welfare Fee Payment",
+   "type": "DocType"
+  }
+ ],
+ "title": "Aggregators"
+}
