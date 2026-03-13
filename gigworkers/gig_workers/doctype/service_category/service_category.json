@@ -14,7 +14,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Category Name",
-   "reqd": 1
+   "reqd": 1,
+   "unique": 1
   },
   {
    "fieldname": "description",
@@ -25,7 +26,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-11 15:24:06.166884",
+ "modified": "2026-03-13 11:17:25.412571",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Service Category",
