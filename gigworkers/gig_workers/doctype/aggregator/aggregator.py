@@ -13,15 +13,6 @@ class Aggregator(Document):
 		if not self.email or not self.mobile:
 			return
 		
-		# Ensure the Aggregator role exists
-		if not frappe.db.exists("Role", "Aggregator"):
-			role = frappe.get_doc({
-				"doctype": "Role",
-				"role_name": "Aggregator",
-				"desk_access": 1
-			})
-			role.insert(ignore_permissions=True)
-			
 		# Check if User already exists
 		if not frappe.db.exists("User", self.email):
 			user = frappe.get_doc({
