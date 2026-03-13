@@ -4,7 +4,7 @@ authors = [
     { name = "Jenifar", email = "jenifar.a@azimpremjifoundation.org"}
 ]
 description = "Gig Workers Welfare Portal"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
