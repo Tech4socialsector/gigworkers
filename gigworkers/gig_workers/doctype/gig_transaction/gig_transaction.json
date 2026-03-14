@@ -83,11 +83,10 @@
    "reqd": 1
   },
   {
-   "default": "1",
    "fieldname": "welfare_percentage",
    "fieldtype": "Float",
    "label": "Welfare Percentage",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "welfare_amount",
@@ -144,13 +143,13 @@
    "fieldname": "welfare_cap",
    "fieldtype": "Currency",
    "label": "Welfare Cap",
-   "reqd": 1
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-11 10:48:42.668555",
+ "modified": "2026-03-14 14:13:24.830919",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
@@ -172,8 +171,8 @@
   {
    "create": 1,
    "read": 1,
-   "write": 1,
-   "role": "Aggregator"
+   "role": "Aggregator",
+   "write": 1
   },
   {
    "read": 1,

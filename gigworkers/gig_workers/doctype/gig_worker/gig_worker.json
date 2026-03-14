@@ -18,7 +18,8 @@
   "email",
   "status",
   "created_by_aggregator",
-  "user"
+  "user",
+  "verification_token"
  ],
  "fields": [
   {
@@ -70,8 +71,15 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "\nActive\nInactive\nDeceased",
+   "options": "\nPending Verification\nActive\nInactive\nDeceased",
    "reqd": 1
+  },
+  {
+   "fieldname": "verification_token",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Verification Token",
+   "read_only": 1
   },
   {
    "fieldname": "aadhaar_number_file",

@@ -59,7 +59,45 @@ class Aggregator(Document):
 		if previous_status and previous_status.status != self.status and self.status in ("Under Process", "Approved", "Rejected"):
 			if self.status == "Approved":
 				self.create_user_with_role()
+				self._generate_and_send_api_key()
 			self.send_status_email(self.status)
+
+	def _generate_and_send_api_key(self):
+		"""Generate API key + secret for the aggregator's user account on approval.
+		Keys are sent over email and must be used in API calls as per requirements §1.4.3."""
+		if not self.email or not frappe.db.exists("User", self.email):
+			return
+
+		api_key = frappe.generate_hash(length=15)
+		api_secret = frappe.generate_hash(length=15)
+
+		user = frappe.get_doc("User", self.email)
+		user.api_key = api_key
+		user.api_secret = api_secret
+		user.save(ignore_permissions=True)
+
+		try:
+			frappe.sendmail(
+				recipients=[self.email],
+				subject="Your API Credentials – Gig Workers Portal",
+				message=f"""
+				<p>Dear {self.aggregator_name},</p>
+				<p>Your aggregator account is now <b>approved</b>. Use the credentials below for programmatic API access to the portal:</p>
+				<table style="border-collapse:collapse;margin-top:12px;font-family:monospace;">
+				  <tr><td style="padding:4px 16px 4px 0"><b>API Key</b></td><td>{api_key}</td></tr>
+				  <tr><td style="padding:4px 16px 4px 0"><b>API Secret</b></td><td>{api_secret}</td></tr>
+				</table>
+				<p>Pass these as <code>Authorization: token api_key:api_secret</code> in your request headers.</p>
+				<p><b>Keep these credentials secure and do not share them.</b></p>
+				<p>Thank you,<br>Gig Workers Welfare Team</p>
+				""",
+				now=True,
+			)
+		except Exception as e:
+			frappe.log_error(
+				message=f"API key email failed for aggregator {self.name}: {e}",
+				title="Aggregator API Key Email Error",
+			)
 
 	def send_status_email(self, status):
 		if not self.email:

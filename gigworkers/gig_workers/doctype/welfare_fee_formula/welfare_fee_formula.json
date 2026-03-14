@@ -1,0 +1,56 @@
+{
+    "actions": [],
+    "creation": "2026-03-14 00:00:00",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "welfare_percentage",
+        "effective_date",
+        "notes"
+    ],
+    "fields": [
+        {
+            "default": "1.0",
+            "description": "Percentage of base payout to be deducted as welfare fee (e.g. 1.0 = 1%)",
+            "fieldname": "welfare_percentage",
+            "fieldtype": "Float",
+            "label": "Welfare Percentage (%)",
+            "reqd": 1
+        },
+        {
+            "fieldname": "effective_date",
+            "fieldtype": "Date",
+            "label": "Effective Date"
+        },
+        {
+            "fieldname": "notes",
+            "fieldtype": "Small Text",
+            "label": "Notes / Government Order Reference"
+        }
+    ],
+    "index_web_pages_for_search": 0,
+    "is_single": 1,
+    "links": [],
+    "modified": "2026-03-14 00:00:00",
+    "modified_by": "Administrator",
+    "module": "Gig Workers",
+    "name": "Welfare Fee Formula",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "sort_field": "creation",
+    "sort_order": "DESC",
+    "states": []
+}

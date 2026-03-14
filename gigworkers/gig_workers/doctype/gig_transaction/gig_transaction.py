@@ -37,17 +37,53 @@ def _build_otp_record(otp_code, sent_at, email):
     }
 
 
+def _get_welfare_rate():
+    """Read the global welfare percentage from the Welfare Fee Formula record.
+    Falls back to 1.0% if not configured or set to zero."""
+    try:
+        records = frappe.get_all(
+            "Welfare Fee Formula",
+            fields=["welfare_percentage"],
+            order_by="modified desc",
+            limit=1,
+        )
+        rate = float(records[0].welfare_percentage) if records else 0.0
+        return rate if rate > 0 else 1.0
+    except Exception:
+        return 1.0
+
+
+def _create_welfare_fee_payment(transaction):
+    """Auto-create a Welfare Fee Payment record when a transaction completes.
+    The admin then marks it Completed+Success which credits the fund account."""
+    if not transaction.welfare_amount:
+        return
+
+    payment = frappe.get_doc({
+        "doctype": "Welfare Fee Payment",
+        "transaction": transaction.name,
+        "aggregator": transaction.aggregator,
+        "fee_amount": transaction.welfare_amount,
+        "payment_date": today(),
+        "payment_status": "Pending",
+        "settlement_status": "Initiated",
+    })
+    payment.insert(ignore_permissions=True)
+
+
 # ------------------------------------------------------------
 # Email Sender
 # ------------------------------------------------------------
 
 def send_confirmation_email(transaction_name, email, otp_code, confirmed_at):
 
-    # Generate Magic Link to Web Form
     import urllib.parse
     base_url = frappe.utils.get_url()
     encoded_tx = urllib.parse.quote(transaction_name)
-    magic_link = f"{base_url}/api/method/gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.serve_confirmation_page?transaction_name={encoded_tx}"
+    magic_link = (
+        f"{base_url}/api/method/gigworkers.gig_workers.doctype.gig_transaction"
+        f".gig_transaction.serve_confirmation_page?transaction_name={encoded_tx}"
+    )
 
     subject = "Action Required: Confirm your Gig Transaction"
 
@@ -70,7 +106,7 @@ def send_confirmation_email(transaction_name, email, otp_code, confirmed_at):
     </table>
 
     <div style="margin: 30px 0;">
-        <a href="{magic_link}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+        <a href="{magic_link}" style="display:inline-block;background-color:#4CAF50;color:white;padding:12px 24px;text-decoration:none;border-radius:5px;font-weight:bold;">
             Confirm Transaction
         </a>
     </div>
@@ -116,7 +152,6 @@ class GigTransaction(Document):
                 self.aggregator = aggregator
 
     def validate(self):
-
         self.validate_base_payout()
         self.validate_transaction_date()
         self.prevent_duplicate_transaction()
@@ -127,7 +162,6 @@ class GigTransaction(Document):
     # --------------------------------------------------------
 
     def validate_base_payout(self):
-
         if not self.base_payout or self.base_payout <= 0:
             frappe.throw("Base payout must be greater than zero.")
 
@@ -136,7 +170,6 @@ class GigTransaction(Document):
     # --------------------------------------------------------
 
     def validate_transaction_date(self):
-
         if self.date and getdate(self.date) > getdate(today()):
             frappe.throw("Transaction date cannot be in the future.")
 
@@ -145,7 +178,6 @@ class GigTransaction(Document):
     # --------------------------------------------------------
 
     def prevent_duplicate_transaction(self):
-
         if not self.external_transaction_id:
             return
 
@@ -159,28 +191,25 @@ class GigTransaction(Document):
 
         if existing:
             frappe.throw(
-                f"Duplicate transaction detected for External Transaction ID: {self.external_transaction_id}"
+                f"Duplicate transaction detected for External Transaction ID: "
+                f"{self.external_transaction_id}"
             )
 
     # --------------------------------------------------------
-    # Welfare Fee Calculation
+    # Welfare Fee Calculation — reads from global formula
     # --------------------------------------------------------
 
     def calculate_welfare_fee(self):
-
         if not self.base_payout:
             return
 
-        # default rate
-        if not self.welfare_percentage:
-            self.welfare_percentage = 1
+        # Always read the current government-mandated rate from the singleton
+        self.welfare_percentage = _get_welfare_rate()
 
-        # fetch cap from Service
+        # Fetch welfare cap from linked Service
         if self.service:
             self.welfare_cap = frappe.db.get_value(
-                "Service",
-                self.service,
-                "welfare_cap",
+                "Service", self.service, "welfare_cap"
             )
 
         rate_amount = (self.base_payout * self.welfare_percentage) / 100
@@ -194,42 +223,132 @@ class GigTransaction(Document):
             self.welfare_amount = 0
 
     # --------------------------------------------------------
-    # TRUST LEVEL LOGIC
+    # TRUST LEVEL LOGIC + WELFARE FUND CREDIT ON COMPLETION
     # --------------------------------------------------------
 
     def before_save(self):
 
+        # Capture the previous status BEFORE any changes
+        previous = self.get_doc_before_save()
+        prev_status = previous.status if previous else None
+
         if self.status == "Completed":
-            return
+            # Already completed in a prior save — nothing to do for trust logic
+            pass
+        else:
+            confirmed_at = now()
 
-        confirmed_at = now()
+            if self.trust_level == "High":
+                self.status = "Completed"
+                self.confirmed_at = confirmed_at
 
-        if self.trust_level == "High":
+            elif self.trust_level == "Low":
+                email = _get_email(self.gig_worker)
+                otp_code = _generate_otp()
 
-            self.status = "Completed"
-            self.confirmed_at = confirmed_at
+                self.append(
+                    "otp_records",
+                    _build_otp_record(otp_code, confirmed_at, email),
+                )
 
-        elif self.trust_level == "Low":
+                self.status = "Completed"
+                self.confirmed_at = confirmed_at
 
-            email = _get_email(self.gig_worker)
-            otp_code = _generate_otp()
+                frappe.enqueue(
+                    "gigworkers.gig_workers.doctype.gig_transaction"
+                    ".gig_transaction.send_confirmation_email",
+                    transaction_name=self.name,
+                    email=email,
+                    otp_code=otp_code,
+                    confirmed_at=confirmed_at,
+                    is_async=False,
+                )
 
-            self.append(
-                "otp_records",
-                _build_otp_record(otp_code, confirmed_at, email),
+        # Create a Welfare Fee Payment record on the FIRST transition to Completed
+        if self.status == "Completed" and prev_status != "Completed":
+            _create_welfare_fee_payment(self)
+
+
+# ------------------------------------------------------------
+# Public API: Register a gig transaction (for aggregators)
+# ------------------------------------------------------------
+
+@frappe.whitelist()
+def register_gig_transaction(
+    gig_worker_id,
+    aggregator_id,
+    service_id,
+    amount,
+    base_payout,
+    role=None,
+    date=None,
+    incentives=0,
+    trust_level="High",
+    external_transaction_id=None,
+):
+    """Aggregators call this API to register a gig transaction programmatically.
+
+    The transaction ID is auto-generated in the format gwID:aggID:date:###
+    (handled by the DocType naming rule).
+
+    Returns the transaction ID, calculated welfare amount, and status.
+    """
+
+    # Authorization: only the aggregator that owns the record may register
+    if frappe.session.user != "Administrator":
+        caller_agg = frappe.db.get_value(
+            "Aggregator", {"email": frappe.session.user}, "name"
+        )
+        if caller_agg != aggregator_id:
+            frappe.throw(
+                "Unauthorized: You may only register transactions for your own aggregator.",
+                frappe.PermissionError,
             )
 
-            self.status = "Completed"
-            self.confirmed_at = confirmed_at
+    # Gig worker must be Active
+    gw_status = frappe.db.get_value("Gig Worker", gig_worker_id, "status")
+    if gw_status != "Active":
+        frappe.throw(f"Gig Worker '{gig_worker_id}' is not active.")
 
-            frappe.enqueue(
-                "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.send_confirmation_email",
-                transaction_name=self.name,
-                email=email,
-                otp_code=otp_code,
-                confirmed_at=confirmed_at,
-                is_async=False,
-            )
+    # Worker must be onboarded with this aggregator for this service
+    mapping = frappe.db.exists(
+        "Worker Service Mapping",
+        {
+            "gig_worker": gig_worker_id,
+            "aggregator": aggregator_id,
+            "service": service_id,
+            "status": "Onboarded",
+        },
+    )
+    if not mapping:
+        frappe.throw(
+            f"Gig Worker '{gig_worker_id}' is not onboarded with aggregator "
+            f"'{aggregator_id}' for service '{service_id}'."
+        )
+
+    doc = frappe.get_doc({
+        "doctype": "Gig Transaction",
+        "gig_worker": gig_worker_id,
+        "aggregator": aggregator_id,
+        "service": service_id,
+        "amount": float(amount),
+        "base_payout": float(base_payout),
+        "incentives": float(incentives) if incentives else 0,
+        "role": role,
+        "date": date or today(),
+        "trust_level": trust_level,
+        "external_transaction_id": external_transaction_id,
+        "status": "Registered",
+    })
+    doc.insert(ignore_permissions=True)
+
+    return {
+        "transaction_id": doc.name,
+        "welfare_amount": doc.welfare_amount,
+        "welfare_percentage": doc.welfare_percentage,
+        "status": doc.status,
+        "message": "Gig transaction registered successfully.",
+    }
 
 
 # ------------------------------------------------------------
@@ -277,6 +396,7 @@ def confirm_transaction(transaction_name):
 # ------------------------------------------------------------
 # Verify OTP
 # ------------------------------------------------------------
+
 @frappe.whitelist(allow_guest=True)
 def verify_otp(transaction_name, otp):
 
@@ -296,18 +416,19 @@ def verify_otp(transaction_name, otp):
 
             return {
                 "success": True,
-                "message": "OTP verified. Transaction confirmed."
+                "message": "OTP verified. Transaction confirmed.",
             }
 
     return {
         "success": False,
-        "message": "Invalid OTP entered. Please try again."
+        "message": "Invalid OTP entered. Please try again.",
     }
 
 
 # ------------------------------------------------------------
 # Serve Confirmation Web Page
 # ------------------------------------------------------------
+
 @frappe.whitelist(allow_guest=True)
 def serve_confirmation_page(transaction_name):
 
@@ -318,30 +439,30 @@ def serve_confirmation_page(transaction_name):
             "Transaction Not Found",
             f"The transaction {transaction_name} could not be found.",
             indicator_color="red",
-            http_status_code=404
+            http_status_code=404,
         )
         return
 
     csrf_token = frappe.sessions.get_csrf_token()
 
     html_content = f"""
-    <div style="max-width: 400px; margin: 40px auto; padding: 20px; font-family: sans-serif; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <h2 style="text-align: center; color: #333;">Confirm Transaction</h2>
-        <p style="text-align: center; color: #666; font-size: 14px;">Enter the 6-digit OTP sent to your email to confirm transaction <b>{transaction_name}</b>.</p>
-        
-        <div id="alert-box" style="display: none; padding: 10px; margin-bottom: 15px; border-radius: 4px; font-size: 14px;"></div>
+    <div style="max-width:400px;margin:40px auto;padding:20px;font-family:sans-serif;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+        <h2 style="text-align:center;color:#333;">Confirm Transaction</h2>
+        <p style="text-align:center;color:#666;font-size:14px;">Enter the 6-digit OTP sent to your email to confirm transaction <b>{transaction_name}</b>.</p>
+
+        <div id="alert-box" style="display:none;padding:10px;margin-bottom:15px;border-radius:4px;font-size:14px;"></div>
 
         <form id="otp-form" onsubmit="submitOTP(event)">
             <input type="hidden" id="transaction_name" value="{transaction_name}">
-            
-            <div style="margin-bottom: 15px;">
-                <label for="otp" style="display: block; margin-bottom: 5px; color: #444; font-weight: bold;">OTP Code</label>
-                <input type="text" id="otp" name="otp" required pattern="[0-9]{{6}}" maxlength="6" 
-                       style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; box-sizing: border-box; text-align: center; letter-spacing: 2px;" 
+
+            <div style="margin-bottom:15px;">
+                <label for="otp" style="display:block;margin-bottom:5px;color:#444;font-weight:bold;">OTP Code</label>
+                <input type="text" id="otp" name="otp" required pattern="[0-9]{{6}}" maxlength="6"
+                       style="width:100%;padding:10px;border:1px solid #ccc;border-radius:4px;font-size:16px;box-sizing:border-box;text-align:center;letter-spacing:2px;"
                        placeholder="XXXXXX">
             </div>
 
-            <button type="submit" id="submit-btn" style="width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer;">
+            <button type="submit" id="submit-btn" style="width:100%;padding:10px;background-color:#4CAF50;color:white;border:none;border-radius:4px;font-size:16px;font-weight:bold;cursor:pointer;">
                 Confirm
             </button>
         </form>
@@ -380,31 +501,25 @@ def serve_confirmation_page(transaction_name):
                 'Accept': 'application/json',
                 'X-Frappe-CSRF-Token': '{csrf_token}'
             }},
-            body: JSON.stringify({{
-                transaction_name: tx,
-                otp: otp
-            }})
+            body: JSON.stringify({{ transaction_name: tx, otp: otp }})
         }})
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {{
             if (data.exc) {{
-                // Parse exception message
                 var errorMsg = "Verification failed.";
                 try {{
                     var excData = JSON.parse(data.exc);
-                    if (excData.length > 0) {{
-                        errorMsg = excData[0];
-                    }}
+                    if (excData.length > 0) errorMsg = excData[0];
                 }} catch(e) {{
-                     if (data._server_messages) {{
+                    if (data._server_messages) {{
                         try {{
                             var msgs = JSON.parse(data._server_messages);
                             if (msgs.length > 0) {{
                                 var msgObj = JSON.parse(msgs[0]);
                                 errorMsg = msgObj.message || errorMsg;
                             }}
-                        }} catch (e2) {{}}
-                     }}
+                        }} catch(e2) {{}}
+                    }}
                 }}
                 showMessage(errorMsg, true);
                 btn.disabled = false;
@@ -427,7 +542,7 @@ def serve_confirmation_page(transaction_name):
                 btn.style.backgroundColor = '#4CAF50';
             }}
         }})
-        .catch(error => {{
+        .catch(() => {{
             showMessage("Network error occurred.", true);
             btn.disabled = false;
             btn.textContent = 'Confirm';
@@ -440,5 +555,5 @@ def serve_confirmation_page(transaction_name):
     frappe.respond_as_web_page(
         "Confirm Gig Transaction",
         html_content,
-        fullpage=True
+        fullpage=True,
     )

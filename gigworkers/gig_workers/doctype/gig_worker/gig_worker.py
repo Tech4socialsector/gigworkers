@@ -120,13 +120,69 @@ class GigWorker(Document):
 				self.created_by_aggregator = aggregator
 
 	# --------------------------------------------------------
-	#  gigworkers lifecycle — after insert: activate, create user, send email
+	#  gigworkers lifecycle — after insert
 	# --------------------------------------------------------
 
 	def after_insert(self):
-		frappe.db.set_value("Gig Worker", self.name, "status", "Active")
-		self.status = "Active"
-		self.create_user_with_role()
+		if self.created_by_aggregator:
+			# Aggregator-initiated registration: hold activation pending worker's consent
+			# (requirements §1.4.2 — send one-time verification link to the gig worker)
+			self._send_verification_link()
+		else:
+			# Self-registration: activate immediately
+			frappe.db.set_value("Gig Worker", self.name, "status", "Active")
+			self.status = "Active"
+			self.create_user_with_role()
+
+	def _send_verification_link(self):
+		"""Set status to Pending Verification and email a one-time activation link."""
+		import secrets
+		token = secrets.token_urlsafe(32)
+
+		frappe.db.set_value("Gig Worker", self.name, {
+			"status": "Pending Verification",
+			"verification_token": token,
+		})
+
+		if not self.email:
+			return
+
+		base_url = frappe.utils.get_url()
+		verify_link = (
+			f"{base_url}/api/method/gigworkers.gig_workers.doctype.gig_worker"
+			f".gig_worker.verify_worker_registration?token={token}"
+		)
+
+		agg_name = frappe.db.get_value(
+			"Aggregator", self.created_by_aggregator, "aggregator_name"
+		) or self.created_by_aggregator
+
+		try:
+			frappe.sendmail(
+				recipients=[self.email],
+				subject="Action Required: Verify Your Registration – Gig Workers Portal",
+				message=f"""
+				<p>Dear {self.worker_name},</p>
+				<p>You have been registered on the <b>Gig Workers Welfare Portal</b> by <b>{agg_name}</b>.</p>
+				<p>Please click the button below to verify and activate your account:</p>
+				<div style="margin:30px 0;">
+					<a href="{verify_link}"
+					   style="display:inline-block;background-color:#4CAF50;color:white;padding:12px 24px;text-decoration:none;border-radius:5px;font-weight:bold;">
+						Verify My Registration
+					</a>
+				</div>
+				<p>If the button doesn't work, copy and paste this link into your browser:<br>
+				<a href="{verify_link}">{verify_link}</a></p>
+				<p>If you were not expecting this registration, please ignore this email.</p>
+				<p>Thank you,<br>Gig Workers Welfare Team</p>
+				""",
+				now=True,
+			)
+		except Exception as e:
+			frappe.log_error(
+				message=f"Verification email failed for {self.name}: {e}",
+				title="Gig Worker Verification Email Error",
+			)
 
 	# --------------------------------------------------------
 	#  gigworkers — create Frappe User with Gig Worker role and send email
@@ -174,3 +230,47 @@ class GigWorker(Document):
 			""",
 			now=True,
 		)
+
+
+# ------------------------------------------------------------
+# Public API: Verify gig worker registration (aggregator flow)
+# ------------------------------------------------------------
+
+@frappe.whitelist(allow_guest=True)
+def verify_worker_registration(token):
+	"""Called when a gig worker clicks the one-time verification link sent during
+	aggregator-initiated registration (requirements §1.4.2).
+
+	On success: activates the worker and creates their login account.
+	"""
+	worker_name = frappe.db.get_value(
+		"Gig Worker",
+		{"verification_token": token, "status": "Pending Verification"},
+		"name",
+	)
+
+	if not worker_name:
+		frappe.respond_as_web_page(
+			"Verification Failed",
+			"This verification link is invalid or has already been used. "
+			"Please contact your aggregator or the portal admin.",
+			indicator_color="red",
+			http_status_code=400,
+		)
+		return
+
+	# Activate the worker and clear the one-time token
+	frappe.db.set_value("Gig Worker", worker_name, {
+		"status": "Active",
+		"verification_token": "",
+	})
+
+	worker = frappe.get_doc("Gig Worker", worker_name)
+	worker.create_user_with_role()
+
+	frappe.respond_as_web_page(
+		"Registration Verified",
+		f"Welcome, {worker.worker_name}! Your registration has been verified. "
+		"You can now log in to the Gig Workers Welfare Portal.",
+		indicator_color="green",
+	)
