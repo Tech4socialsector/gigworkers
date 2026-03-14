@@ -5,6 +5,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 		single_column: true,
 	});
 
+
 	$(wrapper).find(".page-content").html(`
 		<div id="gw-dashboard" style="padding: 20px;">
 			<div id="gw-loading" style="text-align:center; padding: 60px; color: #888;">
