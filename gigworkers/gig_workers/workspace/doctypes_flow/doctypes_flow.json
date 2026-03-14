@@ -1,0 +1,150 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"tXwe-RyOgO\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Category</span>\",\"col\":12}},{\"id\":\"ZYxEE4oWyk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Category\",\"col\":3}},{\"id\":\"qGLLRMeYKo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service\",\"col\":3}},{\"id\":\"GlTFwnUbav\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vehicle Type\",\"col\":3}},{\"id\":\"qnN34KIqMJ\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"fetm1pWgqc\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Doctypes</b></span>\",\"col\":12}},{\"id\":\"ChN5Hc3Io9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"iRhRHQryTj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"SPOC\",\"col\":3}},{\"id\":\"YSdBQg7Fsz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"fsDBdZgZrJ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"tx5bchF5hF\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Formula\",\"col\":3}},{\"id\":\"YYlKo_AjOp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transactions\",\"col\":3}},{\"id\":\"2TStSCk9h6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare fee payment\",\"col\":3}},{\"id\":\"ROp0i0M9ZZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"3qan6ZuodD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}},{\"id\":\"TdY3Efidkd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"m_JC-9-5Z6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Report</b></span>\",\"col\":12}},{\"id\":\"nUMLEwEMy-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Quarterly Welfare Compiance\",\"col\":3}},{\"id\":\"veMwEFgdHS\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"uIdQL_qUe8\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Web Forms</b></span>\",\"col\":12}},{\"id\":\"kkjEMlVJG7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Form\",\"col\":3}},{\"id\":\"v32-_pv_sD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Form\",\"col\":3}}]",
+ "creation": "2026-03-14 11:23:20.875112",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "project-1",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Doctypes Flow",
+ "links": [],
+ "modified": "2026-03-14 15:56:31.741576",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Doctypes Flow",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Aggregator Form",
+   "type": "URL",
+   "url": "/aggregator-form/new"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Service Category",
+   "link_to": "Service Category",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Aggregator",
+   "link_to": "Aggregator",
+   "stats_filter": "[]",
+   "type": "DocType",
+   "url": "/aggregator-form/new"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Fee Formula",
+   "link_to": "Welfare Fee Formula",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Worker Form",
+   "type": "URL",
+   "url": "/gig-worker/new"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Service",
+   "link_to": "Service",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "SPOC",
+   "link_to": "SPOC",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Gig Worker",
+   "link_to": "Gig Worker",
+   "stats_filter": "[]",
+   "type": "DocType",
+   "url": "/gig-worker/new"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Vehicle Type",
+   "link_to": "Vehicle Type",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Worker Service Mapping",
+   "link_to": "Worker Service Mapping",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Gig Transactions",
+   "link_to": "Gig Transaction",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare fee payment",
+   "link_to": "Welfare Fee Payment",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Fund Account",
+   "link_to": "Welfare Fund Account",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Benefit Withdrawal",
+   "link_to": "Welfare Benefit Withdrawal",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Quarterly Welfare Compiance",
+   "link_to": "Quarterly Welfare Compliance Report",
+   "report_ref_doctype": "Gig Transaction",
+   "type": "Report"
+  }
+ ],
+ "title": "Doctypes Flow"
+}
