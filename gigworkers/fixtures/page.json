@@ -1,0 +1,62 @@
+[
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2026-03-14 15:27:13.056871",
+  "module": "Gig Workers",
+  "name": "aggregator-dashboard",
+  "page_name": "aggregator-dashboard",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "parent": "aggregator-dashboard",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "Aggregator"
+   },
+   {
+    "parent": "aggregator-dashboard",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Aggregator Dashboard"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2026-03-14 15:27:13.089822",
+  "module": "Gig Workers",
+  "name": "gig-worker-dashboard",
+  "page_name": "gig-worker-dashboard",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "parent": "gig-worker-dashboard",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "Gig Worker"
+   },
+   {
+    "parent": "gig-worker-dashboard",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "My Dashboard"
+ }
+]

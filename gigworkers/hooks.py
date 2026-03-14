@@ -268,12 +268,18 @@ has_permission = {
 fixtures = [
     {
         "dt": "Workspace",
-        "filters": [
-            [
-                "module",
-                "=",
-                "Gig Workers"
-            ]
-        ]
-    }
+        "filters": [["module", "=", "Gig Workers"]]
+    },
+    {
+        "dt": "Role",
+        "filters": [["name", "in", ["Gig Worker", "Aggregator"]]]
+    },
+    {
+        "dt": "Web Form",
+        "filters": [["module", "=", "Gig Workers"]]
+    },
+    {
+        "dt": "Page",
+        "filters": [["module", "=", "Gig Workers"]]
+    },
 ]

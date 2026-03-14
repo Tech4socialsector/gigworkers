@@ -1,7 +1,7 @@
 [
  {
   "charts": [],
-  "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}}]",
+  "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}}]",
   "custom_blocks": [],
   "docstatus": 0,
   "doctype": "Workspace",
@@ -85,7 +85,7 @@
     "type": "Link"
    }
   ],
-  "modified": "2026-03-14 11:23:24.870692",
+  "modified": "2026-03-14 15:35:11.678319",
   "module": "Gig Workers",
   "name": "Aggregators",
   "number_cards": [],
@@ -119,6 +119,23 @@
     "stats_filter": null,
     "type": "DocType",
     "url": null
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Aggregator Dashboard",
+    "link_to": null,
+    "parent": "Aggregators",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "URL",
+    "url": "/app/aggregator-dashboard"
    },
    {
     "color": "Grey",
@@ -193,7 +210,7 @@
  },
  {
   "charts": [],
-  "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}}]",
+  "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}}]",
   "custom_blocks": [],
   "docstatus": 0,
   "doctype": "Workspace",
@@ -204,7 +221,7 @@
   "is_hidden": 0,
   "label": "Gig Workers",
   "links": [],
-  "modified": "2026-03-14 11:23:24.848177",
+  "modified": "2026-03-14 15:35:23.734964",
   "module": "Gig Workers",
   "name": "Gig Workers",
   "number_cards": [],
@@ -238,6 +255,23 @@
     "stats_filter": "[]",
     "type": "DocType",
     "url": null
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Worker Dashboard",
+    "link_to": null,
+    "parent": "Gig Workers",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "URL",
+    "url": "/app/gig-worker-dashboard"
    },
    {
     "color": "Orange",

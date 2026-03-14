@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}}]",
- "creation": "2026-03-13 14:29:42.733245",
+ "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}}]",
+ "creation": "2026-03-14 15:27:13.549796",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "Gig Workers",
  "links": [],
- "modified": "2026-03-14 11:23:24.848177",
+ "modified": "2026-03-14 15:35:23.734964",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Workers",
@@ -36,6 +36,13 @@
    "link_to": "Gig Worker",
    "stats_filter": "[]",
    "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Worker Dashboard",
+   "type": "URL",
+   "url": "/app/gig-worker-dashboard"
   },
   {
    "color": "Orange",

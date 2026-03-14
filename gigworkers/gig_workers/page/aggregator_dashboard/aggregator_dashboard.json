@@ -1,0 +1,17 @@
+{
+ "creation": "2026-03-14 00:00:00",
+ "doctype": "Page",
+ "module": "Gig Workers",
+ "name": "aggregator-dashboard",
+ "page_name": "aggregator-dashboard",
+ "roles": [
+  {
+   "role": "Aggregator"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "standard": "Yes",
+ "title": "Aggregator Dashboard"
+}
