@@ -20,6 +20,10 @@ class GigWorker(Document):
 	def validate(self):
 		self.validate_email_format()
 		self.validate_phone_format()
+		self.validate_aadhaar_format()
+		self.validate_pan_format()
+		self.validate_dob()
+		self.validate_eshram_id()
 
 	def validate_email_format(self):
 		"""
@@ -47,6 +51,47 @@ class GigWorker(Document):
 					f"❌ <b>Phone</b> '{self.phone}' is not a valid phone number.<br>"
 					"Please enter a 10-digit Indian mobile number starting with 6, 7, 8, or 9.",
 					title="Invalid Phone Number",
+				)
+
+	def validate_aadhaar_format(self):
+		if self.aadhaar_number:
+			aadhaar_clean = self.aadhaar_number.replace(" ", "")
+			if not re.fullmatch(r"[0-9]{12}", aadhaar_clean):
+				frappe.throw(
+					f"❌ <b>Aadhaar Number</b> '{self.aadhaar_number}' is not valid.<br>"
+					"Please enter a valid 12-digit Aadhaar number.",
+					title="Invalid Aadhaar Number",
+				)
+
+	def validate_pan_format(self):
+		if self.pan_number:
+			self.pan_number = self.pan_number.upper()
+			if not re.fullmatch(r"[A-Z]{5}[0-9]{4}[A-Z]", self.pan_number):
+				frappe.throw(
+					f"❌ <b>PAN Number</b> '{self.pan_number}' is not valid.<br>"
+					"Please enter a valid PAN (e.g., ABCDE1234F).",
+					title="Invalid PAN Number",
+				)
+
+	def validate_dob(self):
+		if self.dob:
+			from frappe.utils import getdate, date_diff, today
+			dob_date = getdate(self.dob)
+			today_date = getdate(today())
+			if dob_date > today_date:
+				frappe.throw("❌ <b>Date of Birth</b> cannot be a future date.", title="Invalid Date of Birth")
+			age_days = date_diff(today_date, dob_date)
+			if age_days < 18 * 365:
+				frappe.throw("❌ Gig Worker must be at least 18 years old.", title="Age Requirement Not Met")
+
+	def validate_eshram_id(self):
+		if self.eshram_id:
+			self.eshram_id = self.eshram_id.upper()
+			if not re.fullmatch(r"UW-[0-9]{12}", self.eshram_id):
+				frappe.throw(
+					f"❌ <b>eShram ID</b> '{self.eshram_id}' is not valid.<br>"
+					"Please enter a valid eShram ID (e.g., UW-123456789012).",
+					title="Invalid eShram ID",
 				)
 
 	# --------------------------------------------------------
