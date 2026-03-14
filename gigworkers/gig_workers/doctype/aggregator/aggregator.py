@@ -4,6 +4,7 @@
 import re
 import frappe
 from frappe.model.document import Document
+from frappe.utils.password import update_password
 
 
 class Aggregator(Document):
@@ -35,13 +36,79 @@ class Aggregator(Document):
 					frappe.throw("Invalid LLPIN Format. A valid LLPIN should be like AAA-1234.")
 
 	def after_insert(self):
-		self.create_user_and_send_email()
+		frappe.db.set_value("Aggregator", self.name, "status", "Submitted")
+		self.status = "Submitted"
+		self.send_status_email("Submitted")
 
-	def create_user_and_send_email(self):
+	def on_update(self):
+		previous_status = self.get_doc_before_save()
+		if previous_status and previous_status.status != self.status and self.status in ("Under Process", "Approved", "Rejected"):
+			if self.status == "Approved":
+				self.create_user_with_role()
+			self.send_status_email(self.status)
+
+	def send_status_email(self, status):
+		if not self.email:
+			return
+
+		status_messages = {
+			"Submitted": {
+				"subject": "Application Submitted - Awaiting Admin Approval",
+				"body": f"""
+				<p>Dear {self.aggregator_name},</p>
+				<p>Your aggregator application has been successfully <b>submitted</b>.</p>
+				<p>It is currently waiting for approval by the admin. You will be notified once there is an update.</p>
+				<p>Thank you,<br>Gig Workers Team</p>
+				"""
+			},
+			"Under Process": {
+				"subject": "Application Under Process",
+				"body": f"""
+				<p>Dear {self.aggregator_name},</p>
+				<p>Your aggregator application is currently <b>under process</b>.</p>
+				<p>Our admin team is reviewing your details. You will be notified once a decision is made.</p>
+				<p>Thank you,<br>Gig Workers Team</p>
+				"""
+			},
+			"Approved": {
+				"subject": "Congratulations! Application Approved",
+				"body": f"""
+				<p>Dear {self.aggregator_name},</p>
+				<p>We are pleased to inform you that your aggregator application has been <b>approved</b>.</p>
+				<p>Here are your login credentials:</p>
+				<ul>
+					<li><b>Username/Email:</b> {self.email}</li>
+					<li><b>Password:</b> {self.mobile}</li>
+				</ul>
+				<p>Please log in and change your password as soon as possible.</p>
+				<p>Thank you,<br>Gig Workers Team</p>
+				"""
+			},
+			"Rejected": {
+				"subject": "Application Rejected",
+				"body": f"""
+				<p>Dear {self.aggregator_name},</p>
+				<p>We regret to inform you that your aggregator application has been <b>rejected</b>.</p>
+				<p>Please contact the admin for more information.</p>
+				<p>Thank you,<br>Gig Workers Team</p>
+				"""
+			},
+		}
+
+		if status not in status_messages:
+			return
+
+		frappe.sendmail(
+			recipients=[self.email],
+			subject=status_messages[status]["subject"],
+			message=status_messages[status]["body"],
+			now=True
+		)
+
+	def create_user_with_role(self):
 		if not self.email or not self.mobile:
 			return
-		
-		# Check if User already exists
+
 		if not frappe.db.exists("User", self.email):
 			user = frappe.get_doc({
 				"doctype": "User",
@@ -52,29 +119,13 @@ class Aggregator(Document):
 			})
 			user.flags.ignore_password_policy = True
 			user.insert(ignore_permissions=True)
-			
-			# Set password
-			from frappe.utils.password import update_password
-			update_password(user.name, self.mobile)
-			
-			# Send welcome email
-			subject = "Registration Successful - Aggregator"
-			message = f"""
-			<p>Hello {self.aggregator_name},</p>
-			<p>You have successfully registered as an Aggregator.</p>
-			<p>Here are your login credentials:</p>
-			<ul>
-				<li><b>Username/Email:</b> {self.email}</li>
-				<li><b>Password:</b> {self.mobile}</li>
-			</ul>
-			<p>Please log in and change your password as soon as possible.</p>
-			<p>Thank you,</p>
-			<p>Gig Workers Team</p>
-			"""
-			
-			frappe.sendmail(
-				recipients=[self.email],
-				subject=subject,
-				message=message,
-				now=True
-			)
+		else:
+			# User exists, ensure Aggregator role is assigned
+			user = frappe.get_doc("User", self.email)
+			existing_roles = [r.role for r in user.roles]
+			if "Aggregator" not in existing_roles:
+				user.append("roles", {"role": "Aggregator"})
+				user.save(ignore_permissions=True)
+			user = frappe.get_doc("User", self.email)
+
+		update_password(self.email, self.mobile)
