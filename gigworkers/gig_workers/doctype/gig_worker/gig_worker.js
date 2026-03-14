@@ -55,6 +55,10 @@ frappe.ui.form.on("Gig Worker", {
 	// ----------------------------------------------------------
 
 	refresh(frm) {
+		// Always show read-only fields regardless of value
+		frm.set_df_property("created_by_aggregator", "hidden", 0);
+		frm.set_df_property("user", "hidden", 0);
+
 		// -- Aadhaar: digits only, max 12 --
 		frm.fields_dict["aadhaar_number"].$input.on("keypress", function (e) {
 			if (e.which < 48 || e.which > 57) e.preventDefault();

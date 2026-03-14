@@ -95,6 +95,18 @@ class GigWorker(Document):
 				)
 
 	# --------------------------------------------------------
+	#  gigworkers lifecycle — before insert: set aggregator
+	# --------------------------------------------------------
+
+	def before_insert(self):
+		if not self.created_by_aggregator:
+			aggregator = frappe.db.get_value(
+				"Aggregator", {"email": frappe.session.user}, "name"
+			)
+			if aggregator:
+				self.created_by_aggregator = aggregator
+
+	# --------------------------------------------------------
 	#  gigworkers lifecycle — after insert: create user & send email
 	# --------------------------------------------------------
 
@@ -120,6 +132,9 @@ class GigWorker(Document):
 			})
 			user.flags.ignore_password_policy = True
 			user.insert(ignore_permissions=True)
+
+			# Link user back to this Gig Worker record
+			self.db_set("user", user_email, update_modified=False)
 
 			# Set password
 			from frappe.utils.password import update_password

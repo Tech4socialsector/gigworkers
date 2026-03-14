@@ -1,138 +1,140 @@
 {
-    "actions": [],
-    "allow_rename": 1,
-    "autoname": "GW.###",
-    "creation": "2026-03-04 15:07:19.133283",
-    "doctype": "DocType",
-    "engine": "InnoDB",
-    "field_order": [
-        "worker_name",
-        "gender",
-        "aadhaar_number",
-        "aadhaar_number_file",
-        "pan_number",
-        "pan_file",
-        "eshram_id",
-        "dob",
-        "phone",
-        "email",
-        "status",
-        "created_by_aggregator",
-        "user"
-    ],
-    "fields": [
-        {
-            "fieldname": "worker_name",
-            "fieldtype": "Data",
-            "label": "Name",
-            "reqd": 1
-        },
-        {
-            "fieldname": "gender",
-            "fieldtype": "Select",
-            "label": "Gender",
-            "options": "\nMale\nFemale\nOthers"
-        },
-        {
-            "fieldname": "aadhaar_number",
-            "fieldtype": "Data",
-            "in_list_view": 1,
-            "label": "Aadhaar Number",
-            "reqd": 1,
-            "unique": 1
-        },
-        {
-            "description": "eg: ABCDE1234F",
-            "fieldname": "pan_number",
-            "fieldtype": "Data",
-            "in_list_view": 1,
-            "label": "PAN Number",
-            "reqd": 1,
-            "unique": 1
-        },
-        {
-            "fieldname": "phone",
-            "fieldtype": "Data",
-            "label": "Phone",
-            "reqd": 1
-        },
-        {
-            "fieldname": "dob",
-            "fieldtype": "Date",
-            "label": "Date of Birth"
-        },
-        {
-            "fieldname": "eshram_id",
-            "fieldtype": "Data",
-            "label": "eShram ID"
-        },
-        {
-            "fieldname": "status",
-            "fieldtype": "Select",
-            "label": "Status",
-            "options": "\nActive\nInactive\nDeceased",
-            "reqd": 1
-        },
-        {
-            "fieldname": "aadhaar_number_file",
-            "fieldtype": "Attach",
-            "label": "Aadhaar Number File"
-        },
-        {
-            "fieldname": "pan_file",
-            "fieldtype": "Attach",
-            "label": "PAN File"
-        },
-        {
-            "fieldname": "created_by_aggregator",
-            "fieldtype": "Link",
-            "label": "Created By Aggregator",
-            "options": "Aggregator"
-        },
-        {
-            "fieldname": "user",
-            "fieldtype": "Link",
-            "label": "User",
-            "options": "User"
-        },
-        {
-            "fieldname": "email",
-            "fieldtype": "Data",
-            "label": "Email",
-            "options": "Email",
-            "reqd": 1,
-            "unique": 1
-        }
-    ],
-    "grid_page_length": 50,
-    "index_web_pages_for_search": 1,
-    "links": [],
-    "modified": "2026-03-10 10:50:25.747675",
-    "modified_by": "Administrator",
-    "module": "Gig Workers",
-    "name": "Gig Worker",
-    "naming_rule": "Expression",
-    "owner": "Administrator",
-    "permissions": [
-        {
-            "create": 1,
-            "delete": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "System Manager",
-            "share": 1,
-            "write": 1
-        }
-    ],
-    "row_format": "Dynamic",
-    "rows_threshold_for_grid_search": 20,
-    "search_fields": "worker_name",
-    "show_title_field_in_link": 1,
-    "sort_field": "creation",
-    "sort_order": "DESC",
-    "states": [],
-    "title_field": "worker_name"
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "GW.###",
+ "creation": "2026-03-04 15:07:19.133283",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "worker_name",
+  "gender",
+  "aadhaar_number",
+  "aadhaar_number_file",
+  "pan_number",
+  "pan_file",
+  "eshram_id",
+  "dob",
+  "phone",
+  "email",
+  "status",
+  "created_by_aggregator",
+  "user"
+ ],
+ "fields": [
+  {
+   "fieldname": "worker_name",
+   "fieldtype": "Data",
+   "label": "Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "\nMale\nFemale\nOthers"
+  },
+  {
+   "fieldname": "aadhaar_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Aadhaar Number",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "eg: ABCDE1234F",
+   "fieldname": "pan_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "PAN Number",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "reqd": 1
+  },
+  {
+   "fieldname": "dob",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "eshram_id",
+   "fieldtype": "Data",
+   "label": "eShram ID"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nActive\nInactive\nDeceased",
+   "reqd": 1
+  },
+  {
+   "fieldname": "aadhaar_number_file",
+   "fieldtype": "Attach",
+   "label": "Aadhaar Number File"
+  },
+  {
+   "fieldname": "pan_file",
+   "fieldtype": "Attach",
+   "label": "PAN File"
+  },
+  {
+   "fieldname": "created_by_aggregator",
+   "fieldtype": "Link",
+   "label": "Created By Aggregator",
+   "options": "Aggregator",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email",
+   "reqd": 1,
+   "unique": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-14 10:57:32.774959",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Gig Worker",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "worker_name",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "worker_name"
 }
