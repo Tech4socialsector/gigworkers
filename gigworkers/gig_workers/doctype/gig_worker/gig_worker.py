@@ -9,6 +9,7 @@ import re
 
 import frappe
 from frappe.model.document import Document
+from frappe.utils.password import update_password
 
 
 class GigWorker(Document):
@@ -26,10 +27,6 @@ class GigWorker(Document):
 		self.validate_eshram_id()
 
 	def validate_email_format(self):
-		"""
-		gigworkers validation — ensure the Email field contains
-		a valid email address (e.g. worker@domain.com).
-		"""
 		if self.email:
 			email_pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 			if not re.match(email_pattern, self.email.strip()):
@@ -39,11 +36,27 @@ class GigWorker(Document):
 					title="Invalid Email",
 				)
 
+			# Check uniqueness across Gig Worker records
+			existing_worker = frappe.db.get_value(
+				"Gig Worker", {"email": self.email, "name": ("!=", self.name)}, "name"
+			)
+			if existing_worker:
+				frappe.throw(
+					f"❌ <b>Email</b> '{self.email}' is already registered with another Gig Worker.",
+					title="Duplicate Email",
+				)
+
+			# Check uniqueness across Aggregator records
+			existing_aggregator = frappe.db.get_value(
+				"Aggregator", {"email": self.email}, "name"
+			)
+			if existing_aggregator:
+				frappe.throw(
+					f"❌ <b>Email</b> '{self.email}' is already registered as an Aggregator.",
+					title="Duplicate Email",
+				)
+
 	def validate_phone_format(self):
-		"""
-		gigworkers validation — ensure the Phone field contains
-		exactly 10 digits (Indian mobile number format).
-		"""
 		if self.phone:
 			phone_clean = self.phone.strip()
 			if not re.fullmatch(r"[6-9]\d{9}", phone_clean):
@@ -107,57 +120,57 @@ class GigWorker(Document):
 				self.created_by_aggregator = aggregator
 
 	# --------------------------------------------------------
-	#  gigworkers lifecycle — after insert: create user & send email
+	#  gigworkers lifecycle — after insert: activate, create user, send email
 	# --------------------------------------------------------
 
 	def after_insert(self):
-		self.create_user_and_send_email()
+		frappe.db.set_value("Gig Worker", self.name, "status", "Active")
+		self.status = "Active"
+		self.create_user_with_role()
 
-	def create_user_and_send_email(self):
-		# 'email' fieldname = Email label, 'phone' fieldname = Phone label
-		user_email = self.email
-		user_mobile = self.phone
+	# --------------------------------------------------------
+	#  gigworkers — create Frappe User with Gig Worker role and send email
+	# --------------------------------------------------------
 
-		if not user_email or not user_mobile:
+	def create_user_with_role(self):
+		if not self.email or not self.phone:
 			return
 
-		# Check if User already exists
-		if not frappe.db.exists("User", user_email):
+		if not frappe.db.exists("User", self.email):
 			user = frappe.get_doc({
 				"doctype": "User",
-				"email": user_email,
+				"email": self.email,
 				"first_name": self.worker_name,
 				"send_welcome_email": 0,
 				"roles": [{"role": "Gig Worker"}],
 			})
 			user.flags.ignore_password_policy = True
 			user.insert(ignore_permissions=True)
+		else:
+			user = frappe.get_doc("User", self.email)
+			existing_roles = [r.role for r in user.roles]
+			if "Gig Worker" not in existing_roles:
+				user.append("roles", {"role": "Gig Worker"})
+				user.save(ignore_permissions=True)
 
-			# Link user back to this Gig Worker record
-			self.db_set("user", user_email, update_modified=False)
+		# Link user back to this Gig Worker record
+		self.db_set("user", self.email, update_modified=False)
 
-			# Set password
-			from frappe.utils.password import update_password
-			update_password(user.name, user_mobile)
+		update_password(self.email, self.phone)
 
-			# Send welcome email
-			subject = "Registration Successful - Gig Worker"
-			message = f"""
-			<p>Hello {self.worker_name},</p>
-			<p>You have successfully registered as a Gig Worker.</p>
+		frappe.sendmail(
+			recipients=[self.email],
+			subject="Registration Successful - Gig Worker",
+			message=f"""
+			<p>Dear {self.worker_name},</p>
+			<p>You have been successfully registered as a Gig Worker.</p>
 			<p>Here are your login credentials:</p>
 			<ul>
-				<li><b>Username/Email:</b> {user_email}</li>
-				<li><b>Password:</b> {user_mobile}</li>
+				<li><b>Username/Email:</b> {self.email}</li>
+				<li><b>Password:</b> {self.phone}</li>
 			</ul>
 			<p>Please log in and change your password as soon as possible.</p>
-			<p>Thank you,</p>
-			<p>Gig Workers Team</p>
-			"""
-
-			frappe.sendmail(
-				recipients=[user_email],
-				subject=subject,
-				message=message,
-				now=True,
-			)
+			<p>Thank you,<br>Gig Workers Team</p>
+			""",
+			now=True,
+		)

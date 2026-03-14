@@ -9,6 +9,20 @@ from frappe.utils.password import update_password
 
 class Aggregator(Document):
 	def validate(self):
+		# Email uniqueness across Aggregator and Gig Worker
+		if self.email:
+			existing_aggregator = frappe.db.get_value(
+				"Aggregator", {"email": self.email, "name": ("!=", self.name)}, "name"
+			)
+			if existing_aggregator:
+				frappe.throw(f"Email '{self.email}' is already registered with another Aggregator.")
+
+			existing_worker = frappe.db.get_value(
+				"Gig Worker", {"email": self.email}, "name"
+			)
+			if existing_worker:
+				frappe.throw(f"Email '{self.email}' is already registered as a Gig Worker.")
+
 		# PAN format: 5 letters, 4 digits, 1 letter
 		if self.pan:
 			self.pan = self.pan.upper()
