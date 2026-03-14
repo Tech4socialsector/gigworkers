@@ -272,7 +272,7 @@ fixtures = [
             [
                 "module",
                 "=",
-                "Gigworkers"
+                "Gig Workers"
             ]
         ]
     }
