@@ -106,6 +106,15 @@ class GigTransaction(Document):
     # MAIN VALIDATION
     # --------------------------------------------------------
 
+    def before_insert(self):
+        # Auto-set aggregator when created by an Aggregator user
+        if not self.aggregator:
+            aggregator = frappe.db.get_value(
+                "Aggregator", {"email": frappe.session.user}, "name"
+            )
+            if aggregator:
+                self.aggregator = aggregator
+
     def validate(self):
 
         self.validate_base_payout()
