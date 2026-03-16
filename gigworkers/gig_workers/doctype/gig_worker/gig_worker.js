@@ -59,6 +59,21 @@ frappe.ui.form.on("Gig Worker", {
 		frm.set_df_property("created_by_aggregator", "hidden", 0);
 		frm.set_df_property("user", "hidden", 0);
 
+		// Show "Resend Verification Email" button for pending aggregator-registered workers
+		if (frm.doc.status === "Pending Verification" && frm.doc.created_by_aggregator) {
+			frm.add_custom_button(__("Resend Verification Email"), function () {
+				frappe.call({
+					method: "gigworkers.gig_workers.doctype.gig_worker.gig_worker.resend_verification_email",
+					args: { worker_name: frm.doc.name },
+					callback: function (r) {
+						if (r.message) {
+							frappe.msgprint(r.message.message);
+						}
+					},
+				});
+			});
+		}
+
 		// -- Aadhaar: digits only, max 12 --
 		frm.fields_dict["aadhaar_number"].$input.on("keypress", function (e) {
 			if (e.which < 48 || e.which > 57) e.preventDefault();

@@ -213,6 +213,7 @@ class GigWorker(Document):
 
 		update_password(self.email, self.phone)
 
+		login_url = frappe.utils.get_url("/login")
 		try:
 			frappe.sendmail(
 				recipients=[self.email],
@@ -222,6 +223,7 @@ class GigWorker(Document):
 				<p>You have been successfully registered as a Gig Worker.</p>
 				<p>Here are your login credentials:</p>
 				<ul>
+					<li><b>Login URL:</b> <a href="{login_url}">{login_url}</a></li>
 					<li><b>Username/Email:</b> {self.email}</li>
 					<li><b>Password:</b> {self.phone}</li>
 				</ul>
@@ -278,3 +280,28 @@ def verify_worker_registration(token):
 		"You can now log in to the Gig Workers Welfare Portal.",
 		indicator_color="green",
 	)
+
+
+# ------------------------------------------------------------
+# Admin API: Resend verification email for a pending worker
+# ------------------------------------------------------------
+
+@frappe.whitelist()
+def resend_verification_email(worker_name):
+	"""Regenerate verification token and resend the email.
+	Used when the original verification link failed (e.g. due to a migration issue).
+	"""
+	frappe.only_for(["System Manager", "Aggregator"])
+
+	worker = frappe.get_doc("Gig Worker", worker_name)
+
+	if worker.status == "Active":
+		frappe.throw("This worker is already active.")
+
+	if not worker.created_by_aggregator:
+		frappe.throw("Resend is only applicable to aggregator-registered workers.")
+
+	worker._send_verification_link()
+	frappe.db.commit()
+
+	return {"message": f"Verification email resent to {worker.email}"}
