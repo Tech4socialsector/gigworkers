@@ -122,7 +122,6 @@ def send_confirmation_email(transaction_name, email, otp_code, confirmed_at):
             recipients=[email],
             subject=subject,
             message=message,
-            now=True,
         )
 
     except Exception as e:
@@ -171,7 +170,9 @@ class GigTransaction(Document):
 
     def validate_transaction_date(self):
         if self.date and getdate(self.date) > getdate(today()):
-            frappe.throw("Transaction date cannot be in the future.")
+            frappe.throw("Date cannot be in the future. Please select today's date or a past date.")
+        if self.transaction_date and getdate(self.transaction_date) > getdate(today()):
+            frappe.throw("Transaction Date cannot be in the future. Please select today's date or a past date.")
 
     # --------------------------------------------------------
     # Prevent duplicate external transaction
@@ -264,8 +265,13 @@ class GigTransaction(Document):
                     is_async=False,
                 )
 
-        # Create a Welfare Fee Payment record on the FIRST transition to Completed
+        # Flag for after_insert / on_update to create the Welfare Fee Payment
+        # once the transaction is committed to the DB (Link validation requires it).
         if self.status == "Completed" and prev_status != "Completed":
+            self.flags.create_welfare_payment = True
+
+    def on_update(self):
+        if self.flags.get("create_welfare_payment"):
             _create_welfare_fee_payment(self)
 
 

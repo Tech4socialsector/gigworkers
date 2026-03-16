@@ -91,7 +91,6 @@ class Aggregator(Document):
 				<p><b>Keep these credentials secure and do not share them.</b></p>
 				<p>Thank you,<br>Gig Workers Welfare Team</p>
 				""",
-				now=True,
 			)
 		except Exception as e:
 			frappe.log_error(
@@ -154,7 +153,6 @@ class Aggregator(Document):
 			recipients=[self.email],
 			subject=status_messages[status]["subject"],
 			message=status_messages[status]["body"],
-			now=True
 		)
 
 	def create_user_with_role(self):

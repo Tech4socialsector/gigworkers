@@ -8,22 +8,20 @@ from frappe.model.document import Document
 class WelfareFeePayment(Document):
 
 	def on_update(self):
-		"""When payment is both Completed and settlement is Success, credit the
-		gig worker's welfare fund account and notify them (requirements §1.5.2)."""
+		"""When payment_status transitions to Completed, settle to the welfare
+		fund account and notify the gig worker."""
 		previous = self.get_doc_before_save()
 		if not previous:
 			return
 
-		just_settled = (
+		just_completed = (
 			self.payment_status == "Completed"
-			and self.settlement_status == "Success"
-			and not (
-				previous.payment_status == "Completed"
-				and previous.settlement_status == "Success"
-			)
+			and previous.payment_status != "Completed"
 		)
 
-		if just_settled:
+		if just_completed:
+			self.settlement_status = "Success"
+			self.db_set("settlement_status", "Success")
 			self._settle_to_welfare_fund()
 
 	def _settle_to_welfare_fund(self):
@@ -62,7 +60,6 @@ class WelfareFeePayment(Document):
 					<p>Log in to the portal to view your updated welfare fund balance.</p>
 					<p>Thank you,<br>Gig Workers Welfare Team</p>
 					""",
-					now=True,
 				)
 			except Exception as e:
 				frappe.log_error(

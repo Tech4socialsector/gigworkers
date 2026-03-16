@@ -67,7 +67,8 @@
    "fieldname": "trust_level",
    "fieldtype": "Select",
    "label": "Trust Level",
-   "options": "\nHigh\nLow"
+   "options": "\nHigh\nLow",
+   "reqd": 1
   },
   {
    "fieldname": "status",
@@ -149,7 +150,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-14 14:13:24.830919",
+ "modified": "2026-03-16 10:57:28.007990",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",

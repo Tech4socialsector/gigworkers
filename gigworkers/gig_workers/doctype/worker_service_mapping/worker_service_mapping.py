@@ -225,7 +225,7 @@ def _notify_worker_status_change(gw, aggregator_id, service_id, event_type):
 		"""
 
 	try:
-		frappe.sendmail(recipients=[gw.email], subject=subject, message=body, now=True)
+		frappe.sendmail(recipients=[gw.email], subject=subject, message=body)
 	except Exception as e:
 		frappe.log_error(
 			message=f"Status change email failed for {gw.name}: {e}",

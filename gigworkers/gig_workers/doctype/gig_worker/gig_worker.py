@@ -176,7 +176,6 @@ class GigWorker(Document):
 				<p>If you were not expecting this registration, please ignore this email.</p>
 				<p>Thank you,<br>Gig Workers Welfare Team</p>
 				""",
-				now=True,
 			)
 		except Exception as e:
 			frappe.log_error(
@@ -228,7 +227,6 @@ class GigWorker(Document):
 			<p>Please log in and change your password as soon as possible.</p>
 			<p>Thank you,<br>Gig Workers Team</p>
 			""",
-			now=True,
 		)
 
 
