@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}}]",
+ "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"UicmrKmY5o\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Formula\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}},{\"id\":\"uU6Vob7a4Q\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}}]",
  "creation": "2026-03-14 15:27:13.511018",
  "custom_blocks": [],
  "docstatus": 0,
@@ -52,7 +52,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-03-14 15:35:11.678319",
+ "modified": "2026-03-16 08:59:20.755617",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregators",
@@ -68,6 +68,22 @@
  ],
  "sequence_id": 3.0,
  "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Benefit Withdrawal",
+   "link_to": "Welfare Benefit Withdrawal",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Fee Formula",
+   "link_to": "Welfare Fee Formula",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
   {
    "doc_view": "",
    "label": "Aggregator",

@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}}]",
+ "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"b0UCBF2jFt\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Formula\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"ysGm0I7GEG\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"ExYqHwASeZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}}]",
  "creation": "2026-03-14 15:27:13.549796",
  "custom_blocks": [],
  "docstatus": 0,
@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "Gig Workers",
  "links": [],
- "modified": "2026-03-14 15:35:23.734964",
+ "modified": "2026-03-16 08:59:51.116617",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Workers",
@@ -30,6 +30,22 @@
  "sequence_id": 2.0,
  "shortcuts": [
   {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Fund Account",
+   "link_to": "Welfare Fund Account",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Fee Formula",
+   "link_to": "Welfare Fee Formula",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
    "color": "Green",
    "doc_view": "List",
    "label": "Gig Worker",
@@ -43,6 +59,14 @@
    "label": "Worker Dashboard",
    "type": "URL",
    "url": "/app/gig-worker-dashboard"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Benefit Withdrawal",
+   "link_to": "Welfare Benefit Withdrawal",
+   "stats_filter": "[]",
+   "type": "DocType"
   },
   {
    "color": "Orange",
