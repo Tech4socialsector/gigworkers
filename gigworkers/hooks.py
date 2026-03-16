@@ -278,8 +278,4 @@ fixtures = [
         "dt": "Web Form",
         "filters": [["module", "=", "Gig Workers"]]
     },
-    {
-        "dt": "Page",
-        "filters": [["module", "=", "Gig Workers"]]
-    },
 ]
