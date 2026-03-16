@@ -262,7 +262,7 @@ class GigTransaction(Document):
                     email=email,
                     otp_code=otp_code,
                     confirmed_at=confirmed_at,
-                    is_async=False,
+                    is_async=True,
                 )
 
         # Flag for after_insert / on_update to create the Welfare Fee Payment
@@ -390,7 +390,7 @@ def confirm_transaction(transaction_name):
         email=email,
         otp_code=otp_code,
         confirmed_at=sent_at,
-        is_async=False,
+        is_async=True,
     )
 
     return {

@@ -149,11 +149,17 @@ class Aggregator(Document):
 		if status not in status_messages:
 			return
 
-		frappe.sendmail(
-			recipients=[self.email],
-			subject=status_messages[status]["subject"],
-			message=status_messages[status]["body"],
-		)
+		try:
+			frappe.sendmail(
+				recipients=[self.email],
+				subject=status_messages[status]["subject"],
+				message=status_messages[status]["body"],
+			)
+		except Exception as e:
+			frappe.log_error(
+				message=f"Status email failed for aggregator {self.name}: {e}",
+				title="Aggregator Status Email Error",
+			)
 
 	def create_user_with_role(self):
 		if not self.email or not self.mobile:

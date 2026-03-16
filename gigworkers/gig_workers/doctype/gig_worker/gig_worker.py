@@ -213,21 +213,27 @@ class GigWorker(Document):
 
 		update_password(self.email, self.phone)
 
-		frappe.sendmail(
-			recipients=[self.email],
-			subject="Registration Successful - Gig Worker",
-			message=f"""
-			<p>Dear {self.worker_name},</p>
-			<p>You have been successfully registered as a Gig Worker.</p>
-			<p>Here are your login credentials:</p>
-			<ul>
-				<li><b>Username/Email:</b> {self.email}</li>
-				<li><b>Password:</b> {self.phone}</li>
-			</ul>
-			<p>Please log in and change your password as soon as possible.</p>
-			<p>Thank you,<br>Gig Workers Team</p>
-			""",
-		)
+		try:
+			frappe.sendmail(
+				recipients=[self.email],
+				subject="Registration Successful - Gig Worker",
+				message=f"""
+				<p>Dear {self.worker_name},</p>
+				<p>You have been successfully registered as a Gig Worker.</p>
+				<p>Here are your login credentials:</p>
+				<ul>
+					<li><b>Username/Email:</b> {self.email}</li>
+					<li><b>Password:</b> {self.phone}</li>
+				</ul>
+				<p>Please log in and change your password as soon as possible.</p>
+				<p>Thank you,<br>Gig Workers Team</p>
+				""",
+			)
+		except Exception as e:
+			frappe.log_error(
+				message=f"Registration email failed for {self.name}: {e}",
+				title="Gig Worker Registration Email Error",
+			)
 
 
 # ------------------------------------------------------------
