@@ -41,19 +41,27 @@
   {
    "fieldname": "service_category",
    "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Service Category",
    "read_only": 1
   },
   {
    "fieldname": "service_type",
    "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Service Type",
    "read_only": 1
   },
   {
    "fieldname": "gig_worker",
    "fieldtype": "Link",
+   "in_filter": 1,
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Gig Worker",
    "options": "Gig Worker",
    "reqd": 1
@@ -61,7 +69,9 @@
   {
    "fieldname": "aggregator",
    "fieldtype": "Link",
+   "in_filter": 1,
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Aggregator",
    "options": "Aggregator",
    "reqd": 1
@@ -87,7 +97,9 @@
   {
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_filter": 1,
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
    "options": "\nRegistered\nPayment Pending\nCompleted\nCancelled"
   },
@@ -165,7 +177,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-17 21:05:58.196677",
+ "modified": "2026-03-17 21:42:37.718222",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
