@@ -25,12 +25,16 @@
   {
    "fieldname": "worker_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Name",
    "reqd": 1
   },
   {
    "fieldname": "gender",
    "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Gender",
    "options": "\nMale\nFemale\nOthers"
   },
@@ -38,6 +42,7 @@
    "fieldname": "aadhaar_number",
    "fieldtype": "Data",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Aadhaar Number",
    "reqd": 1,
    "unique": 1
@@ -70,6 +75,8 @@
   {
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
    "options": "\nPending Verification\nActive\nInactive\nDeceased",
    "reqd": 1
@@ -117,7 +124,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-14 10:57:32.774959",
+ "modified": "2026-03-17 07:56:05.841984",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Worker",
@@ -139,8 +146,8 @@
   {
    "create": 1,
    "read": 1,
-   "write": 1,
-   "role": "Aggregator"
+   "role": "Aggregator",
+   "write": 1
   },
   {
    "read": 1,

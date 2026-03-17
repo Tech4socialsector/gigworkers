@@ -38,6 +38,7 @@
    "fieldname": "aggregator_name",
    "fieldtype": "Data",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Service Name",
    "reqd": 1
   },
@@ -74,6 +75,7 @@
    "fieldname": "company_type",
    "fieldtype": "Select",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Company Type",
    "options": "\nCIN\nLLPIN",
    "reqd": 1
@@ -96,6 +98,8 @@
   {
    "fieldname": "brand_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Brand Name",
    "reqd": 1
   },
@@ -142,11 +146,15 @@
   {
    "fieldname": "name1",
    "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Name"
   },
   {
    "fieldname": "gender",
    "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Gender",
    "options": "\nMale\nFemale\nOther"
   },
@@ -181,7 +189,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-17 04:52:09.688204",
+ "modified": "2026-03-17 07:53:51.272099",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregator",
