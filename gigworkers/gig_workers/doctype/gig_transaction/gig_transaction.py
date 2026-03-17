@@ -204,14 +204,33 @@ class GigTransaction(Document):
         if not self.base_payout:
             return
 
-        # Always read the current government-mandated rate from the singleton
-        self.welfare_percentage = _get_welfare_rate()
+        if not self.service:
+            return
 
-        # Fetch welfare cap from linked Service
-        if self.service:
-            self.welfare_cap = frappe.db.get_value(
-                "Service", self.service, "welfare_cap"
-            )
+        # Read category, type, percentage and cap from the linked Service
+        service_data = frappe.db.get_value(
+            "Service", self.service,
+            ["category", "vehicle_type", "welfare_percentage_", "welfare_cap"],
+            as_dict=True,
+        )
+        if not service_data:
+            return
+
+        # Resolve human-readable display names from the linked doctypes
+        if service_data.category:
+            self.service_category = frappe.db.get_value(
+                "Service Category", service_data.category, "category_name"
+            ) or service_data.category
+        if service_data.vehicle_type:
+            self.service_type = frappe.db.get_value(
+                "Vehicle Type", service_data.vehicle_type, "vehicle_type"
+            ) or service_data.vehicle_type
+
+        self.welfare_percentage = service_data.welfare_percentage_ or 0
+        self.welfare_cap = service_data.welfare_cap
+
+        if not self.welfare_percentage:
+            return
 
         rate_amount = (self.base_payout * self.welfare_percentage) / 100
 

@@ -10,6 +10,8 @@
   "gig_worker",
   "aggregator",
   "service",
+  "service_category",
+  "service_type",
   "role",
   "date",
   "amount",
@@ -29,6 +31,26 @@
  ],
  "fields": [
   {
+   "fieldname": "service",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Service",
+   "options": "Service",
+   "reqd": 1
+  },
+  {
+   "fieldname": "service_category",
+   "fieldtype": "Data",
+   "label": "Service Category",
+   "read_only": 1
+  },
+  {
+   "fieldname": "service_type",
+   "fieldtype": "Data",
+   "label": "Service Type",
+   "read_only": 1
+  },
+  {
    "fieldname": "gig_worker",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -42,14 +64,6 @@
    "in_list_view": 1,
    "label": "Aggregator",
    "options": "Aggregator",
-   "reqd": 1
-  },
-  {
-   "fieldname": "service",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Service",
-   "options": "Service",
    "reqd": 1
   },
   {
@@ -84,6 +98,7 @@
    "reqd": 1
   },
   {
+   "fetch_from": "service.welfare_percentage_",
    "fieldname": "welfare_percentage",
    "fieldtype": "Float",
    "label": "Welfare Percentage",
@@ -150,7 +165,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-16 10:57:28.007990",
+ "modified": "2026-03-17 21:05:58.196677",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",

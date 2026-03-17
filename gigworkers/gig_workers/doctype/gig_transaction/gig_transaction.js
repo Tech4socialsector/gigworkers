@@ -176,6 +176,61 @@ frappe.ui.form.on("Gig Transaction", {
 
 
 	// ----------------------------------------------------------
+	// SERVICE CHANGE HANDLER
+	// ----------------------------------------------------------
+
+	service(frm) {
+		if (!frm.doc.service) {
+			frm.set_value("service_category", "");
+			frm.set_value("service_type", "");
+			frm.set_value("welfare_percentage", 0);
+			frm.set_value("welfare_cap", 0);
+			frm.set_value("welfare_amount", 0);
+			return;
+		}
+
+		frappe.db.get_value("Service", frm.doc.service,
+			["category", "vehicle_type", "welfare_percentage_", "welfare_cap"],
+			function (r) {
+				if (!r) return;
+
+				// Resolve human-readable display names from the linked doctypes
+				if (r.category) {
+					frappe.db.get_value("Service Category", r.category, "category_name", function (cat) {
+						frm.set_value("service_category", (cat && cat.category_name) || r.category);
+					});
+				}
+				if (r.vehicle_type) {
+					frappe.db.get_value("Vehicle Type", r.vehicle_type, "vehicle_type", function (vt) {
+						frm.set_value("service_type", (vt && vt.vehicle_type) || r.vehicle_type);
+					});
+				}
+
+				frm.set_value("welfare_percentage", r.welfare_percentage_ || 0);
+				frm.set_value("welfare_cap", r.welfare_cap || 0);
+
+				const base_payout = frm.doc.base_payout || 0;
+				if (base_payout && r.welfare_percentage_) {
+					const rate_amount = (base_payout * r.welfare_percentage_) / 100;
+					const welfare_amount = r.welfare_cap
+						? Math.min(rate_amount, r.welfare_cap)
+						: rate_amount;
+					frm.set_value("welfare_amount", welfare_amount);
+				}
+			}
+		);
+	},
+
+	base_payout(frm) {
+		if (!frm.doc.service || !frm.doc.welfare_percentage || !frm.doc.base_payout) return;
+		const rate_amount = (frm.doc.base_payout * frm.doc.welfare_percentage) / 100;
+		const welfare_amount = frm.doc.welfare_cap
+			? Math.min(rate_amount, frm.doc.welfare_cap)
+			: rate_amount;
+		frm.set_value("welfare_amount", welfare_amount);
+	},
+
+	// ----------------------------------------------------------
 	// TRUST LEVEL CHANGE HANDLER
 	// ----------------------------------------------------------
 
