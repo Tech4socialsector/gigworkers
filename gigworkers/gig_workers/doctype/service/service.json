@@ -6,34 +6,26 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "service_id",
-  "service_name",
   "category",
   "vehicle_type",
+  "welfare_percentage_",
   "welfare_cap",
-  "description"
+  "description",
+  "effective_start_date",
+  "effective_end_date",
+  "rate_history_section",
+  "rate_log"
  ],
  "fields": [
   {
-   "fieldname": "service_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Service Name",
-   "reqd": 1
-  },
-  {
-   "fieldname": "service_id",
-   "fieldtype": "Data",
-   "label": "Service ID"
-  },
-  {
    "fieldname": "description",
    "fieldtype": "Small Text",
-   "label": "Description"
+   "label": "Notes / Government Order Reference"
   },
   {
    "fieldname": "category",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Category",
    "options": "Service Category",
    "reqd": 1
@@ -41,6 +33,7 @@
   {
    "fieldname": "vehicle_type",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Vehicle Type",
    "options": "Vehicle Type",
    "reqd": 1
@@ -48,14 +41,46 @@
   {
    "fieldname": "welfare_cap",
    "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "Welfare Cap",
    "reqd": 1
+  },
+  {
+   "description": "Percentage of base payout to be deducted as welfare fee (e.g. 1.0 = 1%)",
+   "fieldname": "welfare_percentage_",
+   "fieldtype": "Float",
+   "label": "Welfare Percentage (%)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "effective_start_date",
+   "fieldtype": "Date",
+   "label": "Effective Start Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "effective_end_date",
+   "fieldtype": "Date",
+   "label": "Effective End Date"
+  },
+  {
+   "fieldname": "rate_history_section",
+   "fieldtype": "Section Break",
+   "label": "Rate History"
+  },
+  {
+   "fieldname": "rate_log",
+   "fieldtype": "Table",
+   "label": "Rate Log",
+   "options": "Service Rate Log",
+   "cannot_add_rows": 1,
+   "cannot_delete_rows": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-11 09:55:15.943035",
+ "modified": "2026-03-17 19:04:48.280273",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Service",
@@ -77,10 +102,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
- "search_fields": "service_name",
- "show_title_field_in_link": 1,
  "sort_field": "creation",
  "sort_order": "DESC",
- "states": [],
- "title_field": "service_name"
+ "states": []
 }
