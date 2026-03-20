@@ -266,8 +266,8 @@ class GigTransaction(Document):
         previous = self.get_doc_before_save()
         prev_status = previous.status if previous else None
 
-        if self.status == "Completed":
-            # Already completed in a prior save — nothing to do for trust logic
+        if self.status in ("Completed", "Suspected Duplicate", "Cancelled"):
+            # Already in a terminal/admin-set state — skip trust logic
             pass
         else:
             confirmed_at = now()

@@ -793,7 +793,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 					— Review the Suspected Duplicates section below and mark extras accordingly.
 				</span>
 			</div>
-			<a href="#dup-section" style="font-size:13px;font-weight:600;color:#856404;text-decoration:underline;">
+			<a href="javascript:void(0)" onclick="var el=document.getElementById('dup-section');if(el)el.scrollIntoView({behavior:'smooth'});" style="font-size:13px;font-weight:600;color:#856404;text-decoration:underline;cursor:pointer;">
 				View &darr;
 			</a>
 		</div>
