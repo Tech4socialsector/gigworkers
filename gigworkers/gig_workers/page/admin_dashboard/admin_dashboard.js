@@ -730,7 +730,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 	function render_dashboard(data, filters) {
 		const { stats, aggregators, workers, welfare_payments, welfare_fund,
 			aggregator_breakdown, recent_transactions, pending_wfp,
-			recent_workers, aggregator_list } = data;
+			recent_workers, aggregator_list, duplicate_transactions } = data;
 
 		const filter_bar = build_filter_bar(aggregator_list || [], filters || {});
 
@@ -776,6 +776,78 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		</style>
 
 		${filter_bar}
+
+		<!-- Suspected Duplicates Warning Banner -->
+		${duplicate_transactions && duplicate_transactions.length ? `
+		<div id="dup-banner" style="
+			background:#fff8e1; border:1.5px solid #f6c23e; border-radius:10px;
+			padding:14px 20px; margin-bottom:20px;
+			display:flex; align-items:center; gap:12px;
+		">
+			<i class="fa fa-exclamation-triangle" style="color:#f6c23e;font-size:20px;"></i>
+			<div style="flex:1;">
+				<strong style="color:#856404;">
+					${duplicate_transactions.length} suspected duplicate group${duplicate_transactions.length > 1 ? "s" : ""} detected
+				</strong>
+				<span style="color:#856404;font-size:13px;margin-left:8px;">
+					— Review the Suspected Duplicates section below and mark extras accordingly.
+				</span>
+			</div>
+			<a href="#dup-section" style="font-size:13px;font-weight:600;color:#856404;text-decoration:underline;">
+				View &darr;
+			</a>
+		</div>
+		` : ""}
+
+		<!-- Suspected Duplicates Section -->
+		${duplicate_transactions && duplicate_transactions.length ? `
+		<div class="admin-section" id="dup-section">
+			<h5 style="color:#856404;">
+				<i class="fa fa-exclamation-triangle" style="margin-right:6px;"></i>
+				Suspected Duplicate Transactions
+				<span style="float:right;font-size:12px;font-weight:400;color:#888;">
+					Grouped by: Gig Worker + Aggregator + Service + Date + Amount
+				</span>
+			</h5>
+			<table id="admin-dup-table" class="display" style="width:100%">
+				<thead><tr>
+					<th>Gig Worker</th>
+					<th>Aggregator</th>
+					<th>Service</th>
+					<th>Date</th>
+					<th>Amount</th>
+					<th>Count</th>
+					<th>Transaction IDs</th>
+					<th>Action</th>
+				</tr></thead>
+				<tbody>
+					${duplicate_transactions.map(d => `<tr>
+						<td><a href="/app/gig-worker/${d.gig_worker}" style="color:#4e73df;">${d.gig_worker}</a></td>
+						<td>${d.aggregator || "-"}</td>
+						<td>${d.service || "-"}</td>
+						<td>${d.date || "-"}</td>
+						<td style="color:#e74a3b;font-weight:600;">${fmt_currency(d.amount)}</td>
+						<td><span style="background:#e74a3b;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${d.duplicate_count}</span></td>
+						<td style="font-size:12px;max-width:320px;word-break:break-all;">
+							${(d.transaction_ids || "").split(",").map(id => id.trim()).filter(Boolean).map(id =>
+								`<a href="/app/gig-transaction/${id}" style="color:#4e73df;display:inline-block;margin:1px 4px 1px 0;">${id}</a>`
+							).join("")}
+						</td>
+						<td>
+							${(d.transaction_ids || "").split(",").map(id => id.trim()).filter(Boolean).slice(1).map(id =>
+								`<button class="btn-mark-dup" data-txn="${id}"
+									style="background:#fff3cd;border:1px solid #f6c23e;color:#856404;
+									padding:3px 10px;border-radius:6px;font-size:12px;cursor:pointer;
+									margin-bottom:3px;display:block;width:100%;">
+									Mark Duplicate: ${id}
+								</button>`
+							).join("")}
+						</td>
+					</tr>`).join("")}
+				</tbody>
+			</table>
+		</div>
+		` : ""}
 
 		<!-- Transactions -->
 		<div class="admin-section-title">Transactions</div>
@@ -912,9 +984,39 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		init_datatable("#admin-txn-table");
 		init_datatable("#admin-wfp-table");
 		init_datatable("#admin-workers-table");
+		if (duplicate_transactions && duplicate_transactions.length) {
+			init_datatable("#admin-dup-table");
+		}
 
 		bind_filter_events(aggregator_list || []);
 		render_active_tags(filters || {});
+
+		// Mark as Suspected Duplicate
+		$(document).off("click.markdup").on("click.markdup", ".btn-mark-dup", function () {
+			const txn_id = $(this).data("txn");
+			const $btn = $(this);
+			frappe.confirm(
+				`Mark <strong>${txn_id}</strong> as <strong>Suspected Duplicate</strong>?<br>
+				<small style="color:#888;">This will change its status and exclude it from future duplicate scans.</small>`,
+				function () {
+					$btn.text("Marking…").prop("disabled", true);
+					frappe.call({
+						method: "gigworkers.gig_workers.page.admin_dashboard.admin_dashboard.mark_as_suspected_duplicate",
+						args: { transaction_id: txn_id },
+						callback(r) {
+							if (r.message) {
+								frappe.show_alert({ message: `${txn_id} marked as Suspected Duplicate.`, indicator: "orange" });
+								fetch_data(_dash_filters);
+							}
+						},
+						error() {
+							frappe.show_alert({ message: "Failed to mark duplicate. Try again.", indicator: "red" });
+							$btn.text(`Mark Duplicate: ${txn_id.trim()}`).prop("disabled", false);
+						},
+					});
+				}
+			);
+		});
 
 		$("#btn-dl-pdf").on("click", download_pdf);
 	}

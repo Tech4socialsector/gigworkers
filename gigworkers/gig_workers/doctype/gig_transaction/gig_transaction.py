@@ -150,11 +150,25 @@ class GigTransaction(Document):
             if aggregator:
                 self.aggregator = aggregator
 
+    def after_insert(self):
+        # Populate the visible Transaction ID field with the auto-generated name
+        self.db_set("transaction_id", self.name)
+
     def validate(self):
         self.validate_base_payout()
         self.validate_transaction_date()
         self.prevent_duplicate_transaction()
         self.calculate_welfare_fee()
+        self.set_duplicate_key()
+
+    def set_duplicate_key(self):
+        self.duplicate_key = (
+            f"{self.gig_worker or ''} | "
+            f"{self.aggregator or ''} | "
+            f"{self.service_category or self.service or ''} | "
+            f"{self.date or ''} | "
+            f"{self.amount or 0}"
+        )
 
     # --------------------------------------------------------
     # Base payout validation

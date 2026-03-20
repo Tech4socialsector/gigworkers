@@ -227,6 +227,25 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         order_by="aggregator_name asc",
     )
 
+    # --- Suspected duplicate transactions ---
+    # Match on same gig_worker + aggregator + service + date + amount
+    duplicate_txns = frappe.db.sql("""
+        SELECT
+            gig_worker,
+            aggregator,
+            service,
+            date,
+            amount,
+            COUNT(*)                                                        AS duplicate_count,
+            GROUP_CONCAT(name ORDER BY creation SEPARATOR ',')              AS transaction_ids,
+            MIN(creation)                                                   AS first_seen
+        FROM `tabGig Transaction`
+        WHERE status != 'Suspected Duplicate'
+        GROUP BY gig_worker, aggregator, service, date, amount
+        HAVING COUNT(*) > 1
+        ORDER BY duplicate_count DESC, first_seen DESC
+    """, as_dict=True)
+
     return {
         "stats": {
             "total_transactions": txn_stats.total_transactions or 0,
@@ -261,4 +280,19 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         "pending_wfp": pending_wfp,
         "recent_workers": recent_workers,
         "aggregator_list": aggregator_list,
+        "duplicate_transactions": duplicate_txns,
     }
+
+
+@frappe.whitelist()
+def mark_as_suspected_duplicate(transaction_id):
+    """Admin marks a transaction as Suspected Duplicate so it is excluded
+    from future duplicate scans and flagged for review."""
+    frappe.only_for("System Manager")
+
+    doc = frappe.get_doc("Gig Transaction", transaction_id)
+    doc.status = "Suspected Duplicate"
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {"message": f"Transaction {transaction_id} marked as Suspected Duplicate."}

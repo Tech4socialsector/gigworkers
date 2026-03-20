@@ -1,7 +1,7 @@
 {
  "charts": [],
  "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}}]",
- "creation": "2026-03-17 08:51:38.428111",
+ "creation": "2026-03-20 10:20:05.683478",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -52,7 +52,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-03-17 19:18:14.799719",
+ "modified": "2026-03-20 10:21:05.346936",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregators",

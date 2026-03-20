@@ -7,6 +7,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "transaction_id",
+  "duplicate_key",
   "gig_worker",
   "aggregator",
   "service",
@@ -30,6 +32,25 @@
   "otp_records"
  ],
  "fields": [
+  {
+   "bold": 1,
+   "fieldname": "transaction_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Transaction ID",
+   "read_only": 1
+  },
+  {
+   "description": "Worker | Aggregator | Service | Date | Amount \u2014 used to detect duplicate transactions",
+   "fieldname": "duplicate_key",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Duplicate Key",
+   "read_only": 1
+  },
   {
    "fieldname": "service",
    "fieldtype": "Link",
@@ -101,7 +122,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "\nRegistered\nPayment Pending\nCompleted\nCancelled"
+   "options": "\nRegistered\nPayment Pending\nCompleted\nCancelled\nSuspected Duplicate"
   },
   {
    "fieldname": "amount",
@@ -177,7 +198,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-17 21:42:37.718222",
+ "modified": "2026-03-20 11:12:29.001364",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
