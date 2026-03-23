@@ -1092,6 +1092,41 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 					return { type: "bar", data: { labels: top.map(a => a.aggregator_name || a.aggregator_id || "Unknown"), datasets: [{ name: "Withdrawn (₹)", values: top.map(a => parseFloat(a.total_withdrawn) || 0) }] }, colors: ["#f6c23e"] };
 				},
 			},
+
+			// ── Suspected Duplicates ──────────────────────────────────────────────
+			suspected_dups: {
+				title: "Suspected Duplicate Transactions",
+				rows:    () => d.duplicate_transactions || [],
+				cols: [
+					{ label: "Transaction ID", render: t => `<a href="/app/gig-transaction/${t.name}" style="color:#4e73df;">${t.name}</a>` },
+					{ label: "Date",           render: t => t.date || "-" },
+					{ label: "Gig Worker",     render: t => t.gig_worker ? `<a href="/app/gig-worker/${t.gig_worker}" style="color:#4e73df;">${t.gig_worker}</a>` : "-" },
+					{ label: "Aggregator",     render: t => t.aggregator || "-" },
+					{ label: "Service",        render: t => t.service || "-" },
+					{ label: "Amount",         render: t => `<span style="color:#e74a3b;font-weight:600;">${fmt_currency(t.amount)}</span>` },
+					{ label: "Welfare",        render: t => fmt_currency(t.welfare_amount) },
+					{ label: "Duplicate Of",   render: t => t.duplicate_of ? `<a href="/app/gig-transaction/${t.duplicate_of}" style="color:#4e73df;font-size:12px;">${t.duplicate_of}</a>` : `<span style="color:#aaa;">—</span>` },
+					{ label: "Actions",        render: t => `
+						<button class="btn-confirm-dup" data-txn="${t.name}" data-dup-of="${t.duplicate_of || ""}"
+							style="background:#e53935;border:none;color:#fff;padding:4px 10px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;margin-right:4px;">
+							<i class="fa fa-ban"></i> Mark Duplicate
+						</button>
+						<button class="btn-dismiss-dup" data-txn="${t.name}"
+							style="background:#fff;border:1px solid #28a745;color:#28a745;padding:4px 10px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;">
+							<i class="fa fa-check"></i> Dismiss
+						</button>` },
+				],
+				summary: rows => [
+					{ label: "Total Suspected", value: rows.length, color: "#e74a3b" },
+					{ label: "Total Amount",    value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+					{ label: "Total Welfare",   value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)), color: "#f6c23e" },
+				],
+				chart: rows => {
+					const { labels, values } = group_count(rows, t => t.aggregator);
+					return { type: "donut", data: { labels, datasets: [{ values }] }, colors: ["#e74a3b", "#fd7e14", "#f6c23e", "#4e73df", "#36b9cc", "#1cc88a"] };
+				},
+				dt_opts: { columnDefs: [{ orderable: false, targets: [8] }] },
+			},
 		};
 
 		function open_drilldown(type) {
@@ -1124,7 +1159,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			$("#dd-dt-table").html(`${thead}<tbody>${tbody_html}</tbody>`);
 
 			if (rows.length && $.fn.DataTable) {
-				$("#dd-dt-table").DataTable({
+				$("#dd-dt-table").DataTable(Object.assign({
 					pageLength: 15,
 					lengthMenu: [10, 15, 25, 50, 100],
 					order: [],
@@ -1136,7 +1171,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 						emptyTable: "No records found",
 					},
 					dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
-				});
+				}, cfg.dt_opts || {}));
 			}
 
 			$("#dd-overlay").addClass("active");
@@ -1403,7 +1438,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="completed_txns"><div class="label">Completed</div><div class="value">${stats.completed_transactions}</div></div>
 			<div class="admin-stat-card drillable" style="--card-color:#f6c23e;" data-drilldown="pending_txns"><div class="label">Pending</div><div class="value">${stats.pending_transactions}</div></div>
 			<div class="admin-stat-card ${stats.suspected_duplicates ? 'drillable' : ''}" style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
-				onclick="if(${stats.suspected_duplicates}){var el=document.getElementById('dup-section');if(el)el.scrollIntoView({behavior:'smooth'});}">
+				${stats.suspected_duplicates ? 'data-drilldown="suspected_dups"' : ''}>
 				<div class="label">Suspected Duplicates</div>
 				<div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div>
 			</div>
