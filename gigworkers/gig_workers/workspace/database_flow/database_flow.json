@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "Database Flow",
  "links": [],
- "modified": "2026-03-17 21:30:21.245615",
+ "modified": "2026-03-23 12:19:33.075546",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Database Flow",
@@ -31,6 +31,13 @@
    "label": "Admin Dashboard",
    "type": "URL",
    "url": "/app/admin-dashboard"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Gigworker Dashboard",
+   "type": "URL",
+   "url": "/app/gig-worker-dashboard"
   },
   {
    "color": "Grey",
@@ -86,13 +93,6 @@
    "stats_filter": "[]",
    "type": "DocType",
    "url": "/gig-worker/new"
-  },
-  {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Gigworker Dashboard",
-   "type": "URL",
-   "url": "/app/gigworker-dashboard"
   },
   {
    "color": "Grey",

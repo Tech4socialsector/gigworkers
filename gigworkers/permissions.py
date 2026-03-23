@@ -59,6 +59,12 @@ def user_based_query(user=None, doctype=None):
                 f"WHERE `created_by_aggregator` = {frappe.db.escape(aggregator)})"
             )
 
+        elif doctype == "Worker Mapping Log":
+            aggregator = _get_aggregator_name(user)
+            if not aggregator:
+                return "1=0"
+            return f"`tabWorker Mapping Log`.`aggregator` = {frappe.db.escape(aggregator)}"
+
         return "1=0"
 
     # ----------------------------------------------------------------
@@ -87,6 +93,12 @@ def user_based_query(user=None, doctype=None):
             if not gig_worker:
                 return "1=0"
             return f"`tabWelfare Fund Account`.`gig_worker` = {frappe.db.escape(gig_worker)}"
+
+        elif doctype == "Worker Mapping Log":
+            gig_worker = _get_gig_worker_name(user)
+            if not gig_worker:
+                return "1=0"
+            return f"`tabWorker Mapping Log`.`gig_worker` = {frappe.db.escape(gig_worker)}"
 
         elif doctype == "Aggregator":
             return "1=0"
@@ -146,6 +158,9 @@ def user_has_permission(doc, ptype="read", user=None):
             )
             return worker_agg == aggregator
 
+        elif doctype == "Worker Mapping Log":
+            return doc.aggregator == aggregator
+
         return False
 
     # ----------------------------------------------------------------
@@ -164,6 +179,9 @@ def user_has_permission(doc, ptype="read", user=None):
             return doc.gig_worker == gig_worker
 
         elif doctype == "Welfare Fund Account":
+            return doc.gig_worker == gig_worker
+
+        elif doctype == "Worker Mapping Log":
             return doc.gig_worker == gig_worker
 
         elif doctype == "Aggregator":

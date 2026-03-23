@@ -9,7 +9,7 @@
  "apply_document_permissions": 0,
  "button_label": "Save",
  "condition_json": "[]",
- "creation": "2026-03-14 09:38:52.587178",
+ "creation": "2026-03-23 10:56:08.291504",
  "doc_type": "Gig Worker",
  "docstatus": 0,
  "doctype": "Web Form",
@@ -18,7 +18,7 @@
  "list_columns": [],
  "login_required": 0,
  "max_attachment_size": 0,
- "modified": "2026-03-14 10:36:30.534413",
+ "modified": "2026-03-23 10:58:58.867989",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "gig-worker",
@@ -160,6 +160,34 @@
    "precision": "",
    "read_only": 0,
    "reqd": 1,
+   "show_in_filter": 0
+  },
+  {
+   "allow_read_on_all_link_options": 1,
+   "fieldname": "preferred_aggregator",
+   "fieldtype": "Link",
+   "hidden": 0,
+   "label": "Platform / Aggregator",
+   "max_length": 0,
+   "max_value": 0,
+   "options": "Aggregator",
+   "precision": "",
+   "read_only": 0,
+   "reqd": 0,
+   "show_in_filter": 0
+  },
+  {
+   "allow_read_on_all_link_options": 0,
+   "fieldname": "preferred_service",
+   "fieldtype": "Link",
+   "hidden": 0,
+   "label": "Service",
+   "max_length": 0,
+   "max_value": 0,
+   "options": "Service",
+   "precision": "",
+   "read_only": 0,
+   "reqd": 0,
    "show_in_filter": 0
   }
  ]

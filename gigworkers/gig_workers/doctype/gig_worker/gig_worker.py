@@ -124,15 +124,69 @@ class GigWorker(Document):
 	# --------------------------------------------------------
 
 	def after_insert(self):
+		from gigworkers.gig_workers.doctype.worker_mapping_log.worker_mapping_log import create_mapping_log
+
 		if self.created_by_aggregator:
 			# Aggregator-initiated registration: hold activation pending worker's consent
 			# (requirements §1.4.2 — send one-time verification link to the gig worker)
 			self._send_verification_link()
+			create_mapping_log(
+				gig_worker=self.name,
+				event_type="Worker Registered",
+				aggregator=self.created_by_aggregator,
+				worker_status="Pending Verification",
+				reference_doctype="Gig Worker",
+				reference_name=self.name,
+				remarks=f"Registered by aggregator {self.created_by_aggregator}",
+			)
 		else:
 			# Self-registration: activate immediately
 			frappe.db.set_value("Gig Worker", self.name, "status", "Active")
 			self.status = "Active"
 			self.create_user_with_role()
+
+			agg = self.preferred_aggregator or None
+			svc = self.preferred_service or None
+
+			# If worker chose an aggregator, link them so the aggregator can see this worker
+			if agg:
+				frappe.db.set_value("Gig Worker", self.name, "created_by_aggregator", agg)
+
+			create_mapping_log(
+				gig_worker=self.name,
+				event_type="Worker Registered",
+				aggregator=agg,
+				service=svc,
+				worker_status="Active",
+				reference_doctype="Gig Worker",
+				reference_name=self.name,
+				remarks="Self-registered" + (f" under {agg}" if agg else ""),
+			)
+
+			# If both aggregator and service are selected, create an onboarding mapping
+			if agg and svc:
+				try:
+					frappe.get_doc({
+						"doctype": "Worker Service Mapping",
+						"gig_worker": self.name,
+						"aggregator": agg,
+						"service": svc,
+						"status": "Onboarded",
+						"start_date": frappe.utils.today(),
+					}).insert(ignore_permissions=True)
+					frappe.db.commit()
+					create_mapping_log(
+						gig_worker=self.name,
+						event_type="Onboarded",
+						aggregator=agg,
+						service=svc,
+						worker_status="Active",
+						reference_doctype="Gig Worker",
+						reference_name=self.name,
+						remarks=f"Auto-onboarded to {agg} for service {svc} on self-registration",
+					)
+				except Exception:
+					frappe.log_error(frappe.get_traceback(), "GigWorker: failed to auto-create Worker Service Mapping")
 
 	def _send_verification_link(self):
 		"""Set status to Pending Verification and email a one-time activation link."""
@@ -273,6 +327,17 @@ def verify_worker_registration(token):
 
 	worker = frappe.get_doc("Gig Worker", worker_name)
 	worker.create_user_with_role()
+
+	from gigworkers.gig_workers.doctype.worker_mapping_log.worker_mapping_log import create_mapping_log
+	create_mapping_log(
+		gig_worker=worker_name,
+		event_type="Worker Activated",
+		aggregator=worker.created_by_aggregator or None,
+		worker_status="Active",
+		reference_doctype="Gig Worker",
+		reference_name=worker_name,
+		remarks="Worker verified email and activated account",
+	)
 
 	frappe.respond_as_web_page(
 		"Registration Verified",

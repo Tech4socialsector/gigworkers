@@ -16,6 +16,8 @@
   "dob",
   "phone",
   "email",
+  "preferred_aggregator",
+  "preferred_service",
   "status",
   "created_by_aggregator",
   "user",
@@ -97,6 +99,20 @@
    "fieldname": "pan_file",
    "fieldtype": "Attach",
    "label": "PAN File"
+  },
+  {
+   "fieldname": "preferred_aggregator",
+   "fieldtype": "Link",
+   "label": "Platform / Aggregator",
+   "options": "Aggregator",
+   "description": "Which platform or company do you work with? (e.g. Swiggy, Zomato, Ola)"
+  },
+  {
+   "fieldname": "preferred_service",
+   "fieldtype": "Link",
+   "label": "Service",
+   "options": "Service",
+   "description": "Which service do you provide?"
   },
   {
    "fieldname": "created_by_aggregator",

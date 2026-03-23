@@ -2,7 +2,7 @@ import frappe
 
 
 @frappe.whitelist()
-def get_dashboard_data():
+def get_dashboard_data(aggregator=None, service_category=None):
     user = frappe.session.user
 
     worker_name = frappe.db.get_value("Gig Worker", {"email": user}, "name")
@@ -15,38 +15,95 @@ def get_dashboard_data():
         as_dict=True,
     )
 
-    # --- Transaction stats ---
-    txn_stats = frappe.db.sql("""
+    # --- Distinct aggregators & service categories for this worker ---
+    worker_aggregators = frappe.db.sql("""
+        SELECT DISTINCT aggregator
+        FROM `tabGig Transaction`
+        WHERE gig_worker = %s AND aggregator IS NOT NULL AND aggregator != ''
+        ORDER BY aggregator
+    """, worker_name, as_dict=True)
+
+    worker_service_cats = frappe.db.sql("""
+        SELECT DISTINCT service_category
+        FROM `tabGig Transaction`
+        WHERE gig_worker = %s AND service_category IS NOT NULL AND service_category != ''
+        ORDER BY service_category
+    """, worker_name, as_dict=True)
+
+    # --- Build dynamic WHERE clause ---
+    sql_conditions = "WHERE gig_worker = %(worker)s"
+    sql_params = {"worker": worker_name}
+    orm_filters = {"gig_worker": worker_name}
+
+    if aggregator:
+        sql_conditions += " AND aggregator = %(aggregator)s"
+        sql_params["aggregator"] = aggregator
+        orm_filters["aggregator"] = aggregator
+
+    if service_category:
+        sql_conditions += " AND service_category = %(service_category)s"
+        sql_params["service_category"] = service_category
+        orm_filters["service_category"] = service_category
+
+    # --- Transaction stats (filtered) ---
+    txn_stats = frappe.db.sql(f"""
         SELECT
             COUNT(*) AS total_transactions,
             COALESCE(SUM(amount), 0) AS total_earnings,
             COALESCE(SUM(base_payout), 0) AS total_base_payout,
             COALESCE(SUM(welfare_amount), 0) AS total_welfare_deducted
         FROM `tabGig Transaction`
-        WHERE gig_worker = %s
-    """, worker_name, as_dict=True)[0]
+        {sql_conditions}
+    """, sql_params, as_dict=True)[0]
 
     completed_count = frappe.db.count(
-        "Gig Transaction", {"gig_worker": worker_name, "status": "Completed"}
+        "Gig Transaction", {**orm_filters, "status": "Completed"}
     )
 
-    # --- Welfare fund balance ---
+    # --- Welfare fund balance (always full, not filtered) ---
     fund = frappe.db.get_value(
         "Welfare Fund Account", {"gig_worker": worker_name},
         ["account_balance", "total_collected", "total_withdrawn"],
         as_dict=True,
     ) or frappe._dict({"account_balance": 0, "total_collected": 0, "total_withdrawn": 0})
 
-    # --- All transactions (DataTables handles pagination) ---
+    # --- Per-aggregator breakdown (always full, for overview cards) ---
+    agg_breakdown = frappe.db.sql("""
+        SELECT
+            aggregator,
+            COUNT(*) AS total_transactions,
+            COALESCE(SUM(amount), 0) AS total_earnings,
+            COALESCE(SUM(welfare_amount), 0) AS total_welfare
+        FROM `tabGig Transaction`
+        WHERE gig_worker = %(worker)s
+            AND aggregator IS NOT NULL AND aggregator != ''
+        GROUP BY aggregator
+        ORDER BY total_earnings DESC
+    """, {"worker": worker_name}, as_dict=True)
+
+    # --- Per-service-category breakdown (always full) ---
+    cat_breakdown = frappe.db.sql("""
+        SELECT
+            service_category,
+            COUNT(*) AS total_transactions,
+            COALESCE(SUM(amount), 0) AS total_earnings
+        FROM `tabGig Transaction`
+        WHERE gig_worker = %(worker)s
+            AND service_category IS NOT NULL AND service_category != ''
+        GROUP BY service_category
+        ORDER BY total_earnings DESC
+    """, {"worker": worker_name}, as_dict=True)
+
+    # --- Transactions (filtered) ---
     recent_txns = frappe.get_all(
         "Gig Transaction",
-        filters={"gig_worker": worker_name},
-        fields=["name", "date", "aggregator", "service", "amount",
-                "base_payout", "welfare_amount", "status"],
+        filters=orm_filters,
+        fields=["name", "date", "aggregator", "service", "service_category",
+                "amount", "base_payout", "welfare_amount", "status"],
         order_by="date desc",
     )
 
-    # --- All withdrawal requests ---
+    # --- Withdrawal requests (never filtered) ---
     withdrawals = frappe.get_all(
         "Welfare Benefit Withdrawal",
         filters={"gig_worker": worker_name},
@@ -71,4 +128,27 @@ def get_dashboard_data():
         },
         "recent_transactions": recent_txns,
         "withdrawals": withdrawals,
+        "aggregators": [a.aggregator for a in worker_aggregators],
+        "service_categories": [s.service_category for s in worker_service_cats],
+        "agg_breakdown": [
+            {
+                "aggregator": a.aggregator,
+                "total_transactions": int(a.total_transactions),
+                "total_earnings": float(a.total_earnings),
+                "total_welfare": float(a.total_welfare),
+            }
+            for a in agg_breakdown
+        ],
+        "cat_breakdown": [
+            {
+                "service_category": c.service_category,
+                "total_transactions": int(c.total_transactions),
+                "total_earnings": float(c.total_earnings),
+            }
+            for c in cat_breakdown
+        ],
+        "active_filters": {
+            "aggregator": aggregator or "",
+            "service_category": service_category or "",
+        },
     }

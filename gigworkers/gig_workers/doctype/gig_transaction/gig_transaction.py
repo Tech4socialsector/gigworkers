@@ -381,6 +381,18 @@ def register_gig_transaction(
     })
     doc.insert(ignore_permissions=True)
 
+    from gigworkers.gig_workers.doctype.worker_mapping_log.worker_mapping_log import create_mapping_log
+    create_mapping_log(
+        gig_worker=gig_worker_id,
+        event_type="Transaction Registered",
+        aggregator=aggregator_id,
+        service=service_id,
+        worker_status="Active",
+        reference_doctype="Gig Transaction",
+        reference_name=doc.name,
+        remarks=f"Transaction ₹{amount} registered for service {service_id}",
+    )
+
     return {
         "transaction_id": doc.name,
         "welfare_amount": doc.welfare_amount,
