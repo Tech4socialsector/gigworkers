@@ -296,3 +296,38 @@ def mark_as_suspected_duplicate(transaction_id):
     frappe.db.commit()
 
     return {"message": f"Transaction {transaction_id} marked as Suspected Duplicate."}
+
+
+@frappe.whitelist()
+def mark_multiple_as_suspected_duplicate(transaction_ids):
+    """Bulk-mark a list of transactions as Suspected Duplicate.
+
+    ``transaction_ids`` is a JSON-encoded list of transaction name strings.
+    Processes up to 1000 IDs per call; skips any IDs that are already
+    marked as Suspected Duplicate.
+    """
+    frappe.only_for("System Manager")
+
+    import json
+    import itertools
+
+    raw = json.loads(transaction_ids) if isinstance(transaction_ids, str) else transaction_ids
+    if not isinstance(raw, list):
+        frappe.throw("transaction_ids must be a JSON list of transaction names.")
+
+    # itertools.islice avoids a slice on list[str] that confuses the type checker
+    ids: list[str] = list(itertools.islice((str(i).strip() for i in raw if str(i).strip()), 1000))
+
+    marked = 0
+    for txn_id in ids:
+        try:
+            doc = frappe.get_doc("Gig Transaction", txn_id)
+            if doc.status != "Suspected Duplicate":
+                doc.status = "Suspected Duplicate"
+                doc.save(ignore_permissions=True)
+                marked += 1
+        except frappe.DoesNotExistError:
+            continue  # skip invalid IDs silently
+
+    frappe.db.commit()
+    return {"message": f"{marked} transaction(s) marked as Suspected Duplicate.", "marked": marked}
