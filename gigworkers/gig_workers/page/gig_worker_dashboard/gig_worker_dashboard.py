@@ -111,6 +111,19 @@ def get_dashboard_data(aggregator=None, service_category=None):
         order_by="creation desc",
     )
 
+    # --- Monthly earnings chart (last 12 months, by aggregator) ---
+    monthly_earnings = frappe.db.sql("""
+        SELECT
+            DATE_FORMAT(date, '%%Y-%%m') AS month,
+            aggregator,
+            COALESCE(SUM(amount), 0)     AS earnings
+        FROM `tabGig Transaction`
+        WHERE gig_worker = %(worker)s
+            AND date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(date, '%%Y-%%m'), aggregator
+        ORDER BY month ASC
+    """, {"worker": worker_name}, as_dict=True)
+
     return {
         "worker": worker,
         "worker_id": worker_name,
@@ -151,4 +164,12 @@ def get_dashboard_data(aggregator=None, service_category=None):
             "aggregator": aggregator or "",
             "service_category": service_category or "",
         },
+        "monthly_earnings": [
+            {
+                "month":      m.month,
+                "aggregator": m.aggregator or "Unknown",
+                "earnings":   float(m.earnings),
+            }
+            for m in monthly_earnings
+        ],
     }

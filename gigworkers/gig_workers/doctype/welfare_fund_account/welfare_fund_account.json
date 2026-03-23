@@ -9,7 +9,8 @@
   "total_collected",
   "total_withdrawn",
   "account_balance",
-  "last_updated"
+  "last_updated",
+  "ledger_entries"
  ],
  "fields": [
   {
@@ -37,12 +38,19 @@
    "fieldname": "total_withdrawn",
    "fieldtype": "Currency",
    "label": "Total Withdrawn"
+  },
+  {
+   "fieldname": "ledger_entries",
+   "fieldtype": "Table",
+   "label": "Ledger Entries",
+   "options": "Welfare Fund Ledger Entry",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-11 10:08:04.725245",
+ "modified": "2026-03-23 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Welfare Fund Account",

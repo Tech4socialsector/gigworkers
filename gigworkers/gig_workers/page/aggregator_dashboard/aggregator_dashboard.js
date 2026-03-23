@@ -14,20 +14,32 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		</div>
 	`);
 
-	let _agg_data = null;
+	let _agg_data        = null;
+	let _active_from     = "";
+	let _active_to       = "";
+	let _active_svc_cat  = "";
 
-	// Load DataTables CSS + JS dynamically, then fetch data
-	load_datatables(function () {
+	function fetch_dashboard() {
+		$("#agg-dashboard").html(`
+			<div id="agg-loading" style="text-align:center;padding:60px;color:#888;">
+				<i class="fa fa-spinner fa-spin fa-2x"></i>
+				<p style="margin-top:12px;">Loading...</p>
+			</div>
+		`);
 		frappe.call({
 			method: "gigworkers.gig_workers.page.aggregator_dashboard.aggregator_dashboard.get_dashboard_data",
+			args: { from_date: _active_from, to_date: _active_to, service_category: _active_svc_cat },
 			callback(r) {
 				if (r.message) { _agg_data = r.message; render_dashboard(r.message); }
 			},
 			error() {
-				$("#agg-loading").html('<p style="color:red;">Failed to load dashboard. Please refresh.</p>');
+				$("#agg-dashboard").html('<p style="color:red;padding:40px;">Failed to load dashboard. Please refresh.</p>');
 			},
 		});
-	});
+	}
+
+	// Load DataTables CSS + JS dynamically, then fetch data
+	load_datatables(function () { fetch_dashboard(); });
 
 	function load_datatables(callback) {
 		if ($.fn.DataTable) { callback(); return; }
@@ -293,9 +305,58 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		});
 	}
 
+	function render_filter_bar(service_categories, active_filters) {
+		const cat_opts = (service_categories || []).map(c =>
+			`<option value="${c}" ${active_filters.service_category === c ? "selected" : ""}>${c}</option>`
+		).join("");
+		const has_filter = active_filters.from_date || active_filters.to_date || active_filters.service_category;
+		return `
+		<div id="agg-filter-bar" style="background:#fff;border-radius:10px;padding:16px 20px;
+			box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:20px;
+			display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;">
+			<div style="flex:1;min-width:140px;">
+				<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">From Date</label>
+				<input type="date" id="agg-filter-from" value="${active_filters.from_date}"
+					style="width:100%;padding:7px 10px;border:1px solid #d1d3e2;border-radius:6px;font-size:13px;">
+			</div>
+			<div style="flex:1;min-width:140px;">
+				<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">To Date</label>
+				<input type="date" id="agg-filter-to" value="${active_filters.to_date}"
+					style="width:100%;padding:7px 10px;border:1px solid #d1d3e2;border-radius:6px;font-size:13px;">
+			</div>
+			<div style="flex:1;min-width:160px;">
+				<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Service Category</label>
+				<select id="agg-filter-cat"
+					style="width:100%;padding:7px 10px;border:1px solid #d1d3e2;border-radius:6px;font-size:13px;">
+					<option value="">All Services</option>
+					${cat_opts}
+				</select>
+			</div>
+			<div style="display:flex;gap:8px;align-items:flex-end;">
+				<button id="agg-btn-apply-filter"
+					style="background:#e74a3b;color:#fff;border:none;border-radius:6px;
+						padding:8px 20px;font-size:13px;cursor:pointer;font-weight:600;">
+					Apply Filter
+				</button>
+				${has_filter ? `<button id="agg-btn-clear-filter"
+					style="background:#fff;color:#e74a3b;border:1px solid #e74a3b;
+						border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;">
+					Clear
+				</button>` : ""}
+			</div>
+			${has_filter ? `<div style="width:100%;margin-top:4px;font-size:12px;color:#888;">
+				Showing filtered results
+				${active_filters.from_date ? ` from <b>${active_filters.from_date}</b>` : ""}
+				${active_filters.to_date ? ` to <b>${active_filters.to_date}</b>` : ""}
+				${active_filters.service_category ? ` &mdash; Service: <b style="color:#e74a3b;">${active_filters.service_category}</b>` : ""}
+			</div>` : ""}
+		</div>`;
+	}
+
 	function render_dashboard(data) {
 		const { aggregator, aggregator_id, stats, workers, welfare_payments,
-			recent_transactions, worker_list, pending_wfp } = data;
+			recent_transactions, worker_list, pending_wfp,
+			service_categories, active_filters } = data;
 
 		const html = `
 		<style>
@@ -326,6 +387,8 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				<i class="fa fa-file-pdf-o"></i> Download PDF
 			</button>
 		</div>
+
+		${render_filter_bar(service_categories, active_filters || {})}
 
 		<div class="agg-profile">
 			<div class="agg-avatar">${(aggregator.aggregator_name || "?")[0].toUpperCase()}</div>
@@ -433,5 +496,17 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		init_datatable("#agg-wfp-table");
 
 		$("#agg-btn-dl-pdf").on("click", download_pdf);
+
+		// Filter events
+		$("#agg-btn-apply-filter").on("click", function () {
+			_active_from    = $("#agg-filter-from").val() || "";
+			_active_to      = $("#agg-filter-to").val() || "";
+			_active_svc_cat = $("#agg-filter-cat").val() || "";
+			fetch_dashboard();
+		});
+		$("#agg-btn-clear-filter").on("click", function () {
+			_active_from = ""; _active_to = ""; _active_svc_cat = "";
+			fetch_dashboard();
+		});
 	}
 };

@@ -21,7 +21,8 @@
   "status",
   "created_by_aggregator",
   "user",
-  "verification_token"
+  "verification_token",
+  "token_created_at"
  ],
  "fields": [
   {
@@ -72,7 +73,8 @@
   {
    "fieldname": "eshram_id",
    "fieldtype": "Data",
-   "label": "eShram ID"
+   "label": "eShram ID",
+   "unique": 1
   },
   {
    "fieldname": "status",
@@ -135,6 +137,13 @@
    "options": "Email",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "token_created_at",
+   "fieldtype": "Datetime",
+   "label": "Token Created At",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "grid_page_length": 50,

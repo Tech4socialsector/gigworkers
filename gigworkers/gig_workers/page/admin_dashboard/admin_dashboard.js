@@ -1128,7 +1128,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 					pageLength: 15,
 					lengthMenu: [10, 15, 25, 50, 100],
 					order: [],
-					scrollX: true,
+					autoWidth: false,
 					language: {
 						search: "Filter:",
 						lengthMenu: "Show _MENU_ entries",
@@ -1307,13 +1307,15 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				background: #fff; border-radius: 10px;
 				padding: 16px 20px;
 				box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+				overflow-x: auto;
 			}
 			#dd-table-wrap h6 {
 				font-size: 12px; font-weight: 700; color: #999;
 				text-transform: uppercase; letter-spacing: .5px;
 				margin: 0 0 12px;
 			}
-			#dd-body table.dataTable { font-size: 13px; }
+			#dd-body table.dataTable { font-size: 13px; width: 100% !important; }
+			#dd-body table.dataTable thead th { white-space: nowrap; }
 			#dd-body .dt-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 			#dd-body .dt-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 		</style>
@@ -1549,6 +1551,14 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			<button class="dl-btn dl-btn-pdf" id="btn-dl-pdf">
 				<i class="fa fa-file-pdf-o"></i> Download PDF
 			</button>
+			<a href="/app/query-report/Quarterly%20Welfare%20Compliance%20Report"
+				style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;
+					border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;
+					background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9;
+					text-decoration:none;font-family:inherit;"
+				target="_blank">
+				<i class="fa fa-table"></i> Quarterly Compliance Report
+			</a>
 		</div>
 
 		<!-- Drilldown modal overlay -->

@@ -88,7 +88,7 @@ class GigWorker(Document):
 
 	def validate_dob(self):
 		if self.dob:
-			from frappe.utils import getdate, date_diff, today
+			from frappe.utils import getdate, date_diff, today, now, get_datetime, add_to_date, now_datetime
 			dob_date = getdate(self.dob)
 			today_date = getdate(today())
 			if dob_date > today_date:
@@ -105,6 +105,14 @@ class GigWorker(Document):
 					f"❌ <b>eShram ID</b> '{self.eshram_id}' is not valid.<br>"
 					"Please enter a valid eShram ID (e.g., UW-123456789012).",
 					title="Invalid eShram ID",
+				)
+			existing = frappe.db.get_value(
+				"Gig Worker", {"eshram_id": self.eshram_id, "name": ("!=", self.name)}, "name"
+			)
+			if existing:
+				frappe.throw(
+					f"❌ <b>eShram ID</b> '{self.eshram_id}' is already registered with another Gig Worker.",
+					title="Duplicate eShram ID",
 				)
 
 	# --------------------------------------------------------
@@ -196,6 +204,7 @@ class GigWorker(Document):
 		frappe.db.set_value("Gig Worker", self.name, {
 			"status": "Pending Verification",
 			"verification_token": token,
+			"token_created_at": now(),
 		})
 
 		if not self.email:
@@ -303,13 +312,14 @@ def verify_worker_registration(token):
 
 	On success: activates the worker and creates their login account.
 	"""
-	worker_name = frappe.db.get_value(
+	row = frappe.db.get_value(
 		"Gig Worker",
 		{"verification_token": token, "status": "Pending Verification"},
-		"name",
+		["name", "token_created_at"],
+		as_dict=True,
 	)
 
-	if not worker_name:
+	if not row:
 		frappe.respond_as_web_page(
 			"Verification Failed",
 			"This verification link is invalid or has already been used. "
@@ -319,10 +329,29 @@ def verify_worker_registration(token):
 		)
 		return
 
+	worker_name = row.name
+
+	# Check 48-hour expiry
+	TOKEN_EXPIRY_HOURS = 48
+	if row.token_created_at:
+		from frappe.utils import now_datetime, get_datetime
+		created = get_datetime(row.token_created_at)
+		if (now_datetime() - created).total_seconds() > TOKEN_EXPIRY_HOURS * 3600:
+			frappe.db.set_value("Gig Worker", worker_name, {"verification_token": "", "token_created_at": None})
+			frappe.respond_as_web_page(
+				"Link Expired",
+				f"This verification link has expired (valid for {TOKEN_EXPIRY_HOURS} hours). "
+				"Please contact your aggregator to resend the verification email.",
+				indicator_color="orange",
+				http_status_code=400,
+			)
+			return
+
 	# Activate the worker and clear the one-time token
 	frappe.db.set_value("Gig Worker", worker_name, {
 		"status": "Active",
 		"verification_token": "",
+		"token_created_at": None,
 	})
 
 	worker = frappe.get_doc("Gig Worker", worker_name)

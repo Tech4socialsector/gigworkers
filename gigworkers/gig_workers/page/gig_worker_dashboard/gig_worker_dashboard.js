@@ -101,6 +101,97 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 		return new Date().toISOString().slice(0, 10).replace(/-/g, "");
 	}
 
+	// ── Monthly earnings chart ───────────────────────────────────────────────────
+	function render_monthly_chart(monthly_earnings) {
+		if (!monthly_earnings || monthly_earnings.length === 0) return "";
+
+		// Build month list and aggregator list
+		const monthSet = [...new Set(monthly_earnings.map(r => r.month))].sort();
+		const aggSet   = [...new Set(monthly_earnings.map(r => r.aggregator))];
+
+		const AGG_COLORS = ["#4e73df","#1cc88a","#f6c23e","#36b9cc","#e74a3b","#858796","#6f42c1","#fd7e14"];
+
+		// Map: { "2026-01": { "Swiggy": 1200, "Zomato": 800 } }
+		const byMonth = {};
+		monthly_earnings.forEach(r => {
+			if (!byMonth[r.month]) byMonth[r.month] = {};
+			byMonth[r.month][r.aggregator] = (byMonth[r.month][r.aggregator] || 0) + r.earnings;
+		});
+
+		// Chart dimensions
+		const W = 700, H = 220, PAD_L = 70, PAD_R = 20, PAD_T = 20, PAD_B = 50;
+		const chartW = W - PAD_L - PAD_R;
+		const chartH = H - PAD_T - PAD_B;
+
+		const maxEarning = Math.max(...monthSet.map(m =>
+			aggSet.reduce((s, a) => s + (byMonth[m][a] || 0), 0)
+		)) || 1;
+
+		const barGroupW = chartW / monthSet.length;
+		const barW      = Math.min(barGroupW / aggSet.length - 2, 30);
+
+		let bars = "", labels = "", yAxis = "", legend = "";
+
+		// Y-axis gridlines
+		for (let i = 0; i <= 4; i++) {
+			const val = (maxEarning / 4) * i;
+			const y   = PAD_T + chartH - (chartH * i / 4);
+			yAxis += `<line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}"
+				stroke="#eee" stroke-width="1"/>`;
+			yAxis += `<text x="${PAD_L - 6}" y="${y + 4}" text-anchor="end"
+				font-size="10" fill="#aaa">\u20B9${Math.round(val / 100) * 100}</text>`;
+		}
+
+		// Bars + month labels
+		monthSet.forEach((month, mi) => {
+			const groupX = PAD_L + mi * barGroupW + barGroupW / 2 - (aggSet.length * (barW + 2)) / 2;
+			aggSet.forEach((agg, ai) => {
+				const val    = byMonth[month][agg] || 0;
+				const barH   = chartH * (val / maxEarning);
+				const x      = groupX + ai * (barW + 2);
+				const y      = PAD_T + chartH - barH;
+				const color  = AGG_COLORS[ai % AGG_COLORS.length];
+				bars += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}"
+					fill="${color}" rx="2" opacity="0.85">
+					<title>${agg}: \u20B9${val.toFixed(2)} (${month})</title>
+				</rect>`;
+			});
+			// Month label
+			const lx = PAD_L + mi * barGroupW + barGroupW / 2;
+			labels += `<text x="${lx}" y="${H - 8}" text-anchor="middle"
+				font-size="10" fill="#888">${month.substring(5)}</text>`;
+			// Year label on Jan or first month
+			if (month.endsWith("-01") || mi === 0) {
+				labels += `<text x="${lx}" y="${H}" text-anchor="middle"
+					font-size="9" fill="#bbb">${month.substring(0, 4)}</text>`;
+			}
+		});
+
+		// Legend
+		aggSet.forEach((agg, i) => {
+			const color = AGG_COLORS[i % AGG_COLORS.length];
+			legend += `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:12px;color:#555;">
+				<span style="width:12px;height:12px;border-radius:2px;background:${color};display:inline-block;"></span>
+				${agg}
+			</span>`;
+		});
+
+		return `
+		<div class="gw-section">
+			<h5>Monthly Earnings (Last 12 Months)</h5>
+			<div style="overflow-x:auto;">
+				<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">
+					${yAxis}
+					${bars}
+					${labels}
+					<line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${PAD_T + chartH}"
+						stroke="#ccc" stroke-width="1"/>
+				</svg>
+			</div>
+			<div style="margin-top:8px;">${legend}</div>
+		</div>`;
+	}
+
 	// ── Per-aggregator breakdown cards ──────────────────────────────────────────
 	function render_agg_breakdown(agg_breakdown, active_aggregator) {
 		if (!agg_breakdown || agg_breakdown.length === 0) return "";
@@ -466,7 +557,8 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 	// ── Main render ──────────────────────────────────────────────────────────────
 	function render_dashboard(data) {
 		const { worker, worker_id, stats, fund, recent_transactions, withdrawals,
-			aggregators, service_categories, agg_breakdown, cat_breakdown, active_filters } = data;
+			aggregators, service_categories, agg_breakdown, cat_breakdown, active_filters,
+			monthly_earnings } = data;
 
 		const html = `
 		<style>
@@ -510,6 +602,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 		${render_filter_bar(aggregators || [], service_categories || [],
 			active_filters.aggregator, active_filters.service_category)}
 
+		${render_monthly_chart(monthly_earnings)}
 		${render_agg_breakdown(agg_breakdown, active_filters.aggregator)}
 		${render_cat_breakdown(cat_breakdown, active_filters.service_category)}
 
