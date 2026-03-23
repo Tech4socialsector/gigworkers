@@ -53,6 +53,68 @@ frappe.ui.form.on("Gig Transaction", {
 		// LOW TRUST FLOW
 		// ----------------------------------------------------------
 
+		// ----------------------------------------------------------
+		// DUPLICATE REVIEW ACTIONS (System Manager only)
+		// ----------------------------------------------------------
+
+		const isAdmin = frappe.user.has_role("System Manager");
+
+		if (isAdmin && status === "Suspected Duplicate") {
+
+			frm.add_custom_button(__("Mark as Duplicate"), function () {
+				frappe.prompt(
+					[{
+						label: "Duplicate Of (Transaction ID)",
+						fieldname: "duplicate_of",
+						fieldtype: "Link",
+						options: "Gig Transaction",
+						default: frm.doc.duplicate_of || "",
+						description: "Select the original transaction this is a duplicate of"
+					}],
+					function (values) {
+						frappe.call({
+							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.mark_as_duplicate",
+							args: {
+								transaction_name: frm.doc.name,
+								duplicate_of: values.duplicate_of || ""
+							},
+							freeze: true,
+							freeze_message: __("Marking as Duplicate..."),
+							callback(r) {
+								if (!r.exc) {
+									frappe.show_alert({ message: __(r.message.message), indicator: "red" }, 5);
+									frm.reload_doc();
+								}
+							}
+						});
+					},
+					__("Confirm Duplicate"),
+					__("Mark as Duplicate")
+				);
+			}, __("Duplicate Actions")).addClass("btn-danger");
+
+			frm.add_custom_button(__("Dismiss (Not a Duplicate)"), function () {
+				frappe.confirm(
+					"Clear the suspected duplicate flag? This transaction will be restored to its previous status.",
+					function () {
+						frappe.call({
+							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.dismiss_suspected_duplicate",
+							args: { transaction_name: frm.doc.name },
+							freeze: true,
+							freeze_message: __("Clearing flag..."),
+							callback(r) {
+								if (!r.exc) {
+									frappe.show_alert({ message: __(r.message.message), indicator: "green" }, 5);
+									frm.reload_doc();
+								}
+							}
+						});
+					}
+				);
+			}, __("Duplicate Actions")).addClass("btn-warning");
+
+		}
+
 		if (trustLevel === "Low" && status !== "Completed") {
 
 			// -----------------------------

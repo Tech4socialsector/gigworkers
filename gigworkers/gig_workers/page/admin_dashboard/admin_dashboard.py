@@ -264,30 +264,32 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         order_by="aggregator_name asc",
     )
 
-    # --- Suspected duplicate transactions ---
-    # Match on same gig_worker + aggregator + service + date + amount
-    duplicate_txns = frappe.db.sql("""
+    # --- Suspected duplicate transactions (flagged by system or admin) ---
+    dup_agg_cond = "AND aggregator = %(dup_agg)s" if aggregator else ""
+    dup_params = {"dup_agg": aggregator} if aggregator else {}
+    duplicate_txns = frappe.db.sql(f"""
         SELECT
-            gig_worker,
-            aggregator,
-            service,
-            date,
-            amount,
-            COUNT(*)                                                        AS duplicate_count,
-            GROUP_CONCAT(name ORDER BY creation SEPARATOR ',')              AS transaction_ids,
-            MIN(creation)                                                   AS first_seen
+            name, date, gig_worker, aggregator, service,
+            amount, base_payout, welfare_amount, status,
+            duplicate_of, suspected_duplicate, creation
         FROM `tabGig Transaction`
-        WHERE status != 'Suspected Duplicate'
-        GROUP BY gig_worker, aggregator, service, date, amount
-        HAVING COUNT(*) > 1
-        ORDER BY duplicate_count DESC, first_seen DESC
-    """, as_dict=True)
+        WHERE status = 'Suspected Duplicate'
+        {dup_agg_cond}
+        ORDER BY creation DESC
+        LIMIT 500
+    """, dup_params, as_dict=True)
+
+    suspected_count = frappe.db.count(
+        "Gig Transaction",
+        {"status": "Suspected Duplicate", **({"aggregator": aggregator} if aggregator else {})},
+    )
 
     return {
         "stats": {
             "total_transactions": txn_stats.total_transactions or 0,
             "completed_transactions": completed_count or 0,
             "pending_transactions": pending_count or 0,
+            "suspected_duplicates": int(suspected_count or 0),
             "total_amount": float(txn_stats.total_amount or 0),
             "total_base_payout": float(txn_stats.total_base_payout or 0),
             "total_welfare": float(txn_stats.total_welfare or 0),

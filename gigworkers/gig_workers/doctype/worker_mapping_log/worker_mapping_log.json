@@ -117,8 +117,12 @@
  "permissions": [
   {
    "create": 1,
+   "delete": 1,
+   "export": 1,
    "read": 1,
-   "role": "System Manager"
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
   },
   {
    "read": 1,

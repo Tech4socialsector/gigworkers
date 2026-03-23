@@ -71,6 +71,11 @@
   {
    "read": 1,
    "role": "Gig Worker"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Aggregator"
   }
  ],
  "row_format": "Dynamic",

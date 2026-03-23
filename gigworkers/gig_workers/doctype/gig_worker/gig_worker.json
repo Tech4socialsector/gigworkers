@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "GW.###",
  "creation": "2026-03-04 15:07:19.133283",
@@ -170,7 +171,10 @@
   },
   {
    "create": 1,
+   "export": 1,
+   "import": 1,
    "read": 1,
+   "report": 1,
    "role": "Aggregator",
    "write": 1
   },

@@ -132,6 +132,15 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None):
         order_by="payment_date desc",
     )
 
+    # --- Suspected duplicate transactions (read-only view for aggregator) ---
+    suspected_dups = frappe.get_all(
+        "Gig Transaction",
+        filters={"aggregator": aggregator_name, "status": "Suspected Duplicate"},
+        fields=["name", "date", "gig_worker", "service", "amount",
+                "base_payout", "welfare_amount", "duplicate_of"],
+        order_by="creation desc",
+    )
+
     return {
         "aggregator":       aggregator,
         "aggregator_id":    aggregator_name,
@@ -142,12 +151,13 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None):
             "service_category": service_category or "",
         },
         "stats": {
-            "total_transactions":   txn_stats.total_transactions or 0,
+            "total_transactions":     txn_stats.total_transactions or 0,
             "completed_transactions": int(completed_count or 0),
-            "pending_transactions": int(pending_count or 0),
-            "total_amount":         float(txn_stats.total_amount or 0),
-            "total_base_payout":    float(txn_stats.total_base_payout or 0),
-            "total_welfare":        float(txn_stats.total_welfare or 0),
+            "pending_transactions":   int(pending_count or 0),
+            "suspected_duplicates":   len(suspected_dups),
+            "total_amount":           float(txn_stats.total_amount or 0),
+            "total_base_payout":      float(txn_stats.total_base_payout or 0),
+            "total_welfare":          float(txn_stats.total_welfare or 0),
         },
         "workers": {
             "total":  total_workers or 0,
@@ -161,4 +171,5 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None):
         "recent_transactions": recent_txns,
         "worker_list":         workers,
         "pending_wfp":         pending_wfp,
+        "suspected_dups":      suspected_dups,
     }

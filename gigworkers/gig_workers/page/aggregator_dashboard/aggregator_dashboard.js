@@ -356,7 +356,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	function render_dashboard(data) {
 		const { aggregator, aggregator_id, stats, workers, welfare_payments,
 			recent_transactions, worker_list, pending_wfp,
-			service_categories, active_filters } = data;
+			service_categories, active_filters, suspected_dups } = data;
 
 		const html = `
 		<style>
@@ -390,6 +390,25 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 		${render_filter_bar(service_categories, active_filters || {})}
 
+		${(suspected_dups && suspected_dups.length) ? `
+		<div style="background:#fff8e1;border:1.5px solid #f6c23e;border-radius:10px;
+			padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+			<i class="fa fa-exclamation-triangle" style="color:#f6c23e;font-size:20px;"></i>
+			<div style="flex:1;">
+				<strong style="color:#856404;">
+					${suspected_dups.length} transaction${suspected_dups.length > 1 ? "s" : ""} flagged as suspected duplicate
+				</strong>
+				<span style="color:#856404;font-size:13px;margin-left:8px;">
+					— Under review by admin. No action required from you.
+				</span>
+			</div>
+			<a href="javascript:void(0)" onclick="var el=document.getElementById('agg-dup-section');if(el)el.scrollIntoView({behavior:'smooth'});"
+				style="font-size:13px;font-weight:600;color:#856404;text-decoration:underline;cursor:pointer;">
+				View &darr;
+			</a>
+		</div>
+		` : ""}
+
 		<div class="agg-profile">
 			<div class="agg-avatar">${(aggregator.aggregator_name || "?")[0].toUpperCase()}</div>
 			<div class="agg-profile-info">
@@ -405,6 +424,11 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			<div class="agg-stat-card" style="--card-color:#4e73df;"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
 			<div class="agg-stat-card" style="--card-color:#1cc88a;"><div class="label">Completed</div><div class="value">${stats.completed_transactions}</div></div>
 			<div class="agg-stat-card" style="--card-color:#f6c23e;"><div class="label">Pending</div><div class="value">${stats.pending_transactions}</div></div>
+			<div class="agg-stat-card" style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
+				onclick="if(${stats.suspected_duplicates || 0}){var el=document.getElementById('agg-dup-section');if(el)el.scrollIntoView({behavior:'smooth'});}">
+				<div class="label">Suspected Duplicates</div>
+				<div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div>
+			</div>
 			<div class="agg-stat-card" style="--card-color:#36b9cc;"><div class="label">Total Amount Paid</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_amount)}</div></div>
 			<div class="agg-stat-card" style="--card-color:#e74a3b;"><div class="label">Total Welfare Collected</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_welfare)}</div></div>
 		</div>
@@ -486,14 +510,51 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				</tbody>
 			</table>
 		</div>
+
+		${(suspected_dups && suspected_dups.length) ? `
+		<!-- Suspected Duplicate Transactions (read-only) -->
+		<div class="agg-section" id="agg-dup-section" style="border-left:4px solid #f6c23e;">
+			<h5 style="color:#856404;">
+				<i class="fa fa-exclamation-triangle" style="margin-right:6px;"></i>
+				Suspected Duplicate Transactions
+				<span style="float:right;font-size:12px;font-weight:400;color:#888;">
+					Read-only — admin will review and take action
+				</span>
+			</h5>
+			<table id="agg-dup-table" class="display" style="width:100%">
+				<thead><tr>
+					<th>Transaction ID</th><th>Date</th><th>Gig Worker</th>
+					<th>Service</th><th>Amount</th><th>Welfare</th><th>Matches</th>
+				</tr></thead>
+				<tbody>
+					${suspected_dups.map(d => `<tr>
+						<td><a href="/app/gig-transaction/${d.name}" style="color:#4e73df;">${d.name}</a></td>
+						<td>${d.date || "-"}</td>
+						<td>${d.gig_worker || "-"}</td>
+						<td>${d.service || "-"}</td>
+						<td style="color:#e74a3b;font-weight:600;">${fmt_currency(d.amount)}</td>
+						<td>${fmt_currency(d.welfare_amount)}</td>
+						<td style="font-size:12px;">
+							${d.duplicate_of
+								? `<a href="/app/gig-transaction/${d.duplicate_of}" style="color:#4e73df;">${d.duplicate_of}</a>`
+								: `<span style="color:#aaa;">—</span>`}
+						</td>
+					</tr>`).join("")}
+				</tbody>
+			</table>
+		</div>
+		` : ""}
 		`;
 
 		$("#agg-dashboard").html(html);
 
-		// Initialize DataTables on all three tables
+		// Initialize DataTables
 		init_datatable("#agg-txn-table");
 		init_datatable("#agg-worker-table");
 		init_datatable("#agg-wfp-table");
+		if (suspected_dups && suspected_dups.length) {
+			init_datatable("#agg-dup-table");
+		}
 
 		$("#agg-btn-dl-pdf").on("click", download_pdf);
 

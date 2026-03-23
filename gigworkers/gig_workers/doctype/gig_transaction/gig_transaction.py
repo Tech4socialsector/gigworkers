@@ -13,7 +13,8 @@ _ALLOWED_TRANSITIONS = {
     "Payment Pending":     {"Completed", "Cancelled"},
     "Completed":           {"Suspected Duplicate"},
     "Cancelled":           set(),
-    "Suspected Duplicate": {"Cancelled"},
+    "Suspected Duplicate": {"Duplicate", "Cancelled"},
+    "Duplicate":           set(),
 }
 
 OTP_EXPIRY_MINUTES = 30
@@ -127,6 +128,63 @@ def send_confirmation_email(transaction_name, email, otp_code, confirmed_at):
         )
 
 
+# ── Duplicate notification ─────────────────────────────────────────────────────
+
+def _notify_admin_duplicate(new_txn, existing_txn):
+    """Create ToDo for each System Manager and send email alert."""
+    admins = frappe.get_all(
+        "Has Role",
+        filters={"role": "System Manager", "parenttype": "User"},
+        fields=["parent"],
+    )
+    base_url = frappe.utils.get_url()
+    for admin in admins:
+        if admin.parent in ("Guest", "Administrator"):
+            continue
+        try:
+            frappe.get_doc({
+                "doctype":        "ToDo",
+                "owner":          admin.parent,
+                "assigned_by":    "Administrator",
+                "description": (
+                    f"Suspected duplicate transaction detected.\n"
+                    f"New: {new_txn}\nMatches: {existing_txn}\n"
+                    f"Review and mark as Duplicate if confirmed."
+                ),
+                "reference_type": "Gig Transaction",
+                "reference_name": new_txn,
+                "priority":       "High",
+                "date":           today(),
+            }).insert(ignore_permissions=True)
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), "Duplicate ToDo Creation Error")
+
+    try:
+        admin_emails = [a.parent for a in admins if "@" in (a.parent or "")]
+        if admin_emails:
+            frappe.sendmail(
+                recipients=admin_emails,
+                subject=f"[Action Required] Suspected Duplicate Transaction: {new_txn}",
+                message=f"""
+                <p>A suspected duplicate transaction has been detected.</p>
+                <table style="border-collapse:collapse;margin:12px 0;">
+                  <tr><td style="padding:4px 12px 4px 0"><b>New Transaction</b></td>
+                      <td>{new_txn}</td></tr>
+                  <tr><td style="padding:4px 12px 4px 0"><b>Matches Existing</b></td>
+                      <td>{existing_txn}</td></tr>
+                </table>
+                <p>Please review and confirm or dismiss.</p>
+                <a href="{base_url}/app/gig-transaction/{new_txn}"
+                   style="display:inline-block;background:#e53935;color:#fff;
+                          padding:10px 20px;border-radius:5px;text-decoration:none;font-weight:bold;">
+                   Review Transaction
+                </a>
+                """,
+            )
+    except Exception as e:
+        frappe.log_error(str(e), "Duplicate Notification Email Error")
+
+
 # ── Document class ─────────────────────────────────────────────────────────────
 
 class GigTransaction(Document):
@@ -141,6 +199,42 @@ class GigTransaction(Document):
 
     def after_insert(self):
         self.db_set("transaction_id", self.name)
+        self._check_duplicate_on_insert()
+
+    def _check_duplicate_on_insert(self):
+        """Detect duplicate by duplicate_key, flag both transactions, notify admin."""
+        if not self.duplicate_key:
+            return
+        existing = frappe.db.get_value(
+            "Gig Transaction",
+            {
+                "duplicate_key": self.duplicate_key,
+                "name": ["!=", self.name],
+                "status": ["not in", ["Cancelled", "Duplicate"]],
+            },
+            "name",
+        )
+        if not existing:
+            return
+
+        # Flag the new transaction
+        frappe.db.set_value("Gig Transaction", self.name, {
+            "suspected_duplicate": 1,
+            "status": "Suspected Duplicate",
+            "duplicate_of": existing,
+        })
+
+        # Flag the existing transaction if not already flagged
+        existing_status = frappe.db.get_value("Gig Transaction", existing, "status")
+        if existing_status not in ("Suspected Duplicate", "Duplicate"):
+            frappe.db.set_value("Gig Transaction", existing, {
+                "suspected_duplicate": 1,
+                "status": "Suspected Duplicate",
+            })
+        else:
+            frappe.db.set_value("Gig Transaction", existing, "suspected_duplicate", 1)
+
+        _notify_admin_duplicate(self.name, existing)
 
     def validate(self):
         self.validate_status_transition()
@@ -485,6 +579,65 @@ def mark_multiple_as_suspected_duplicate(transaction_names):
         except Exception:
             frappe.log_error(frappe.get_traceback(), f"Failed to mark {name} as Suspected Duplicate")
     return {"message": f"{updated} transaction(s) marked as Suspected Duplicate."}
+
+
+@frappe.whitelist()
+def mark_as_duplicate(transaction_name, duplicate_of=None):
+    """Admin confirms a suspected duplicate. Reverses welfare credit if Completed."""
+    frappe.only_for("System Manager")
+    doc = frappe.get_doc("Gig Transaction", transaction_name)
+
+    if doc.status == "Duplicate":
+        frappe.throw("Transaction is already marked as Duplicate.")
+    if doc.status == "Cancelled":
+        frappe.throw("Cannot mark a Cancelled transaction as Duplicate.")
+
+    was_completed = doc.status == "Completed"
+
+    doc.status = "Duplicate"
+    if duplicate_of:
+        doc.duplicate_of = duplicate_of
+    doc.suspected_duplicate = 1
+    doc.save(ignore_permissions=True)
+
+    # Reverse welfare fund credit if transaction was already Completed
+    if was_completed and doc.welfare_amount:
+        wfp_name = frappe.db.get_value(
+            "Welfare Fee Payment", {"transaction": transaction_name}, "name"
+        )
+        if wfp_name:
+            wfp_doc = frappe.get_doc("Welfare Fee Payment", wfp_name)
+            if wfp_doc.payment_status == "Completed":
+                # Debit back from welfare fund
+                acc_name = frappe.db.get_value(
+                    "Welfare Fund Account", {"gig_worker": doc.gig_worker}, "name"
+                )
+                if acc_name:
+                    acc_doc = frappe.get_doc("Welfare Fund Account", acc_name)
+                    acc_doc.debit(
+                        doc.welfare_amount,
+                        reference_doctype="Gig Transaction",
+                        reference_name=transaction_name,
+                        remarks=f"Reversal: transaction {transaction_name} marked as duplicate",
+                    )
+            frappe.db.set_value("Welfare Fee Payment", wfp_name, "payment_status", "Cancelled")
+
+    return {"message": f"Transaction {transaction_name} marked as Duplicate."}
+
+
+@frappe.whitelist()
+def dismiss_suspected_duplicate(transaction_name):
+    """Admin clears the suspected duplicate flag (transaction is legitimate)."""
+    frappe.only_for("System Manager")
+    doc = frappe.get_doc("Gig Transaction", transaction_name)
+    if doc.status != "Suspected Duplicate":
+        frappe.throw("Transaction is not in Suspected Duplicate status.")
+    # Restore to previous logical status based on whether it was completed
+    doc.suspected_duplicate = 0
+    doc.duplicate_of = None
+    doc.status = "Completed" if doc.confirmed_at else "Registered"
+    doc.save(ignore_permissions=True)
+    return {"message": f"Suspected duplicate flag cleared for {transaction_name}."}
 
 
 # ── Serve OTP confirmation web page ───────────────────────────────────────────

@@ -26,6 +26,8 @@
   "external_transaction_id",
   "trust_level",
   "status",
+  "suspected_duplicate",
+  "duplicate_of",
   "confirmed_at",
   "settlement_status",
   "otp_section",
@@ -122,7 +124,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "\nRegistered\nPayment Pending\nCompleted\nCancelled\nSuspected Duplicate"
+   "options": "\nRegistered\nPayment Pending\nCompleted\nCancelled\nSuspected Duplicate\nDuplicate"
   },
   {
    "fieldname": "amount",
@@ -158,6 +160,22 @@
    "fieldname": "transaction_date",
    "fieldtype": "Date",
    "label": "transaction_date"
+  },
+  {
+   "default": "0",
+   "fieldname": "suspected_duplicate",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Suspected Duplicate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duplicate_of",
+   "fieldtype": "Link",
+   "label": "Duplicate Of",
+   "options": "Gig Transaction",
+   "read_only": 1
   },
   {
    "fieldname": "confirmed_at",
@@ -219,7 +237,10 @@
   },
   {
    "create": 1,
+   "export": 1,
+   "import": 1,
    "read": 1,
+   "report": 1,
    "role": "Aggregator",
    "write": 1
   },
