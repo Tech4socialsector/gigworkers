@@ -35,11 +35,20 @@ def get_dashboard_data():
         "Gig Transaction", {"aggregator": aggregator_name, "status": "Registered"}
     )
 
-    # --- Worker stats ---
-    total_workers = frappe.db.count("Worker Service Mapping", {"aggregator": aggregator_name})
-    active_workers = frappe.db.count(
-        "Worker Service Mapping", {"aggregator": aggregator_name, "status": "Onboarded"}
-    )
+    # --- Worker stats (from Worker Mapping Log) ---
+    total_workers_result = frappe.db.sql("""
+        SELECT COUNT(DISTINCT gig_worker) AS cnt
+        FROM `tabWorker Mapping Log`
+        WHERE aggregator = %s
+    """, aggregator_name, as_dict=True)
+    total_workers = total_workers_result[0].cnt if total_workers_result else 0
+
+    active_workers_result = frappe.db.sql("""
+        SELECT COUNT(DISTINCT gig_worker) AS cnt
+        FROM `tabGig Transaction`
+        WHERE aggregator = %s AND status = 'Completed'
+    """, aggregator_name, as_dict=True)
+    active_workers = active_workers_result[0].cnt if active_workers_result else 0
 
     # --- Welfare fee payment stats ---
     wfp_stats = frappe.db.sql("""
@@ -65,12 +74,12 @@ def get_dashboard_data():
         order_by="date desc",
     )
 
-    # --- All worker mappings ---
+    # --- Worker mapping log entries ---
     workers = frappe.get_all(
-        "Worker Service Mapping",
+        "Worker Mapping Log",
         filters={"aggregator": aggregator_name},
-        fields=["name", "gig_worker", "service", "role", "start_date", "status"],
-        order_by="start_date desc",
+        fields=["name", "gig_worker", "service", "event_type", "worker_status", "log_datetime"],
+        order_by="log_datetime desc",
     )
 
     # --- All pending welfare fee payments ---

@@ -257,13 +257,14 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				])
 			);
 
-			// Worker onboarding table
-			section_heading("Worker Onboarding");
+			// Worker mapping log table
+			section_heading("Worker Mapping Log");
 			pdf_table(
-				["Mapping ID", "Gig Worker", "Service", "Role", "Start Date", "Status"],
+				["Log ID", "Gig Worker", "Service", "Event", "Worker Status", "Logged At"],
 				d.worker_list.map(w => [
 					w.name, w.gig_worker || "-", w.service || "-",
-					w.role || "-", w.start_date || "-", w.status || "-",
+					w.event_type || "-", w.worker_status || "-",
+					(w.log_datetime || "").substring(0, 16),
 				])
 			);
 
@@ -378,24 +379,24 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			</table>
 		</div>
 
-		<!-- Worker Onboarding Table -->
+		<!-- Worker Mapping Log Table -->
 		<div class="agg-section">
-			<h5>Worker Onboarding
-				<a href="/app/worker-service-mapping" style="float:right;font-size:13px;font-weight:500;color:#4e73df;">View All</a>
+			<h5>Worker Mapping Log
+				<a href="/app/worker-mapping-log" style="float:right;font-size:13px;font-weight:500;color:#4e73df;">View All</a>
 			</h5>
 			<table id="agg-worker-table" class="display" style="width:100%">
 				<thead><tr>
-					<th>Mapping ID</th><th>Gig Worker</th><th>Service</th>
-					<th>Role</th><th>Start Date</th><th>Status</th>
+					<th>Log ID</th><th>Gig Worker</th><th>Service</th>
+					<th>Event</th><th>Worker Status</th><th>Logged At</th>
 				</tr></thead>
 				<tbody>
 					${worker_list.map(w => `<tr>
-						<td><a href="/app/worker-service-mapping/${w.name}" style="color:#4e73df;">${w.name}</a></td>
+						<td><a href="/app/worker-mapping-log/${w.name}" style="color:#4e73df;">${w.name}</a></td>
 						<td>${w.gig_worker || "-"}</td>
 						<td>${w.service || "-"}</td>
-						<td>${w.role || "-"}</td>
-						<td>${w.start_date || "-"}</td>
-						<td>${status_badge(w.status)}</td>
+						<td>${status_badge(w.event_type)}</td>
+						<td>${w.worker_status || "-"}</td>
+						<td>${(w.log_datetime || "").substring(0, 16)}</td>
 					</tr>`).join("")}
 				</tbody>
 			</table>
