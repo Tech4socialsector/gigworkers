@@ -220,6 +220,43 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         limit=200,
     )
 
+    # --- Completed welfare fee payments (for drilldown) ---
+    completed_wfp_filters: dict = {"payment_status": "Completed"}
+    if aggregator:
+        completed_wfp_filters["aggregator"] = aggregator
+    if from_date and to_date:
+        completed_wfp_filters["payment_date"] = ["between", [from_date, to_date]]
+    elif from_date:
+        completed_wfp_filters["payment_date"] = [">=", from_date]
+    elif to_date:
+        completed_wfp_filters["payment_date"] = ["<=", to_date]
+
+    completed_wfp = frappe.get_all(
+        "Welfare Fee Payment",
+        filters=completed_wfp_filters,
+        fields=["name", "aggregator", "transaction", "fee_amount", "payment_date", "payment_status"],
+        order_by="payment_date desc",
+        limit=500,
+    )
+
+    # --- Welfare fund breakdown per aggregator (for drilldown) ---
+    wfa_agg_cond = "WHERE wsm.aggregator = %(aggregator)s" if aggregator else ""
+    welfare_fund_by_agg = frappe.db.sql(f"""
+        SELECT
+            wsm.aggregator                            AS aggregator_id,
+            MAX(a.aggregator_name)                    AS aggregator_name,
+            COUNT(DISTINCT wfa.name)                  AS worker_count,
+            COALESCE(SUM(wfa.account_balance), 0)     AS total_balance,
+            COALESCE(SUM(wfa.total_collected), 0)     AS total_collected,
+            COALESCE(SUM(wfa.total_withdrawn), 0)     AS total_withdrawn
+        FROM `tabWelfare Fund Account` wfa
+        LEFT JOIN `tabWorker Service Mapping` wsm ON wsm.gig_worker = wfa.gig_worker
+        LEFT JOIN `tabAggregator` a ON a.name = wsm.aggregator
+        {wfa_agg_cond}
+        GROUP BY wsm.aggregator
+        ORDER BY total_balance DESC
+    """, {"aggregator": aggregator} if aggregator else {}, as_dict=True)
+
     # --- Aggregator list for filter dropdown ---
     aggregator_list = frappe.get_all(
         "Aggregator",
@@ -278,7 +315,9 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         "aggregator_breakdown": aggregator_breakdown,
         "recent_transactions": recent_txns,
         "pending_wfp": pending_wfp,
+        "completed_wfp": completed_wfp,
         "recent_workers": recent_workers,
+        "welfare_fund_by_agg": welfare_fund_by_agg,
         "aggregator_list": aggregator_list,
         "duplicate_transactions": duplicate_txns,
     }

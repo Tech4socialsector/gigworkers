@@ -1,5 +1,5 @@
 frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
-	const page = frappe.ui.make_app_page({
+	frappe.ui.make_app_page({
 		parent: wrapper,
 		title: "Admin Dashboard",
 		single_column: true,
@@ -725,6 +725,451 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		});
 	}
 
+	// ── drilldown ─────────────────────────────────────────────────────────────
+
+	function bind_drilldown_events() {
+		const d = _dash_data;
+		if (!d) return;
+
+		// Column definitions reused across drilldown types
+		const txn_cols = [
+			{ label: "Transaction ID", render: t => `<a href="/app/gig-transaction/${t.name}" style="color:#4e73df;">${t.name}</a>` },
+			{ label: "Date",           render: t => t.date || "-" },
+			{ label: "Aggregator",     render: t => t.aggregator || "-" },
+			{ label: "Gig Worker",     render: t => t.gig_worker || "-" },
+			{ label: "Service",        render: t => t.service || "-" },
+			{ label: "Amount",         render: t => fmt_currency(t.amount) },
+			{ label: "Welfare",        render: t => fmt_currency(t.welfare_amount) },
+			{ label: "Base Payout",    render: t => fmt_currency(t.base_payout) },
+			{ label: "Status",         render: t => status_badge(t.status) },
+		];
+
+		const worker_cols = [
+			{ label: "Worker ID",      render: w => `<a href="/app/gig-worker/${w.name}" style="color:#4e73df;">${w.name}</a>` },
+			{ label: "Name",           render: w => w.worker_name || "-" },
+			{ label: "Gender",         render: w => w.gender || "-" },
+			{ label: "Status",         render: w => status_badge(w.status) },
+			{ label: "Registered By",  render: w => w.created_by_aggregator || "-" },
+		];
+
+		const agg_cols = [
+			{ label: "Aggregator ID",      render: a => `<a href="/app/aggregator/${a.aggregator_id}" style="color:#4e73df;">${a.aggregator_id}</a>` },
+			{ label: "Name",               render: a => a.aggregator_name || "-" },
+			{ label: "Status",             render: a => status_badge(a.status) },
+			{ label: "Workers",            render: a => a.worker_count || 0 },
+			{ label: "Transactions",       render: a => a.txn_count || 0 },
+			{ label: "Total Amount",       render: a => fmt_currency(a.txn_amount) },
+			{ label: "Welfare Collected",  render: a => fmt_currency(a.welfare_collected) },
+			{ label: "Pending Fees",       render: a => fmt_currency(a.pending_fees) },
+		];
+
+		const wfp_cols = [
+			{ label: "Payment ID",   render: p => `<a href="/app/welfare-fee-payment/${p.name}" style="color:#4e73df;">${p.name}</a>` },
+			{ label: "Aggregator",   render: p => p.aggregator || "-" },
+			{ label: "Transaction",  render: p => p.transaction ? `<a href="/app/gig-transaction/${p.transaction}" style="color:#4e73df;">${p.transaction}</a>` : "-" },
+			{ label: "Fee Amount",   render: p => fmt_currency(p.fee_amount) },
+			{ label: "Date",         render: p => p.payment_date || "-" },
+			{ label: "Status",       render: p => status_badge(p.payment_status) },
+		];
+
+		const fund_cols = [
+			{ label: "Aggregator ID",   render: a => a.aggregator_id ? `<a href="/app/aggregator/${a.aggregator_id}" style="color:#4e73df;">${a.aggregator_id}</a>` : "-" },
+			{ label: "Aggregator Name", render: a => a.aggregator_name || "-" },
+			{ label: "Workers",         render: a => a.worker_count || 0 },
+			{ label: "Fund Balance",    render: a => fmt_currency(a.total_balance) },
+			{ label: "Total Collected", render: a => fmt_currency(a.total_collected) },
+			{ label: "Total Withdrawn", render: a => fmt_currency(a.total_withdrawn) },
+		];
+
+		// ── chart helpers ────────────────────────────────────────────────────
+
+		// Group items by a key, sum a numeric value; returns { labels, values } for top N
+		function group_sum(items, key_fn, val_fn, limit) {
+			const map = {};
+			items.forEach(item => {
+				const k = key_fn(item) || "Unknown";
+				map[k] = (map[k] || 0) + (parseFloat(val_fn(item)) || 0);
+			});
+			const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, limit || 12);
+			return { labels: sorted.map(e => e[0]), values: sorted.map(e => e[1]) };
+		}
+
+		function group_count(items, key_fn, limit) {
+			return group_sum(items, key_fn, () => 1, limit);
+		}
+
+		// Group items by date field, sum a numeric value; returns { labels, values } sorted chronologically
+		function group_by_date(items, val_fn) {
+			const map = {};
+			items.forEach(item => {
+				const k = item.date || "Unknown";
+				map[k] = (map[k] || 0) + (parseFloat(val_fn(item)) || 0);
+			});
+			const sorted = Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
+			return { labels: sorted.map(e => e[0]), values: sorted.map(e => e[1]) };
+		}
+
+		// Render frappe.Chart in #dd-chart; hides wrapper if no data
+		function render_dd_chart(cfg) {
+			const $wrap = $("#dd-chart-wrap");
+			$wrap.hide();
+			$("#dd-chart").empty();
+			if (!cfg || !cfg.data || !cfg.data.labels || !cfg.data.labels.length) return;
+			if (typeof frappe === "undefined" || !frappe.Chart) return;
+			$wrap.show();
+			try {
+				const opts = {
+					type:   cfg.type || "bar",
+					data:   cfg.data,
+					height: 260,
+					colors: cfg.colors || ["#4e73df"],
+				};
+				if (cfg.type === "line") {
+					opts.axisOptions  = { xIsSeries: true, shortenYAxisNumbers: true };
+					opts.lineOptions  = { regionFill: 1, dotSize: 4 };
+				} else if (cfg.type === "bar") {
+					opts.axisOptions  = { xIsSeries: false, shortenYAxisNumbers: true };
+					opts.barOptions   = { spaceRatio: 0.25 };
+				}
+				// donut/pie need no extra options
+				new frappe.Chart("#dd-chart", opts);
+			} catch (_) {
+				$wrap.hide();
+			}
+		}
+
+		// Render summary pill-cards in #dd-summary
+		function render_dd_summary(items) {
+			const $el = $("#dd-summary");
+			if (!items || !items.length) { $el.hide(); return; }
+			$el.show().html(items.map(item =>
+				`<div class="dd-stat">
+					<div class="dd-stat-label">${item.label}</div>
+					<div class="dd-stat-value" style="color:${item.color || "#333"};">${item.value}</div>
+				</div>`
+			).join(""));
+		}
+
+		// ── drilldown configs ────────────────────────────────────────────────
+
+		const configs = {
+
+			// ── Transactions ─────────────────────────────────────────────────
+			all_txns: {
+				title: "All Transactions",
+				rows:    () => d.recent_transactions,
+				cols:    txn_cols,
+				summary: rows => [
+					{ label: "Total",        value: rows.length, color: "#4e73df" },
+					{ label: "Completed",    value: rows.filter(t => t.status === "Completed").length, color: "#1cc88a" },
+					{ label: "Pending",      value: rows.filter(t => t.status === "Registered").length, color: "#f6c23e" },
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+				],
+				chart: rows => {
+					const statuses = ["Completed", "Registered", "Suspected Duplicate"].filter(s => rows.some(t => t.status === s));
+					return { type: "donut", data: { labels: statuses, datasets: [{ values: statuses.map(s => rows.filter(t => t.status === s).length) }] }, colors: ["#1cc88a", "#f6c23e", "#e74a3b"] };
+				},
+			},
+
+			completed_txns: {
+				title: "Completed Transactions",
+				rows:    () => d.recent_transactions.filter(t => t.status === "Completed"),
+				cols:    txn_cols,
+				summary: rows => {
+					const total = rows.reduce((s, t) => s + (t.amount || 0), 0);
+					return [
+						{ label: "Count",        value: rows.length, color: "#1cc88a" },
+						{ label: "Total Amount", value: fmt_currency(total) },
+						{ label: "Avg Amount",   value: rows.length ? fmt_currency(total / rows.length) : "₹0.00" },
+					];
+				},
+				chart: rows => {
+					const { labels, values } = group_by_date(rows, t => t.amount);
+					return { type: "line", data: { labels, datasets: [{ name: "Amount (₹)", values }] }, colors: ["#1cc88a"] };
+				},
+			},
+
+			pending_txns: {
+				title: "Pending Transactions",
+				rows:    () => d.recent_transactions.filter(t => t.status === "Registered"),
+				cols:    txn_cols,
+				summary: rows => [
+					{ label: "Count",        value: rows.length, color: "#f6c23e" },
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+				],
+				chart: rows => {
+					const { labels, values } = group_by_date(rows, () => 1);
+					return { type: "line", data: { labels, datasets: [{ name: "Pending Txns", values }] }, colors: ["#f6c23e"] };
+				},
+			},
+
+			txn_amount: {
+				title: "Transactions by Amount",
+				rows:    () => [...d.recent_transactions].sort((a, b) => (b.amount || 0) - (a.amount || 0)),
+				cols:    txn_cols,
+				summary: rows => {
+					const total = rows.reduce((s, t) => s + (t.amount || 0), 0);
+					return [
+						{ label: "Total Amount", value: fmt_currency(total), color: "#36b9cc" },
+						{ label: "Count",        value: rows.length },
+						{ label: "Avg Amount",   value: rows.length ? fmt_currency(total / rows.length) : "₹0.00" },
+					];
+				},
+				chart: rows => {
+					const { labels, values } = group_by_date(rows, t => t.amount);
+					return { type: "line", data: { labels, datasets: [{ name: "Amount (₹)", values }] }, colors: ["#36b9cc"] };
+				},
+			},
+
+			welfare_txn: {
+				title: "Welfare Collected from Transactions",
+				rows:    () => [...d.recent_transactions].sort((a, b) => (b.welfare_amount || 0) - (a.welfare_amount || 0)),
+				cols:    txn_cols,
+				summary: rows => [
+					{ label: "Total Welfare", value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)), color: "#e74a3b" },
+					{ label: "Transactions",  value: rows.length },
+				],
+				chart: rows => {
+					const { labels, values } = group_by_date(rows, t => t.welfare_amount);
+					return { type: "line", data: { labels, datasets: [{ name: "Welfare (₹)", values }] }, colors: ["#e74a3b"] };
+				},
+			},
+
+			base_payout: {
+				title: "Transactions — Base Payout",
+				rows:    () => [...d.recent_transactions].sort((a, b) => (b.base_payout || 0) - (a.base_payout || 0)),
+				cols:    txn_cols,
+				summary: rows => [
+					{ label: "Total Base Payout", value: fmt_currency(rows.reduce((s, t) => s + (t.base_payout || 0), 0)), color: "#858796" },
+					{ label: "Transactions",      value: rows.length },
+				],
+				chart: rows => {
+					const { labels, values } = group_by_date(rows, t => t.base_payout);
+					return { type: "line", data: { labels, datasets: [{ name: "Base Payout (₹)", values }] }, colors: ["#858796"] };
+				},
+			},
+
+			// ── Aggregators ───────────────────────────────────────────────────
+			all_aggregators: {
+				title: "All Aggregators",
+				rows:    () => d.aggregator_breakdown,
+				cols:    agg_cols,
+				summary: rows => [
+					{ label: "Total",         value: rows.length, color: "#4e73df" },
+					{ label: "Active",         value: rows.filter(a => a.status === "Active").length, color: "#1cc88a" },
+					{ label: "Total Workers", value: rows.reduce((s, a) => s + (a.worker_count || 0), 0) },
+					{ label: "Total Amount",  value: fmt_currency(rows.reduce((s, a) => s + (a.txn_amount || 0), 0)) },
+				],
+				chart: rows => {
+					const statuses = ["Active", "Inactive", "Submitted"].filter(s => rows.some(a => a.status === s));
+					return { type: "donut", data: { labels: statuses, datasets: [{ values: statuses.map(s => rows.filter(a => a.status === s).length) }] }, colors: ["#1cc88a", "#6c757d", "#4e73df"] };
+				},
+			},
+
+			active_aggregators: {
+				title: "Active Aggregators",
+				rows:    () => d.aggregator_breakdown.filter(a => a.status === "Active"),
+				cols:    agg_cols,
+				summary: rows => [
+					{ label: "Active Aggregators", value: rows.length, color: "#1cc88a" },
+					{ label: "Total Amount",       value: fmt_currency(rows.reduce((s, a) => s + (a.txn_amount || 0), 0)) },
+				],
+				chart: rows => {
+					const top = rows.slice(0, 12);
+					return { type: "bar", data: { labels: top.map(a => a.aggregator_name || a.aggregator_id), datasets: [{ name: "Amount (₹)", values: top.map(a => parseFloat(a.txn_amount) || 0) }] }, colors: ["#1cc88a"] };
+				},
+			},
+
+			// ── Workers ───────────────────────────────────────────────────────
+			all_workers: {
+				title: "All Gig Workers",
+				rows:    () => d.recent_workers,
+				cols:    worker_cols,
+				summary: rows => [
+					{ label: "Total",                value: rows.length, color: "#4e73df" },
+					{ label: "Active",               value: rows.filter(w => w.status === "Active").length, color: "#1cc88a" },
+					{ label: "Pending Verification", value: rows.filter(w => w.status === "Pending Verification").length, color: "#fd7e14" },
+					{ label: "Inactive",             value: rows.filter(w => w.status === "Inactive").length, color: "#6c757d" },
+				],
+				chart: rows => {
+					const statuses = ["Active", "Pending Verification", "Inactive", "Onboarded", "Offboarded", "Deceased"].filter(s => rows.some(w => w.status === s));
+					return { type: "donut", data: { labels: statuses, datasets: [{ values: statuses.map(s => rows.filter(w => w.status === s).length) }] }, colors: ["#1cc88a", "#fd7e14", "#6c757d", "#28a745", "#858796", "#343a40"] };
+				},
+			},
+
+			active_workers: {
+				title: "Active Gig Workers",
+				rows:    () => d.recent_workers.filter(w => w.status === "Active"),
+				cols:    worker_cols,
+				summary: rows => [{ label: "Active Workers", value: rows.length, color: "#1cc88a" }],
+				chart: rows => {
+					const { labels, values } = group_count(rows, w => w.created_by_aggregator);
+					return { type: "bar", data: { labels, datasets: [{ name: "Active Workers", values }] }, colors: ["#1cc88a"] };
+				},
+			},
+
+			pending_workers: {
+				title: "Pending Verification Workers",
+				rows:    () => d.recent_workers.filter(w => w.status === "Pending Verification"),
+				cols:    worker_cols,
+				summary: rows => [{ label: "Pending Workers", value: rows.length, color: "#fd7e14" }],
+				chart: rows => {
+					const { labels, values } = group_count(rows, w => w.created_by_aggregator);
+					return { type: "bar", data: { labels, datasets: [{ name: "Pending Workers", values }] }, colors: ["#fd7e14"] };
+				},
+			},
+
+			inactive_workers: {
+				title: "Inactive Workers",
+				rows:    () => d.recent_workers.filter(w => w.status === "Inactive"),
+				cols:    worker_cols,
+				summary: rows => [{ label: "Inactive Workers", value: rows.length, color: "#6c757d" }],
+				chart: rows => {
+					const { labels, values } = group_count(rows, w => w.created_by_aggregator);
+					return { type: "bar", data: { labels, datasets: [{ name: "Inactive Workers", values }] }, colors: ["#6c757d"] };
+				},
+			},
+
+			// ── Welfare Payments ──────────────────────────────────────────────
+			welfare_settled: {
+				title: "Settled Welfare Fee Payments",
+				rows:    () => d.completed_wfp || [],
+				cols:    wfp_cols,
+				summary: rows => [
+					{ label: "Payments",      value: rows.length, color: "#28a745" },
+					{ label: "Total Settled", value: fmt_currency(rows.reduce((s, p) => s + (p.fee_amount || 0), 0)), color: "#28a745" },
+				],
+				chart: rows => {
+					const { labels, values } = group_sum(rows, p => p.aggregator, p => p.fee_amount, 8);
+					return { type: "donut", data: { labels, datasets: [{ values }] }, colors: ["#28a745", "#1cc88a", "#36b9cc", "#4e73df", "#858796", "#f6c23e", "#e74a3b", "#fd7e14"] };
+				},
+			},
+
+			welfare_pending: {
+				title: "Pending Welfare Fee Payments",
+				rows:    () => d.pending_wfp,
+				cols:    wfp_cols,
+				summary: rows => [
+					{ label: "Payments",      value: rows.length, color: "#e74a3b" },
+					{ label: "Total Pending", value: fmt_currency(rows.reduce((s, p) => s + (p.fee_amount || 0), 0)), color: "#e74a3b" },
+				],
+				chart: rows => {
+					const { labels, values } = group_sum(rows, p => p.aggregator, p => p.fee_amount, 8);
+					return { type: "donut", data: { labels, datasets: [{ values }] }, colors: ["#e74a3b", "#f6c23e", "#fd7e14", "#858796", "#4e73df", "#36b9cc", "#1cc88a", "#28a745"] };
+				},
+			},
+
+			// ── Welfare Fund ──────────────────────────────────────────────────
+			fund_balance: {
+				title: "Welfare Fund Balance by Aggregator",
+				rows:    () => (d.welfare_fund_by_agg || []).slice().sort((a, b) => (b.total_balance || 0) - (a.total_balance || 0)),
+				cols:    fund_cols,
+				summary: rows => [{ label: "Total Fund Balance", value: fmt_currency(rows.reduce((s, a) => s + (a.total_balance || 0), 0)), color: "#1cc88a" }],
+				chart: rows => {
+					const top = rows.slice(0, 12);
+					return { type: "bar", data: { labels: top.map(a => a.aggregator_name || a.aggregator_id || "Unknown"), datasets: [{ name: "Balance (₹)", values: top.map(a => parseFloat(a.total_balance) || 0) }] }, colors: ["#1cc88a"] };
+				},
+			},
+
+			fund_collected: {
+				title: "Fund Collected by Aggregator",
+				rows:    () => (d.welfare_fund_by_agg || []).slice().sort((a, b) => (b.total_collected || 0) - (a.total_collected || 0)),
+				cols:    fund_cols,
+				summary: rows => [{ label: "Total Collected", value: fmt_currency(rows.reduce((s, a) => s + (a.total_collected || 0), 0)), color: "#36b9cc" }],
+				chart: rows => {
+					const top = rows.slice(0, 12);
+					return { type: "bar", data: { labels: top.map(a => a.aggregator_name || a.aggregator_id || "Unknown"), datasets: [{ name: "Collected (₹)", values: top.map(a => parseFloat(a.total_collected) || 0) }] }, colors: ["#36b9cc"] };
+				},
+			},
+
+			fund_withdrawn: {
+				title: "Fund Withdrawn by Aggregator",
+				rows:    () => (d.welfare_fund_by_agg || []).slice().sort((a, b) => (b.total_withdrawn || 0) - (a.total_withdrawn || 0)),
+				cols:    fund_cols,
+				summary: rows => [{ label: "Total Withdrawn", value: fmt_currency(rows.reduce((s, a) => s + (a.total_withdrawn || 0), 0)), color: "#f6c23e" }],
+				chart: rows => {
+					const top = rows.slice(0, 12);
+					return { type: "bar", data: { labels: top.map(a => a.aggregator_name || a.aggregator_id || "Unknown"), datasets: [{ name: "Withdrawn (₹)", values: top.map(a => parseFloat(a.total_withdrawn) || 0) }] }, colors: ["#f6c23e"] };
+				},
+			},
+		};
+
+		function open_drilldown(type) {
+			const cfg = configs[type];
+			if (!cfg) return;
+
+			const rows = cfg.rows();
+
+			// Tear down any existing DataTable in the modal
+			if ($.fn.DataTable && $.fn.DataTable.isDataTable("#dd-dt-table")) {
+				$("#dd-dt-table").DataTable().destroy();
+				$("#dd-dt-table").empty();
+			}
+
+			// Header
+			$("#dd-title").text(cfg.title);
+			$("#dd-count").text(`${rows.length} record${rows.length !== 1 ? "s" : ""}`);
+
+			// Summary strip
+			render_dd_summary(cfg.summary ? cfg.summary(rows) : null);
+
+			// Chart
+			render_dd_chart(rows.length && cfg.chart ? cfg.chart(rows) : null);
+
+			// Table
+			const thead = `<thead><tr>${cfg.cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>`;
+			const tbody_html = rows.length
+				? rows.map(row => `<tr>${cfg.cols.map(c => `<td>${c.render(row)}</td>`).join("")}</tr>`).join("")
+				: `<tr><td colspan="${cfg.cols.length}" style="text-align:center;color:#aaa;padding:24px;">No records found</td></tr>`;
+			$("#dd-dt-table").html(`${thead}<tbody>${tbody_html}</tbody>`);
+
+			if (rows.length && $.fn.DataTable) {
+				$("#dd-dt-table").DataTable({
+					pageLength: 15,
+					lengthMenu: [10, 15, 25, 50, 100],
+					order: [],
+					scrollX: true,
+					language: {
+						search: "Filter:",
+						lengthMenu: "Show _MENU_ entries",
+						info: "Showing _START_ to _END_ of _TOTAL_ records",
+						emptyTable: "No records found",
+					},
+					dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
+				});
+			}
+
+			$("#dd-overlay").addClass("active");
+			$("#dd-body").scrollTop(0);
+		}
+
+		function close_drilldown() {
+			if ($.fn.DataTable && $.fn.DataTable.isDataTable("#dd-dt-table")) {
+				$("#dd-dt-table").DataTable().destroy();
+				$("#dd-dt-table").empty();
+			}
+			$("#dd-overlay").removeClass("active");
+		}
+
+		// Remove previously attached listeners to avoid duplicates on re-render
+		$(document).off("click.drilldown").off("keydown.drilldown");
+		$("#admin-dashboard").off("click.drilldown");
+
+		// Card click — use delegation scoped to the dashboard container
+		$("#admin-dashboard").on("click.drilldown", ".drillable[data-drilldown]", function () {
+			open_drilldown($(this).data("drilldown"));
+		});
+
+		// Modal close via button, overlay backdrop, or Escape
+		$("#dd-close").on("click", close_drilldown);
+		$("#dd-overlay").on("click", function (e) {
+			if ($(e.target).is("#dd-overlay")) close_drilldown();
+		});
+		$(document).on("keydown.drilldown", function (e) {
+			if (e.key === "Escape" && $("#dd-overlay").hasClass("active")) close_drilldown();
+		});
+	}
+
 	// ── render ────────────────────────────────────────────────────────────────
 
 	function render_dashboard(data, filters) {
@@ -773,6 +1218,104 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				border: 1.5px solid #ef9a9a;
 			}
 			.dl-btn-pdf:hover { background: #c62828; color: #fff; }
+
+			/* ── Drillable stat cards ── */
+			.admin-stat-card.drillable {
+				cursor: pointer;
+				transition: transform .15s, box-shadow .15s;
+				position: relative;
+			}
+			.admin-stat-card.drillable:hover {
+				transform: translateY(-3px);
+				box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+			}
+			.admin-stat-card.drillable::after {
+				content: "↗";
+				position: absolute;
+				top: 10px; right: 12px;
+				font-size: 13px; color: #ddd;
+				transition: color .15s;
+			}
+			.admin-stat-card.drillable:hover::after {
+				color: var(--card-color, #4e73df);
+			}
+
+			/* ── Drilldown modal overlay ── */
+			#dd-overlay {
+				display: none;
+				position: fixed; inset: 0;
+				background: rgba(0,0,0,0.5);
+				z-index: 10000;
+				align-items: center; justify-content: center;
+				padding: 20px;
+				box-sizing: border-box;
+			}
+			#dd-overlay.active { display: flex; }
+			#dd-modal {
+				background: #f8f9fc; border-radius: 14px;
+				width: 95vw; max-width: 1200px; max-height: 90vh;
+				display: flex; flex-direction: column;
+				box-shadow: 0 28px 70px rgba(0,0,0,0.28);
+				overflow: hidden;
+			}
+			#dd-header {
+				padding: 18px 24px 14px;
+				background: #fff;
+				border-bottom: 1px solid #eee;
+				display: flex; align-items: flex-start; justify-content: space-between;
+				flex-shrink: 0;
+			}
+			#dd-title { font-size: 16px; font-weight: 700; color: #333; margin: 0; }
+			#dd-count { font-size: 12px; color: #aaa; margin-top: 3px; }
+			#dd-close {
+				background: none; border: none; font-size: 20px; color: #bbb;
+				cursor: pointer; line-height: 1; padding: 2px 6px;
+				border-radius: 4px; transition: all .12s; flex-shrink: 0;
+			}
+			#dd-close:hover { color: #333; background: #f5f5f5; }
+			#dd-body {
+				padding: 16px 20px 20px;
+				overflow-y: auto; flex: 1;
+			}
+			/* Summary stat pills */
+			#dd-summary {
+				display: flex; flex-wrap: wrap; gap: 12px;
+				margin-bottom: 16px;
+			}
+			.dd-stat {
+				background: #fff; border-radius: 10px;
+				padding: 12px 20px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+				min-width: 110px;
+			}
+			.dd-stat-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+			.dd-stat-value { font-size: 20px; font-weight: 700; }
+			/* Chart section */
+			#dd-chart-wrap {
+				background: #fff; border-radius: 10px;
+				padding: 16px 20px 8px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+				margin-bottom: 16px;
+			}
+			#dd-chart-wrap h6 {
+				font-size: 12px; font-weight: 700; color: #999;
+				text-transform: uppercase; letter-spacing: .5px;
+				margin: 0 0 8px;
+			}
+			/* Table section */
+			#dd-table-wrap {
+				background: #fff; border-radius: 10px;
+				padding: 16px 20px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+			}
+			#dd-table-wrap h6 {
+				font-size: 12px; font-weight: 700; color: #999;
+				text-transform: uppercase; letter-spacing: .5px;
+				margin: 0 0 12px;
+			}
+			#dd-body table.dataTable { font-size: 13px; }
+			#dd-body .dt-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+			#dd-body .dt-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 		</style>
 
 		${filter_bar}
@@ -883,33 +1426,33 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		<!-- Transactions -->
 		<div class="admin-section-title">Transactions</div>
 		<div class="admin-card-row">
-			<div class="admin-stat-card" style="--card-color:#4e73df;"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
-			<div class="admin-stat-card" style="--card-color:#1cc88a;"><div class="label">Completed</div><div class="value">${stats.completed_transactions}</div></div>
-			<div class="admin-stat-card" style="--card-color:#f6c23e;"><div class="label">Pending</div><div class="value">${stats.pending_transactions}</div></div>
-			<div class="admin-stat-card" style="--card-color:#36b9cc;"><div class="label">Total Amount</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_amount)}</div></div>
-			<div class="admin-stat-card" style="--card-color:#e74a3b;"><div class="label">Welfare Collected</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_welfare)}</div></div>
-			<div class="admin-stat-card" style="--card-color:#858796;"><div class="label">Base Payout Total</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_base_payout)}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#4e73df;" data-drilldown="all_txns"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="completed_txns"><div class="label">Completed</div><div class="value">${stats.completed_transactions}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#f6c23e;" data-drilldown="pending_txns"><div class="label">Pending</div><div class="value">${stats.pending_transactions}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#36b9cc;" data-drilldown="txn_amount"><div class="label">Total Amount</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_amount)}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#e74a3b;" data-drilldown="welfare_txn"><div class="label">Welfare Collected</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_welfare)}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#858796;" data-drilldown="base_payout"><div class="label">Base Payout Total</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_base_payout)}</div></div>
 		</div>
 
 		<!-- Platform Overview -->
 		<div class="admin-section-title">Platform Overview</div>
 		<div class="admin-card-row">
-			<div class="admin-stat-card" style="--card-color:#4e73df;"><div class="label">Total Aggregators</div><div class="value">${aggregators.total}</div></div>
-			<div class="admin-stat-card" style="--card-color:#1cc88a;"><div class="label">Active Aggregators</div><div class="value">${aggregators.active}</div></div>
-			<div class="admin-stat-card" style="--card-color:#4e73df;"><div class="label">Total Gig Workers</div><div class="value">${workers.total}</div></div>
-			<div class="admin-stat-card" style="--card-color:#1cc88a;"><div class="label">Active Workers</div><div class="value">${workers.active}</div></div>
-			<div class="admin-stat-card" style="--card-color:#fd7e14;"><div class="label">Pending Verification</div><div class="value">${workers.pending_verification}</div></div>
-			<div class="admin-stat-card" style="--card-color:#6c757d;"><div class="label">Inactive Workers</div><div class="value">${workers.inactive}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#4e73df;" data-drilldown="all_aggregators"><div class="label">Total Aggregators</div><div class="value">${aggregators.total}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="active_aggregators"><div class="label">Active Aggregators</div><div class="value">${aggregators.active}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#4e73df;" data-drilldown="all_workers"><div class="label">Total Gig Workers</div><div class="value">${workers.total}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="active_workers"><div class="label">Active Workers</div><div class="value">${workers.active}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#fd7e14;" data-drilldown="pending_workers"><div class="label">Pending Verification</div><div class="value">${workers.pending_verification}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#6c757d;" data-drilldown="inactive_workers"><div class="label">Inactive Workers</div><div class="value">${workers.inactive}</div></div>
 		</div>
 
 		<!-- Welfare -->
 		<div class="admin-section-title">Welfare</div>
 		<div class="admin-card-row">
-			<div class="admin-stat-card" style="--card-color:#28a745;"><div class="label">Welfare Fees Settled</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_payments.total_paid)}</div></div>
-			<div class="admin-stat-card" style="--card-color:#e74a3b;"><div class="label">Welfare Fees Pending</div><div class="value" style="font-size:20px;color:#e74a3b;">${fmt_currency(welfare_payments.pending_amount)}</div></div>
-			<div class="admin-stat-card" style="--card-color:#1cc88a;"><div class="label">Welfare Fund Balance</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_fund.total_balance)}</div></div>
-			<div class="admin-stat-card" style="--card-color:#36b9cc;"><div class="label">Total Fund Collected</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_fund.total_collected)}</div></div>
-			<div class="admin-stat-card" style="--card-color:#f6c23e;"><div class="label">Total Withdrawn</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_fund.total_withdrawn)}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#28a745;" data-drilldown="welfare_settled"><div class="label">Welfare Fees Settled</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_payments.total_paid)}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#e74a3b;" data-drilldown="welfare_pending"><div class="label">Welfare Fees Pending</div><div class="value" style="font-size:20px;color:#e74a3b;">${fmt_currency(welfare_payments.pending_amount)}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="fund_balance"><div class="label">Welfare Fund Balance</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_fund.total_balance)}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#36b9cc;" data-drilldown="fund_collected"><div class="label">Total Fund Collected</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_fund.total_collected)}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#f6c23e;" data-drilldown="fund_withdrawn"><div class="label">Total Withdrawn</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_fund.total_withdrawn)}</div></div>
 		</div>
 
 		<!-- Aggregator Breakdown -->
@@ -1007,6 +1550,35 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				<i class="fa fa-file-pdf-o"></i> Download PDF
 			</button>
 		</div>
+
+		<!-- Drilldown modal overlay -->
+		<div id="dd-overlay">
+			<div id="dd-modal">
+				<div id="dd-header">
+					<div>
+						<div id="dd-title"></div>
+						<div id="dd-count"></div>
+					</div>
+					<button id="dd-close" title="Close (Esc)">&#10005;</button>
+				</div>
+				<div id="dd-body">
+					<!-- Summary stat pills -->
+					<div id="dd-summary" style="display:none;"></div>
+
+					<!-- Chart -->
+					<div id="dd-chart-wrap" style="display:none;">
+						<h6>Chart</h6>
+						<div id="dd-chart"></div>
+					</div>
+
+					<!-- Detail table -->
+					<div id="dd-table-wrap">
+						<h6>Detail Records</h6>
+						<table id="dd-dt-table" class="display" style="width:100%"></table>
+					</div>
+				</div>
+			</div>
+		</div>
 		`;
 
 		$("#admin-dashboard").html(html);
@@ -1040,6 +1612,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 
 		bind_filter_events(aggregator_list || []);
 		render_active_tags(filters || {});
+		bind_drilldown_events();
 
 		// ── Helper: collect extras from checked rows ──────────────────────────
 		function get_selected_extras() {
