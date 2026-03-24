@@ -1,1 +1,30 @@
-[]
+[
+ {
+  "aggregate_function_based_on": "",
+  "background_color": null,
+  "color": "#4ced64",
+  "currency": "",
+  "docstatus": 0,
+  "doctype": "Number Card",
+  "document_type": "Aggregator",
+  "dynamic_filters_json": "[]",
+  "filters_config": null,
+  "filters_json": "[[\"Aggregator\",\"status\",\"=\",\"Approved\",false]]",
+  "function": "Count",
+  "is_public": 1,
+  "is_standard": 1,
+  "label": "Approved Aggregator",
+  "method": null,
+  "modified": "2026-03-23 21:21:44.695428",
+  "module": "Gig Workers",
+  "name": "Approved Aggregator",
+  "parent_document_type": "",
+  "report_field": null,
+  "report_function": "Sum",
+  "report_name": null,
+  "show_full_number": 1,
+  "show_percentage_stats": 1,
+  "stats_time_interval": "Daily",
+  "type": "Document Type"
+ }
+]

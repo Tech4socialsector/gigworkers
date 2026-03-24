@@ -284,4 +284,20 @@ fixtures = [
         "dt": "Number Card",
         "filters": [["module", "=", "Gig Workers"]]
     },
+    {
+        "dt": "Dashboard",
+        "filters": [["module", "=", "Gig Workers"]]
+    },
+    {
+        "dt": "Dashboard Chart",
+        "filters": [["module", "=", "Gig Workers"]]
+    },
+    {
+        "dt": "Page",
+        "filters": [["module", "=", "Gig Workers"]]
+    },
+    {
+        "dt": "Report",
+        "filters": [["module", "=", "Gig Workers"]]
+    },
 ]
