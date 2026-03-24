@@ -266,7 +266,8 @@ class GigTransaction(Document):
             f"{self.aggregator or ''} | "
             f"{self.service_category or self.service or ''} | "
             f"{self.date or ''} | "
-            f"{self.amount or 0}"
+            f"{self.amount or 0} | "
+            f"{self.platform or ''}"
         )
 
     def validate_base_payout(self):
