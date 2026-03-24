@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"x-9ip8BQMR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"AYETY6V5a1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}}]",
- "creation": "2026-03-16 12:48:11.586541",
+ "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profile\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"hKXFhiNGGY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"njD7hmT246\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}},{\"id\":\"wk_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"wk_nc_hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>My Stats</b></span>\",\"col\":12}},{\"id\":\"wk_nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Worker My Transactions\",\"col\":4}},{\"id\":\"wk_nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Worker Completed Transactions\",\"col\":4}},{\"id\":\"wk_nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Welfare Balance\",\"col\":4}},{\"id\":\"wk_nc4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Total Earnings\",\"col\":4}},{\"id\":\"wk_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
+ "creation": "2026-03-24 16:41:56.993319",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -13,11 +13,28 @@
  "is_hidden": 0,
  "label": "Gig Workers",
  "links": [],
- "modified": "2026-03-16 16:48:24.417419",
+ "modified": "2026-03-24 16:45:09.745577",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Workers",
- "number_cards": [],
+ "number_cards": [
+  {
+   "label": "Worker My Transactions",
+   "number_card_name": "Worker My Transactions"
+  },
+  {
+   "label": "Worker Completed Transactions",
+   "number_card_name": "Worker Completed Transactions"
+  },
+  {
+   "label": "My Welfare Balance",
+   "number_card_name": "My Welfare Balance"
+  },
+  {
+   "label": "My Total Earnings",
+   "number_card_name": "My Total Earnings"
+  }
+ ],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
@@ -30,26 +47,10 @@
  "sequence_id": 2.0,
  "shortcuts": [
   {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Welfare Fund Account",
-   "link_to": "Welfare Fund Account",
-   "stats_filter": "[]",
-   "type": "DocType"
-  },
-  {
    "color": "Green",
    "doc_view": "List",
-   "label": "Gig Worker",
+   "label": "Profile",
    "link_to": "Gig Worker",
-   "stats_filter": "[]",
-   "type": "DocType"
-  },
-  {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Welfare Benefit Withdrawal",
-   "link_to": "Welfare Benefit Withdrawal",
    "stats_filter": "[]",
    "type": "DocType"
   },
@@ -61,10 +62,26 @@
    "url": "/app/gig-worker-dashboard"
   },
   {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Fund Account",
+   "link_to": "Welfare Fund Account",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
    "color": "Orange",
    "doc_view": "List",
    "label": "Gig Transaction",
    "link_to": "Gig Transaction",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Benefit Withdrawal",
+   "link_to": "Welfare Benefit Withdrawal",
    "stats_filter": "[]",
    "type": "DocType"
   }

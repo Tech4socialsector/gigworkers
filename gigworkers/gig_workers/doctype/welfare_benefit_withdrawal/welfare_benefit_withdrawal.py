@@ -64,7 +64,7 @@ class WelfareBenefitWithdrawal(Document):
 
 		from gigworkers.gig_workers.doctype.welfare_fund_account.welfare_fund_account import WelfareFundAccount
 		account = WelfareFundAccount.get_or_create(self.gig_worker)
-		account.debit(self.amount, reference_doctype="Welfare Benefit Withdrawal", reference_name=self.name, remarks=f"Welfare benefit paid out - {self.reason or "Withdrawal"}")
+		account.debit(self.amount, reference_doctype="Welfare Benefit Withdrawal", reference_name=self.name, remarks=f"Welfare benefit paid out - {self.reason or 'Withdrawal'}")
 
 		self._notify_worker("Paid")
 
