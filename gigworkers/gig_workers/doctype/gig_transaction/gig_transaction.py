@@ -13,7 +13,7 @@ _ALLOWED_TRANSITIONS = {
     "Payment Pending":     {"Completed", "Cancelled"},
     "Completed":           {"Suspected Duplicate"},
     "Cancelled":           set(),
-    "Suspected Duplicate": {"Duplicate", "Cancelled"},
+    "Suspected Duplicate": {"Duplicate", "Cancelled", "Completed", "Registered"},
     "Duplicate":           set(),
 }
 
