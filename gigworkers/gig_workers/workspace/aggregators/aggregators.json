@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}},{\"id\":\"s4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Mapping Log\",\"col\":3}},{\"id\":\"s5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Data Import Log\",\"col\":3}}]",
- "creation": "2026-03-23 12:14:36.558113",
+ "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}}]",
+ "creation": "2026-03-23 20:14:52.018724",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -50,29 +50,9 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Worker Mapping Log",
-   "link_count": 0,
-   "link_to": "Worker Mapping Log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Data Import Log",
-   "link_count": 0,
-   "link_to": "Data Import Log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2026-03-23 12:22:43.649949",
+ "modified": "2026-03-23 20:16:49.501453",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregators",
@@ -117,22 +97,6 @@
    "doc_view": "",
    "label": "Welfare Fee Payment",
    "link_to": "Welfare Fee Payment",
-   "type": "DocType"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "List",
-   "label": "Worker Mapping Log",
-   "link_to": "Worker Mapping Log",
-   "stats_filter": "[]",
-   "type": "DocType"
-  },
-  {
-   "color": "Blue",
-   "doc_view": "List",
-   "label": "Data Import Log",
-   "link_to": "Data Import Log",
-   "stats_filter": "[]",
    "type": "DocType"
   }
  ],
