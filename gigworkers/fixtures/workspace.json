@@ -1,7 +1,7 @@
 [
  {
   "charts": [],
-  "content": "[{\"id\":\"_CE3gGmE6s\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Dashboard</b></span>\",\"col\":12}},{\"id\":\"z2tOlANiMW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Admin Dashboard\",\"col\":3}},{\"id\":\"TZI1spEHEe\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"A0TH8Z4ECy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gigworker Dashboard\",\"col\":3}},{\"id\":\"43NBhWC8Px\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Approval\",\"col\":3}},{\"id\":\"rcfiD5GmLb\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"1mMl6ZHjht\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Approved Aggregators\",\"col\":4}},{\"id\":\"fAaJngUoI2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"tXwe-RyOgO\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Category</span>\",\"col\":12}},{\"id\":\"ZYxEE4oWyk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Category\",\"col\":3}},{\"id\":\"GlTFwnUbav\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vehicle Type\",\"col\":3}},{\"id\":\"qGLLRMeYKo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service\",\"col\":3}},{\"id\":\"qnN34KIqMJ\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"fetm1pWgqc\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Doctypes</b></span>\",\"col\":12}},{\"id\":\"ChN5Hc3Io9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"YSdBQg7Fsz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"YYlKo_AjOp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transactions\",\"col\":3}},{\"id\":\"2TStSCk9h6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare fee payment\",\"col\":3}},{\"id\":\"ROp0i0M9ZZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"3qan6ZuodD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}},{\"id\":\"TdY3Efidkd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"m_JC-9-5Z6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Report</b></span>\",\"col\":12}},{\"id\":\"nUMLEwEMy-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Quarterly Welfare Compiance\",\"col\":3}},{\"id\":\"veMwEFgdHS\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"uIdQL_qUe8\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Web Forms</b></span>\",\"col\":12}},{\"id\":\"kkjEMlVJG7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Form\",\"col\":3}},{\"id\":\"v32-_pv_sD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Form\",\"col\":3}},{\"id\":\"NYEHyoxEaq\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
+  "content": "[{\"id\":\"_CE3gGmE6s\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Dashboard</b></span>\",\"col\":12}},{\"id\":\"z2tOlANiMW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Admin Dashboard\",\"col\":3}},{\"id\":\"TZI1spEHEe\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"A0TH8Z4ECy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gigworker Dashboard\",\"col\":3}},{\"id\":\"43NBhWC8Px\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Approval\",\"col\":3}},{\"id\":\"rcfiD5GmLb\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"nc_hdr_1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Overview</b></span>\",\"col\":12}},{\"id\":\"nc_tot_agg\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Aggregators\",\"col\":4}},{\"id\":\"nc_app_agg\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Approved Aggregator\",\"col\":4}},{\"id\":\"nc_pnd_agg\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Pending Approval\",\"col\":4}},{\"id\":\"nc_und_agg\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Under Process Aggregators\",\"col\":4}},{\"id\":\"nc_rej_agg\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Rejected Aggregators\",\"col\":4}},{\"id\":\"nc_tot_wkr\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Gig Workers\",\"col\":4}},{\"id\":\"nc_act_wkr\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Gig Workers\",\"col\":4}},{\"id\":\"nc_pvw_wkr\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Pending Verification Workers\",\"col\":4}},{\"id\":\"nc_tot_txn\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Transactions\",\"col\":4}},{\"id\":\"nc_cmp_txn\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Completed Transactions\",\"col\":4}},{\"id\":\"nc_wlf_col\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Welfare Collected\",\"col\":4}},{\"id\":\"fAaJngUoI2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"tXwe-RyOgO\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Category</span>\",\"col\":12}},{\"id\":\"ZYxEE4oWyk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Category\",\"col\":3}},{\"id\":\"GlTFwnUbav\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vehicle Type\",\"col\":3}},{\"id\":\"qGLLRMeYKo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service\",\"col\":3}},{\"id\":\"qnN34KIqMJ\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"fetm1pWgqc\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Doctypes</b></span>\",\"col\":12}},{\"id\":\"ChN5Hc3Io9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"YSdBQg7Fsz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"YYlKo_AjOp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transactions\",\"col\":3}},{\"id\":\"2TStSCk9h6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare fee payment\",\"col\":3}},{\"id\":\"ROp0i0M9ZZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"3qan6ZuodD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}},{\"id\":\"TdY3Efidkd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"m_JC-9-5Z6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Report</b></span>\",\"col\":12}},{\"id\":\"nUMLEwEMy-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Quarterly Welfare Compiance\",\"col\":3}},{\"id\":\"veMwEFgdHS\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"uIdQL_qUe8\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Web Forms</b></span>\",\"col\":12}},{\"id\":\"kkjEMlVJG7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Form\",\"col\":3}},{\"id\":\"v32-_pv_sD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Form\",\"col\":3}},{\"id\":\"NYEHyoxEaq\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
   "custom_blocks": [],
   "docstatus": 0,
   "doctype": "Workspace",
@@ -17,8 +17,78 @@
   "name": "Database Flow",
   "number_cards": [
    {
-    "label": "Approved Aggregators",
+    "label": "Total Aggregators",
+    "number_card_name": "Total Aggregators",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Approved Aggregator",
     "number_card_name": "Approved Aggregator",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Pending Approval",
+    "number_card_name": "Pending Approval",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Under Process Aggregators",
+    "number_card_name": "Under Process Aggregators",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Rejected Aggregators",
+    "number_card_name": "Rejected Aggregators",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Total Gig Workers",
+    "number_card_name": "Total Gig Workers",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Active Gig Workers",
+    "number_card_name": "Active Gig Workers",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Pending Verification Workers",
+    "number_card_name": "Pending Verification Workers",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Total Transactions",
+    "number_card_name": "Total Transactions",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Completed Transactions",
+    "number_card_name": "Completed Transactions",
+    "parent": "Database Flow",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Total Welfare Collected",
+    "number_card_name": "Total Welfare Collected",
     "parent": "Database Flow",
     "parentfield": "number_cards",
     "parenttype": "Workspace"
@@ -308,7 +378,7 @@
  },
  {
   "charts": [],
-  "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}}]",
+  "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"nASM6EFgje\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Service Mapping\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}},{\"id\":\"agg_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"agg_nc_hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>My Stats</b></span>\",\"col\":12}},{\"id\":\"agg_nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Gig Workers\",\"col\":4}},{\"id\":\"agg_nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Active Workers\",\"col\":4}},{\"id\":\"agg_nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Transactions\",\"col\":4}},{\"id\":\"agg_nc4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Completed Transactions\",\"col\":4}},{\"id\":\"agg_nc5\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Welfare Contributed\",\"col\":4}},{\"id\":\"agg_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
   "custom_blocks": [],
   "docstatus": 0,
   "doctype": "Workspace",
@@ -395,7 +465,43 @@
   "modified": "2026-03-23 20:16:49.501453",
   "module": "Gig Workers",
   "name": "Aggregators",
-  "number_cards": [],
+  "number_cards": [
+   {
+    "label": "My Gig Workers",
+    "number_card_name": "My Gig Workers",
+    "parent": "Aggregators",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "My Active Workers",
+    "number_card_name": "My Active Workers",
+    "parent": "Aggregators",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "My Transactions",
+    "number_card_name": "My Transactions",
+    "parent": "Aggregators",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "My Completed Transactions",
+    "number_card_name": "My Completed Transactions",
+    "parent": "Aggregators",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "My Welfare Contributed",
+    "number_card_name": "My Welfare Contributed",
+    "parent": "Aggregators",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   }
+  ],
   "parent_page": "",
   "public": 1,
   "quick_lists": [],
@@ -500,7 +606,7 @@
  },
  {
   "charts": [],
-  "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}}]",
+  "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"wk_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"wk_nc_hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>My Stats</b></span>\",\"col\":12}},{\"id\":\"wk_nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Worker My Transactions\",\"col\":4}},{\"id\":\"wk_nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Worker Completed Transactions\",\"col\":4}},{\"id\":\"wk_nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Welfare Balance\",\"col\":4}},{\"id\":\"wk_nc4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Total Earnings\",\"col\":4}},{\"id\":\"wk_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
   "custom_blocks": [],
   "docstatus": 0,
   "doctype": "Workspace",
@@ -514,7 +620,36 @@
   "modified": "2026-03-14 15:35:23.734964",
   "module": "Gig Workers",
   "name": "Gig Workers",
-  "number_cards": [],
+  "number_cards": [
+   {
+    "label": "Worker My Transactions",
+    "number_card_name": "Worker My Transactions",
+    "parent": "Gig Workers",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Worker Completed Transactions",
+    "number_card_name": "Worker Completed Transactions",
+    "parent": "Gig Workers",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "My Welfare Balance",
+    "number_card_name": "My Welfare Balance",
+    "parent": "Gig Workers",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "My Total Earnings",
+    "number_card_name": "My Total Earnings",
+    "parent": "Gig Workers",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   }
+  ],
   "parent_page": "",
   "public": 1,
   "quick_lists": [],
