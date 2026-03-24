@@ -293,10 +293,6 @@ fixtures = [
         "filters": [["module", "=", "Gig Workers"]]
     },
     {
-        "dt": "Page",
-        "filters": [["module", "=", "Gig Workers"]]
-    },
-    {
         "dt": "Report",
         "filters": [["module", "=", "Gig Workers"]]
     },
