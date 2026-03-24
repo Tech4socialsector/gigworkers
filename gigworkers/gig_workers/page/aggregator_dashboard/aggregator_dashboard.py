@@ -129,16 +129,8 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "Gig Transaction",
         filters=orm_filter,
         fields=["name", "date", "gig_worker", "service", "service_category",
-                "amount", "base_payout", "welfare_amount", "status"],
+                "amount", "base_payout", "welfare_amount", "status", "platform"],
         order_by="date desc",
-    )
-
-    # --- Worker mapping log (not date-filtered) ---
-    workers = frappe.get_all(
-        "Worker Mapping Log",
-        filters={"aggregator": aggregator_name},
-        fields=["name", "gig_worker", "service", "event_type", "worker_status", "log_datetime"],
-        order_by="log_datetime desc",
     )
 
     # --- Pending welfare fee payments ---
@@ -155,7 +147,7 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "Gig Transaction",
         filters={"aggregator": aggregator_name, "status": "Suspected Duplicate"},
         fields=["name", "date", "gig_worker", "service", "amount",
-                "base_payout", "welfare_amount", "duplicate_of"],
+                "base_payout", "welfare_amount", "duplicate_of", "platform"],
         order_by="creation desc",
     )
 
@@ -189,7 +181,6 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
             "pending_amount": float(pending_welfare or 0),
         },
         "recent_transactions": recent_txns,
-        "worker_list":         workers,
         "pending_wfp":         pending_wfp,
         "suspected_dups":      suspected_dups,
     }

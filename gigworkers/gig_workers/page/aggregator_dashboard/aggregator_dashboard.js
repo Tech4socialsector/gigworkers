@@ -431,17 +431,22 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		<div class="agg-section" style="margin-bottom:24px;">
 			<h5><i class="fa fa-building" style="margin-right:6px;color:#4e73df;"></i>My Registered Services</h5>
 			<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="svc-tabs">
+					<button class="svc-tab-btn" data-idx="-1" data-svc=""
+						style="padding:6px 18px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
+						border:2px solid #aaa;background:${!_active_platform?'#555':'#fff'};color:${!_active_platform?'#fff':'#555'};">
+						<i class="fa fa-th" style="font-size:10px;margin-right:4px;"></i> All Services
+					</button>
 				${(services || []).map((s, i) => `
 					<button class="svc-tab-btn" data-idx="${i}" data-svc="${s.service_name}"
 						style="padding:6px 18px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
-						border:2px solid #4e73df;background:${i===0?'#4e73df':'#fff'};color:${i===0?'#fff':'#4e73df'};">
+						border:2px solid #4e73df;background:${_active_platform ? (_active_platform===s.service_name?'#4e73df':'#fff') : (i===0?'#4e73df':'#fff')};color:${_active_platform ? (_active_platform===s.service_name?'#fff':'#4e73df') : (i===0?'#fff':'#4e73df')};">
 						<i class="fa fa-circle" style="font-size:8px;margin-right:4px;color:${s.service_status==='Active'?'#1cc88a':'#aaa'};"></i>
 						${s.service_name}
 					</button>`).join("")}
 			</div>
 			<div id="svc-detail-panel">
 				${(services || []).map((s, i) => `
-				<div class="svc-detail" data-idx="${i}" style="display:${i===0?'block':'none'}">
+				<div class="svc-detail" data-idx="${i}" style="display:${_active_platform ? (_active_platform===s.service_name?'block':'none') : (i===0?'block':'none')}">
 					<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
 						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
 							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Brand Name</div>
@@ -492,6 +497,13 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		</div>
 		`}
 
+		${_active_platform ? `
+		<div style="background:#e8f4fd;border:1.5px solid #4e73df;border-radius:8px;padding:10px 18px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+			<i class="fa fa-filter" style="color:#4e73df;"></i>
+			<span style="font-weight:600;color:#4e73df;">Filtered by: ${_active_platform}</span>
+			<span style="font-size:12px;color:#888;margin-left:4px;">Stats and tables below show data for this service only</span>
+		</div>` : ""}
+
 		<div class="agg-card-row">
 			<div class="agg-stat-card" style="--card-color:#4e73df;"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
 			<div class="agg-stat-card" style="--card-color:#1cc88a;"><div class="label">Completed</div><div class="value">${stats.completed_transactions}</div></div>
@@ -520,7 +532,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			</h5>
 			<table id="agg-txn-table" class="display" style="width:100%">
 				<thead><tr>
-					<th>Transaction ID</th><th>Date</th><th>Gig Worker</th><th>Service</th>
+					<th>Transaction ID</th><th>Date</th><th>Gig Worker</th><th>Service</th><th>Platform</th>
 					<th>Amount</th><th>Base Payout</th><th>Welfare</th><th>Status</th>
 				</tr></thead>
 				<tbody>
@@ -529,6 +541,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 						<td>${t.date || "-"}</td>
 						<td>${t.gig_worker || "-"}</td>
 						<td>${t.service || "-"}</td>
+						<td>${t.platform || "-"}</td>
 						<td>${fmt_currency(t.amount)}</td>
 						<td>${fmt_currency(t.base_payout)}</td>
 						<td>${fmt_currency(t.welfare_amount)}</td>
@@ -538,28 +551,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			</table>
 		</div>
 
-		<!-- Worker Mapping Log Table -->
-		<div class="agg-section">
-			<h5>Worker Mapping Log
-				<a href="/app/worker-mapping-log" style="float:right;font-size:13px;font-weight:500;color:#4e73df;">View All</a>
-			</h5>
-			<table id="agg-worker-table" class="display" style="width:100%">
-				<thead><tr>
-					<th>Log ID</th><th>Gig Worker</th><th>Service</th>
-					<th>Event</th><th>Worker Status</th><th>Logged At</th>
-				</tr></thead>
-				<tbody>
-					${worker_list.map(w => `<tr>
-						<td><a href="/app/worker-mapping-log/${w.name}" style="color:#4e73df;">${w.name}</a></td>
-						<td>${w.gig_worker || "-"}</td>
-						<td>${w.service || "-"}</td>
-						<td>${status_badge(w.event_type)}</td>
-						<td>${w.worker_status || "-"}</td>
-						<td>${(w.log_datetime || "").substring(0, 16)}</td>
-					</tr>`).join("")}
-				</tbody>
-			</table>
-		</div>
 
 		<!-- Pending Welfare Fee Payments Table -->
 		<div class="agg-section">
@@ -596,7 +587,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			<table id="agg-dup-table" class="display" style="width:100%">
 				<thead><tr>
 					<th>Transaction ID</th><th>Date</th><th>Gig Worker</th>
-					<th>Service</th><th>Amount</th><th>Welfare</th><th>Matches</th>
+					<th>Service</th><th>Platform</th><th>Amount</th><th>Welfare</th><th>Matches</th>
 				</tr></thead>
 				<tbody>
 					${suspected_dups.map(d => `<tr>
@@ -604,6 +595,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 						<td>${d.date || "-"}</td>
 						<td>${d.gig_worker || "-"}</td>
 						<td>${d.service || "-"}</td>
+						<td>${d.platform || "-"}</td>
 						<td style="color:#e74a3b;font-weight:600;">${fmt_currency(d.amount)}</td>
 						<td>${fmt_currency(d.welfare_amount)}</td>
 						<td style="font-size:12px;">
@@ -622,7 +614,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 		// Initialize DataTables
 		init_datatable("#agg-txn-table");
-		init_datatable("#agg-worker-table");
 		init_datatable("#agg-wfp-table");
 		if (suspected_dups && suspected_dups.length) {
 			init_datatable("#agg-dup-table");
@@ -634,10 +625,13 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		$(document).off("click.svctab").on("click.svctab", ".svc-tab-btn", function () {
 			const idx = $(this).data("idx");
 			const svc = $(this).data("svc");
-			$(".svc-tab-btn").css({ background: "#fff", color: "#4e73df" });
-			$(this).css({ background: "#4e73df", color: "#fff" });
+			// "All Services" tab: grey style, others blue
+			$(".svc-tab-btn[data-idx='-1']").css({ background: "#fff", color: "#555" });
+			$(".svc-tab-btn:not([data-idx='-1'])").css({ background: "#fff", color: "#4e73df" });
+			if (idx === -1) { $(this).css({ background: "#555", color: "#fff" }); }
+			else { $(this).css({ background: "#4e73df", color: "#fff" }); }
 			$(".svc-detail").hide();
-			$(`.svc-detail[data-idx="${idx}"]`).show();
+			if (idx !== -1) $(`.svc-detail[data-idx="${idx}"]`).show();
 			_active_platform = svc || "";
 			fetch_dashboard();
 		});
