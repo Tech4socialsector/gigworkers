@@ -11,6 +11,7 @@
   "duplicate_key",
   "gig_worker",
   "aggregator",
+  "platform",
   "service",
   "service_category",
   "service_type",
@@ -211,6 +212,12 @@
    "fieldtype": "Currency",
    "label": "Welfare Cap",
    "read_only": 1
+  },
+  {
+   "fieldname": "platform",
+   "fieldtype": "Data",
+   "label": "Platform / Service",
+   "description": "Which aggregator service this transaction belongs to (e.g. Swiggy, Zomato)"
   }
  ],
  "grid_page_length": 50,

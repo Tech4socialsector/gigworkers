@@ -2,10 +2,14 @@ import frappe
 
 
 @frappe.whitelist()
-def get_dashboard_data(aggregator=None, service_category=None):
+def get_dashboard_data(aggregator=None, service_category=None, worker_override=None):
     user = frappe.session.user
 
-    worker_name = frappe.db.get_value("Gig Worker", {"email": user}, "name")
+    # System Manager can view any worker's dashboard
+    if worker_override and "System Manager" in frappe.get_roles(user):
+        worker_name = worker_override
+    else:
+        worker_name = frappe.db.get_value("Gig Worker", {"email": user}, "name")
     if not worker_name:
         frappe.throw("No Gig Worker profile found for this user.")
 

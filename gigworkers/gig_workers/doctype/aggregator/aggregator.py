@@ -23,31 +23,37 @@ class Aggregator(Document):
 			if existing_worker:
 				frappe.throw(f"Email '{self.email}' is already registered as a Gig Worker.")
 
-		# PAN format: 5 letters, 4 digits, 1 letter
-		if self.pan:
-			self.pan = self.pan.upper()
-			if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', self.pan):
-				frappe.throw("Invalid PAN Format. A valid PAN should be like ABCDE1234F.")
-
-		# GSTIN format (if provided)
-		if self.gstin:
-			self.gstin = self.gstin.upper()
-			if not re.match(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$', self.gstin):
-				frappe.throw("Invalid GSTIN Format. A valid GSTIN should be 15 characters like 22ABCDE1234F1Z5.")
-
 		# Mobile: 10-digit Indian number starting with 6-9
 		if self.mobile:
 			if not re.match(r'^[6-9][0-9]{9}$', self.mobile):
 				frappe.throw("Invalid Mobile Number. Please enter a valid 10-digit Indian mobile number.")
 
-		# Company ID validation based on Company Type
-		if self.company_type and self.company_id:
-			if self.company_type == 'CIN':
-				if not re.match(r'^[LUu][0-9]{5}[A-Za-z]{2}[0-9]{4}[Pp][Ll][Cc][0-9]{6}$', self.company_id):
-					frappe.throw("Invalid CIN Format. A valid CIN should be like L12345AB2020PLC123456.")
-			elif self.company_type == 'LLPIN':
-				if not re.match(r'^[A-Z]{3}-[0-9]{4}$', self.company_id.upper()):
-					frappe.throw("Invalid LLPIN Format. A valid LLPIN should be like AAA-1234.")
+		# Validate each service row
+		service_names = []
+		for svc in (self.services or []):
+			svc_label = svc.service_name or f"Row {svc.idx}"
+
+			if svc.service_name in service_names:
+				frappe.throw(f"Duplicate service '{svc.service_name}' — each service name must be unique.")
+			service_names.append(svc.service_name)
+
+			if svc.pan:
+				svc.pan = svc.pan.upper()
+				if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', svc.pan):
+					frappe.throw(f"[{svc_label}] Invalid PAN Format. Should be like ABCDE1234F.")
+
+			if svc.gstin:
+				svc.gstin = svc.gstin.upper()
+				if not re.match(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$', svc.gstin):
+					frappe.throw(f"[{svc_label}] Invalid GSTIN Format. Should be 15 characters like 22ABCDE1234F1Z5.")
+
+			if svc.company_type and svc.company_id:
+				if svc.company_type == 'CIN':
+					if not re.match(r'^[LUu][0-9]{5}[A-Za-z]{2}[0-9]{4}[Pp][Ll][Cc][0-9]{6}$', svc.company_id):
+						frappe.throw(f"[{svc_label}] Invalid CIN Format. Should be like L12345AB2020PLC123456.")
+				elif svc.company_type == 'LLPIN':
+					if not re.match(r'^[A-Z]{3}-[0-9]{4}$', svc.company_id.upper()):
+						frappe.throw(f"[{svc_label}] Invalid LLPIN Format. Should be like AAA-1234.")
 
 	def after_insert(self):
 		frappe.db.set_value("Aggregator", self.name, "status", "Submitted")

@@ -1475,7 +1475,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				<thead><tr>
 					<th>Aggregator ID</th><th>Name</th><th>Status</th>
 					<th>Workers</th><th>Transactions</th><th>Total Amount</th>
-					<th>Welfare Collected</th><th>Pending Fees</th>
+					<th>Welfare Collected</th><th>Pending Fees</th><th>Dashboard</th>
 				</tr></thead>
 				<tbody>
 					${aggregator_breakdown.map(a => `<tr>
@@ -1486,7 +1486,13 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 						<td>${a.txn_count || 0}</td>
 						<td>${fmt_currency(a.txn_amount)}</td>
 						<td>${fmt_currency(a.welfare_collected)}</td>
-						<td class="${parseFloat(a.pending_fees) > 0 ? "highlight" : ""}">${fmt_currency(a.pending_fees)}</td>
+						<td class="${parseFloat(a.pending_fees) > 0 ? 'highlight' : ''}">${fmt_currency(a.pending_fees)}</td>
+						<td><a href="/app/aggregator-dashboard?aggregator=${a.aggregator_id}" target="_blank"
+							style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
+							border-radius:5px;font-size:12px;font-weight:600;color:#4e73df;
+							border:1.5px solid #4e73df;text-decoration:none;white-space:nowrap;">
+							<i class="fa fa-bar-chart"></i> View Dashboard
+						</a></td>
 					</tr>`).join("")}
 				</tbody>
 			</table>
@@ -1542,7 +1548,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			<table id="admin-workers-table" class="display" style="width:100%">
 				<thead><tr>
 					<th>Worker ID</th><th>Name</th><th>Gender</th>
-					<th>Status</th><th>Registered By</th>
+					<th>Status</th><th>Registered By</th><th>Dashboard</th>
 				</tr></thead>
 				<tbody>
 					${recent_workers.map(w => `<tr>
@@ -1551,6 +1557,12 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 						<td>${w.gender || "-"}</td>
 						<td>${status_badge(w.status)}</td>
 						<td>${w.created_by_aggregator || "-"}</td>
+						<td><a href="/app/gig-worker-dashboard?worker=${w.name}" target="_blank"
+							style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
+							border-radius:5px;font-size:12px;font-weight:600;color:#1cc88a;
+							border:1.5px solid #1cc88a;text-decoration:none;white-space:nowrap;">
+							<i class="fa fa-bar-chart"></i> View Dashboard
+						</a></td>
 					</tr>`).join("")}
 				</tbody>
 			</table>
@@ -1604,10 +1616,22 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 
 		$("#admin-dashboard").html(html);
 
-		init_datatable("#admin-agg-table");
+		if ($.fn.DataTable) {
+			$("#admin-agg-table").DataTable({
+				pageLength: 10, lengthMenu: [5, 10, 25, 50], order: [],
+				columnDefs: [{ orderable: false, targets: [8] }],
+				language: { search: "Filter:", lengthMenu: "Show _MENU_ entries", info: "Showing _START_ to _END_ of _TOTAL_ records", emptyTable: "No data available" },
+				dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
+			});
+			$("#admin-workers-table").DataTable({
+				pageLength: 10, lengthMenu: [5, 10, 25, 50], order: [],
+				columnDefs: [{ orderable: false, targets: [5] }],
+				language: { search: "Filter:", lengthMenu: "Show _MENU_ entries", info: "Showing _START_ to _END_ of _TOTAL_ records", emptyTable: "No data available" },
+				dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
+			});
+		}
 		init_datatable("#admin-txn-table");
 		init_datatable("#admin-wfp-table");
-		init_datatable("#admin-workers-table");
 		if (duplicate_transactions && duplicate_transactions.length) {
 			if ($.fn.DataTable) {
 				$("#admin-dup-table").DataTable({

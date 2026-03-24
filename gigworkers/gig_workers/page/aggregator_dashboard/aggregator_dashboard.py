@@ -2,19 +2,32 @@ import frappe
 
 
 @frappe.whitelist()
-def get_dashboard_data(from_date=None, to_date=None, service_category=None):
+def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggregator_override=None, platform=None):
     user = frappe.session.user
 
-    aggregator_name = frappe.db.get_value("Aggregator", {"email": user}, "name")
-    if not aggregator_name and user == "Administrator":
-        aggregator_name = frappe.db.get_value("Aggregator", {}, "name")
+    # System Manager can view any aggregator's dashboard
+    if aggregator_override and "System Manager" in frappe.get_roles(user):
+        aggregator_name = aggregator_override
+    else:
+        aggregator_name = frappe.db.get_value("Aggregator", {"email": user}, "name")
+        if not aggregator_name and user == "Administrator":
+            aggregator_name = frappe.db.get_value("Aggregator", {}, "name")
     if not aggregator_name:
         frappe.throw("No Aggregator profile found for this user.")
 
     aggregator = frappe.db.get_value(
         "Aggregator", aggregator_name,
-        ["aggregator_name", "status", "email", "mobile", "company_type"],
+        ["aggregator_name", "status", "email", "mobile"],
         as_dict=True,
+    )
+
+    # Fetch all registered services (child table)
+    services = frappe.get_all(
+        "Aggregator Service",
+        filters={"parent": aggregator_name},
+        fields=["service_name", "brand_name", "company_type", "company_id",
+                "address", "website_url", "app_url", "pan", "gstin", "service_status"],
+        order_by="idx asc",
     )
 
     # --- Distinct service categories for filter dropdown ---
@@ -47,6 +60,11 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None):
         sql_cond  += " AND service_category = %(svc_cat)s"
         sql_params["svc_cat"] = service_category
         orm_filter["service_category"] = service_category
+
+    if platform:
+        sql_cond  += " AND platform = %(platform)s"
+        sql_params["platform"] = platform
+        orm_filter["platform"] = platform
 
     # --- Transaction stats ---
     txn_stats = frappe.db.sql(f"""
@@ -144,11 +162,13 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None):
     return {
         "aggregator":       aggregator,
         "aggregator_id":    aggregator_name,
+        "services":         services,
         "service_categories": [s.service_category for s in service_cats],
         "active_filters": {
             "from_date":        from_date or "",
             "to_date":          to_date or "",
             "service_category": service_category or "",
+            "platform":         platform or "",
         },
         "stats": {
             "total_transactions":     txn_stats.total_transactions or 0,

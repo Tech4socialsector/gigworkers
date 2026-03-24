@@ -1,13 +1,39 @@
 // Copyright (c) 2026, Jenifar and contributors
 // For license information, please see license.txt
 
+// Helper: load platform options from the selected aggregator's services
+function load_platform_options(frm) {
+	if (!frm.doc.aggregator) {
+		frm.set_df_property("platform", "options", "");
+		frm.refresh_field("platform");
+		return;
+	}
+	frappe.db.get_list("Aggregator Service", {
+		filters: { parent: frm.doc.aggregator },
+		fields: ["service_name"],
+		order_by: "idx asc",
+		limit: 50,
+	}).then(rows => {
+		const opts = [""].concat(rows.map(r => r.service_name)).join("\n");
+		frm.set_df_property("platform", "fieldtype", "Select");
+		frm.set_df_property("platform", "options", opts);
+		frm.refresh_field("platform");
+	});
+}
+
 frappe.ui.form.on("Gig Transaction", {
+
+	aggregator(frm) {
+		frm.set_value("platform", "");
+		load_platform_options(frm);
+	},
 
 	// ----------------------------------------------------------
 	// FORM REFRESH
 	// ----------------------------------------------------------
 
 	refresh(frm) {
+		load_platform_options(frm);
 
 		frm.clear_custom_buttons();
 

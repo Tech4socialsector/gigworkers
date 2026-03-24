@@ -18,6 +18,10 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	let _active_from     = "";
 	let _active_to       = "";
 	let _active_svc_cat  = "";
+	let _active_platform = "";
+
+	// Allow admin to view a specific aggregator via URL param ?aggregator=AG001
+	const _agg_override = frappe.utils.get_url_arg("aggregator") || null;
 
 	function fetch_dashboard() {
 		$("#agg-dashboard").html(`
@@ -28,7 +32,8 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		`);
 		frappe.call({
 			method: "gigworkers.gig_workers.page.aggregator_dashboard.aggregator_dashboard.get_dashboard_data",
-			args: { from_date: _active_from, to_date: _active_to, service_category: _active_svc_cat },
+			args: { from_date: _active_from, to_date: _active_to, service_category: _active_svc_cat,
+				aggregator_override: _agg_override, platform: _active_platform },
 			callback(r) {
 				if (r.message) { _agg_data = r.message; render_dashboard(r.message); }
 			},
@@ -356,7 +361,8 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	function render_dashboard(data) {
 		const { aggregator, aggregator_id, stats, workers, welfare_payments,
 			recent_transactions, worker_list, pending_wfp,
-			service_categories, active_filters, suspected_dups } = data;
+			service_categories, active_filters, suspected_dups,
+			services } = data;
 
 		const html = `
 		<style>
@@ -414,11 +420,77 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			<div class="agg-profile-info">
 				<div class="name">${aggregator.aggregator_name || "-"}</div>
 				<div class="meta">
-					${aggregator_id} &nbsp;|&nbsp; ${aggregator.company_type || ""} &nbsp;|&nbsp;
-					${aggregator.email || ""} &nbsp;|&nbsp; ${status_badge(aggregator.status)}
+					${aggregator_id} &nbsp;|&nbsp; ${aggregator.email || ""} &nbsp;|&nbsp;
+					${status_badge(aggregator.status)}
+					${(services && services.length) ? `&nbsp;|&nbsp; <span style="color:#4e73df;font-weight:600;">${services.length} Service${services.length > 1 ? "s" : ""} Registered</span>` : ""}
 				</div>
 			</div>
 		</div>
+
+		${(services && services.length) ? `
+		<div class="agg-section" style="margin-bottom:24px;">
+			<h5><i class="fa fa-building" style="margin-right:6px;color:#4e73df;"></i>My Registered Services</h5>
+			<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="svc-tabs">
+				${(services || []).map((s, i) => `
+					<button class="svc-tab-btn" data-idx="${i}" data-svc="${s.service_name}"
+						style="padding:6px 18px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
+						border:2px solid #4e73df;background:${i===0?'#4e73df':'#fff'};color:${i===0?'#fff':'#4e73df'};">
+						<i class="fa fa-circle" style="font-size:8px;margin-right:4px;color:${s.service_status==='Active'?'#1cc88a':'#aaa'};"></i>
+						${s.service_name}
+					</button>`).join("")}
+			</div>
+			<div id="svc-detail-panel">
+				${(services || []).map((s, i) => `
+				<div class="svc-detail" data-idx="${i}" style="display:${i===0?'block':'none'}">
+					<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Brand Name</div>
+							<div style="font-size:15px;font-weight:600;margin-top:4px;">${s.brand_name || "-"}</div>
+						</div>
+						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Company Type</div>
+							<div style="font-size:15px;font-weight:600;margin-top:4px;">${s.company_type || "-"}</div>
+						</div>
+						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Company ID</div>
+							<div style="font-size:15px;font-weight:600;margin-top:4px;">${s.company_id || "-"}</div>
+						</div>
+						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">PAN</div>
+							<div style="font-size:15px;font-weight:600;margin-top:4px;font-family:monospace;">${s.pan || "-"}</div>
+						</div>
+						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">GSTIN</div>
+							<div style="font-size:15px;font-weight:600;margin-top:4px;font-family:monospace;">${s.gstin || "-"}</div>
+						</div>
+						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Status</div>
+							<div style="margin-top:4px;">${s.service_status === 'Active'
+								? '<span style="background:#d4edda;color:#155724;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">Active</span>'
+								: '<span style="background:#f8d7da;color:#721c24;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">Inactive</span>'}</div>
+						</div>
+						${s.address ? `<div style="background:#f8f9fa;border-radius:8px;padding:12px;grid-column:span 2;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Registered Address</div>
+							<div style="font-size:14px;font-weight:500;margin-top:4px;">${s.address}</div>
+						</div>` : ""}
+						${s.website_url ? `<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Website</div>
+							<div style="margin-top:4px;"><a href="${s.website_url}" target="_blank" style="color:#4e73df;">${s.website_url}</a></div>
+						</div>` : ""}
+						${s.app_url ? `<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">App URL</div>
+							<div style="margin-top:4px;"><a href="${s.app_url}" target="_blank" style="color:#4e73df;">${s.app_url}</a></div>
+						</div>` : ""}
+					</div>
+				</div>`).join("")}
+			</div>
+		</div>
+		` : `
+		<div class="agg-section" style="margin-bottom:24px;text-align:center;color:#888;padding:30px;">
+			<i class="fa fa-building" style="font-size:28px;margin-bottom:8px;display:block;color:#ccc;"></i>
+			No services registered yet. Please contact the admin to update your profile.
+		</div>
+		`}
 
 		<div class="agg-card-row">
 			<div class="agg-stat-card" style="--card-color:#4e73df;"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
@@ -558,6 +630,18 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 		$("#agg-btn-dl-pdf").on("click", download_pdf);
 
+		// Service tab switching
+		$(document).off("click.svctab").on("click.svctab", ".svc-tab-btn", function () {
+			const idx = $(this).data("idx");
+			const svc = $(this).data("svc");
+			$(".svc-tab-btn").css({ background: "#fff", color: "#4e73df" });
+			$(this).css({ background: "#4e73df", color: "#fff" });
+			$(".svc-detail").hide();
+			$(`.svc-detail[data-idx="${idx}"]`).show();
+			_active_platform = svc || "";
+			fetch_dashboard();
+		});
+
 		// Filter events
 		$("#agg-btn-apply-filter").on("click", function () {
 			_active_from    = $("#agg-filter-from").val() || "";
@@ -566,7 +650,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			fetch_dashboard();
 		});
 		$("#agg-btn-clear-filter").on("click", function () {
-			_active_from = ""; _active_to = ""; _active_svc_cat = "";
+			_active_from = ""; _active_to = ""; _active_svc_cat = ""; _active_platform = "";
 			fetch_dashboard();
 		});
 	}

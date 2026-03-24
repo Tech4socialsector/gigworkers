@@ -8,30 +8,22 @@
  "field_order": [
   "service_details_section",
   "aggregator_name",
-  "brand_name",
-  "address",
   "status",
   "column_break_efqw",
-  "company_type",
-  "company_id",
-  "website_url",
-  "app_url",
-  "personal_details_section",
-  "name1",
   "email",
   "mobile",
-  "column_break_njko",
+  "services_section",
+  "services",
+  "personal_details_section",
+  "name1",
   "gender",
   "date_of_birth",
   "desigination",
+  "column_break_njko",
   "files_section",
   "aadhaar_number",
-  "pan",
-  "gstin",
-  "column_break_cfld",
   "aadhaar_file",
-  "pan_file",
-  "gstin_file"
+  "column_break_cfld"
  ],
  "fields": [
   {
@@ -39,68 +31,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Service Name",
-   "reqd": 1
-  },
-  {
-   "fieldname": "pan",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "PAN Number",
-   "reqd": 1
-  },
-  {
-   "fieldname": "gstin",
-   "fieldtype": "Data",
-   "label": "GSTIN"
-  },
-  {
-   "fieldname": "address",
-   "fieldtype": "Small Text",
-   "in_list_view": 1,
-   "label": "Registered Address",
-   "reqd": 1
-  },
-  {
-   "fieldname": "pan_file",
-   "fieldtype": "Attach",
-   "label": "PAN File"
-  },
-  {
-   "fieldname": "gstin_file",
-   "fieldtype": "Attach",
-   "label": "GSTIN File"
-  },
-  {
-   "fieldname": "company_type",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Company Type",
-   "options": "\nCIN\nLLPIN",
-   "reqd": 1
-  },
-  {
-   "fieldname": "company_id",
-   "fieldtype": "Data",
-   "label": "Company ID"
-  },
-  {
-   "fieldname": "website_url",
-   "fieldtype": "Data",
-   "label": "Website URL"
-  },
-  {
-   "fieldname": "app_url",
-   "fieldtype": "Data",
-   "label": "App URL"
-  },
-  {
-   "fieldname": "brand_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Brand Name",
+   "label": "Aggregator Name",
    "reqd": 1
   },
   {
@@ -112,6 +43,8 @@
   {
    "fieldname": "email",
    "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Email",
    "options": "Email",
    "reqd": 1,
@@ -122,6 +55,45 @@
    "fieldtype": "Data",
    "label": "Mobile",
    "reqd": 1
+  },
+  {
+   "fieldname": "services_section",
+   "fieldtype": "Section Break",
+   "label": "Service Details"
+  },
+  {
+   "fieldname": "services",
+   "fieldtype": "Table",
+   "label": "Services",
+   "options": "Aggregator Service"
+  },
+  {
+   "fieldname": "personal_details_section",
+   "fieldtype": "Section Break",
+   "label": "Personal Details"
+  },
+  {
+   "fieldname": "name1",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Name"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "\nMale\nFemale\nOther"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of birth"
+  },
+  {
+   "fieldname": "desigination",
+   "fieldtype": "Data",
+   "label": "Desigination"
   },
   {
    "fieldname": "files_section",
@@ -139,36 +111,6 @@
    "label": "Aadhaar File"
   },
   {
-   "fieldname": "personal_details_section",
-   "fieldtype": "Section Break",
-   "label": "Personal Details"
-  },
-  {
-   "fieldname": "name1",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Name"
-  },
-  {
-   "fieldname": "gender",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Gender",
-   "options": "\nMale\nFemale\nOther"
-  },
-  {
-   "fieldname": "date_of_birth",
-   "fieldtype": "Date",
-   "label": "Date of birth"
-  },
-  {
-   "fieldname": "desigination",
-   "fieldtype": "Data",
-   "label": "Desigination"
-  },
-  {
    "fieldname": "column_break_efqw",
    "fieldtype": "Column Break"
   },
@@ -183,13 +125,13 @@
   {
    "fieldname": "service_details_section",
    "fieldtype": "Section Break",
-   "label": "Service Details"
+   "label": "Account Details"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-17 07:53:51.272099",
+ "modified": "2026-03-24 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregator",
@@ -210,12 +152,13 @@
   },
   {
    "read": 1,
+   "write": 1,
    "role": "Aggregator"
   }
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
- "search_fields": "aggregator_name",
+ "search_fields": "aggregator_name,email",
  "show_title_field_in_link": 1,
  "sort_field": "creation",
  "sort_order": "DESC",

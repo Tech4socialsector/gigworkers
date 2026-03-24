@@ -23,6 +23,9 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 		fetch_dashboard();
 	});
 
+	// Allow admin to view a specific worker via URL param ?worker=GW001
+	const _worker_override = frappe.utils.get_url_arg("worker") || null;
+
 	function fetch_dashboard() {
 		$("#gw-dashboard").html(`
 			<div id="gw-loading" style="text-align:center; padding: 60px; color: #888;">
@@ -36,6 +39,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 			args: {
 				aggregator: _active_aggregator,
 				service_category: _active_service_cat,
+				worker_override: _worker_override,
 			},
 			callback(r) {
 				if (r.message) {
