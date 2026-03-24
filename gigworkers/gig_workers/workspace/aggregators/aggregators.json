@@ -52,7 +52,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-03-24 16:56:31.255752",
+ "modified": "2026-03-24 17:28:21.543109",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregators",
@@ -87,7 +87,7 @@
    "role": "Aggregator"
   }
  ],
- "sequence_id": 3.0,
+ "sequence_id": 4.0,
  "shortcuts": [
   {
    "doc_view": "",

@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "Gig Workers",
  "links": [],
- "modified": "2026-03-24 16:45:09.745577",
+ "modified": "2026-03-24 17:28:21.631877",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Workers",
@@ -44,7 +44,7 @@
    "role": "Gig Worker"
   }
  ],
- "sequence_id": 2.0,
+ "sequence_id": 5.0,
  "shortcuts": [
   {
    "color": "Green",
