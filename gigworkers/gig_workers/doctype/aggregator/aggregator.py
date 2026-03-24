@@ -59,6 +59,7 @@ class Aggregator(Document):
 		frappe.db.set_value("Aggregator", self.name, "status", "Submitted")
 		self.status = "Submitted"
 		self.send_status_email("Submitted")
+		self.notify_admins_for_approval()
 
 	def on_update(self):
 		previous_status = self.get_doc_before_save()
@@ -67,6 +68,71 @@ class Aggregator(Document):
 				self.create_user_with_role()
 				self._generate_and_send_api_key()
 			self.send_status_email(self.status)
+			self.notify_admins_on_status_change(self.status)
+
+	def notify_admins_for_approval(self):
+		"""Create a Notification Log entry for all System Managers when a new aggregator registers."""
+		admin_users = frappe.get_all(
+			"Has Role",
+			filters={"role": "System Manager", "parenttype": "User"},
+			fields=["parent"],
+		)
+		for row in admin_users:
+			user = row.parent
+			if not frappe.db.exists("User", {"name": user, "enabled": 1}):
+				continue
+			notification = frappe.get_doc({
+				"doctype": "Notification Log",
+				"subject": f"New Aggregator Registration Pending Approval: {self.aggregator_name}",
+				"email_content": (
+					f"<p>A new aggregator <b>{self.aggregator_name}</b> ({self.name}) has submitted a registration "
+					f"and is awaiting your approval.</p>"
+					f"<p>Email: {self.email} | Mobile: {self.mobile}</p>"
+					f"<p>Please review and update the status to <b>Approved</b> or <b>Rejected</b>.</p>"
+				),
+				"for_user": user,
+				"from_user": frappe.session.user or "Administrator",
+				"type": "Alert",
+				"document_type": "Aggregator",
+				"document_name": self.name,
+				"read": 0,
+			})
+			notification.insert(ignore_permissions=True)
+			frappe.publish_realtime("notification", {}, user=user, after_commit=True)
+
+	def notify_admins_on_status_change(self, status):
+		"""Notify System Managers when aggregator status changes so they stay informed."""
+		if status not in ("Under Process", "Approved", "Rejected"):
+			return
+		status_labels = {
+			"Under Process": "is now Under Process",
+			"Approved": "has been Approved",
+			"Rejected": "has been Rejected",
+		}
+		admin_users = frappe.get_all(
+			"Has Role",
+			filters={"role": "System Manager", "parenttype": "User"},
+			fields=["parent"],
+		)
+		for row in admin_users:
+			user = row.parent
+			if not frappe.db.exists("User", {"name": user, "enabled": 1}):
+				continue
+			notification = frappe.get_doc({
+				"doctype": "Notification Log",
+				"subject": f"Aggregator {self.aggregator_name} {status_labels[status]}",
+				"email_content": (
+					f"<p>Aggregator <b>{self.aggregator_name}</b> ({self.name}) status has changed to <b>{status}</b>.</p>"
+				),
+				"for_user": user,
+				"from_user": frappe.session.user or "Administrator",
+				"type": "Alert",
+				"document_type": "Aggregator",
+				"document_name": self.name,
+				"read": 0,
+			})
+			notification.insert(ignore_permissions=True)
+			frappe.publish_realtime("notification", {}, user=user, after_commit=True)
 
 	def _generate_and_send_api_key(self):
 		"""Generate API key + secret for the aggregator's user account on approval.

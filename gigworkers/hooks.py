@@ -280,4 +280,8 @@ fixtures = [
         "dt": "Web Form",
         "filters": [["module", "=", "Gig Workers"]]
     },
+    {
+        "dt": "Number Card",
+        "filters": [["module", "=", "Gig Workers"]]
+    },
 ]

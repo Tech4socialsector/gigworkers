@@ -1,0 +1,14 @@
+{
+ "creation": "2026-03-24 00:00:00",
+ "doctype": "Page",
+ "module": "Gig Workers",
+ "name": "aggregator-approval",
+ "page_name": "aggregator-approval",
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "standard": "Yes",
+ "title": "Aggregator Approval"
+}
