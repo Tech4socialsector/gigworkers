@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"_CE3gGmE6s\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Dashboard</b></span>\",\"col\":12}},{\"id\":\"z2tOlANiMW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Admin Dashboard\",\"col\":3}},{\"id\":\"TZI1spEHEe\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"A0TH8Z4ECy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gigworker Dashboard\",\"col\":3}},{\"id\":\"fAaJngUoI2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"tXwe-RyOgO\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Category</span>\",\"col\":12}},{\"id\":\"ZYxEE4oWyk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Category\",\"col\":3}},{\"id\":\"GlTFwnUbav\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vehicle Type\",\"col\":3}},{\"id\":\"qGLLRMeYKo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service\",\"col\":3}},{\"id\":\"qnN34KIqMJ\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"fetm1pWgqc\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Doctypes</b></span>\",\"col\":12}},{\"id\":\"ChN5Hc3Io9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"YSdBQg7Fsz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"YYlKo_AjOp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transactions\",\"col\":3}},{\"id\":\"2TStSCk9h6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare fee payment\",\"col\":3}},{\"id\":\"ROp0i0M9ZZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"3qan6ZuodD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}},{\"id\":\"TdY3Efidkd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"m_JC-9-5Z6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Report</b></span>\",\"col\":12}},{\"id\":\"nUMLEwEMy-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Quarterly Welfare Compiance\",\"col\":3}},{\"id\":\"veMwEFgdHS\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"uIdQL_qUe8\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Web Forms</b></span>\",\"col\":12}},{\"id\":\"kkjEMlVJG7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Form\",\"col\":3}},{\"id\":\"v32-_pv_sD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Form\",\"col\":3}},{\"id\":\"NYEHyoxEaq\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
- "creation": "2026-03-23 20:14:51.984195",
+ "content": "[{\"id\":\"_CE3gGmE6s\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Dashboard</b></span>\",\"col\":12}},{\"id\":\"z2tOlANiMW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Admin Dashboard\",\"col\":3}},{\"id\":\"TZI1spEHEe\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"A0TH8Z4ECy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gigworker Dashboard\",\"col\":3}},{\"id\":\"fAaJngUoI2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"tXwe-RyOgO\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Service Settings</span>\",\"col\":12}},{\"id\":\"ZYxEE4oWyk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Category\",\"col\":3}},{\"id\":\"GlTFwnUbav\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vehicle Type\",\"col\":3}},{\"id\":\"qGLLRMeYKo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service\",\"col\":3}},{\"id\":\"qnN34KIqMJ\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"fetm1pWgqc\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Doctypes</b></span>\",\"col\":12}},{\"id\":\"ChN5Hc3Io9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator\",\"col\":3}},{\"id\":\"YSdBQg7Fsz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"YYlKo_AjOp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transactions\",\"col\":3}},{\"id\":\"2TStSCk9h6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare fee payment\",\"col\":3}},{\"id\":\"ROp0i0M9ZZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"3qan6ZuodD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}},{\"id\":\"TdY3Efidkd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"m_JC-9-5Z6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Report</b></span>\",\"col\":12}},{\"id\":\"nUMLEwEMy-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Quarterly Welfare Compiance\",\"col\":3}},{\"id\":\"veMwEFgdHS\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"uIdQL_qUe8\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Web Forms</b></span>\",\"col\":12}},{\"id\":\"kkjEMlVJG7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Form\",\"col\":3}},{\"id\":\"v32-_pv_sD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Form\",\"col\":3}},{\"id\":\"NYEHyoxEaq\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"dsH3XksJqh\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Log</b></span>\",\"col\":12}},{\"id\":\"vO-9XoiYPY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Mapping Log\",\"col\":3}}]",
+ "creation": "2026-03-24 10:47:37.009266",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "Database Flow",
  "links": [],
- "modified": "2026-03-23 20:16:26.055225",
+ "modified": "2026-03-24 10:54:53.034251",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Database Flow",
@@ -31,6 +31,14 @@
    "label": "Admin Dashboard",
    "type": "URL",
    "url": "/app/admin-dashboard"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Worker Mapping Log",
+   "link_to": "Worker Mapping Log",
+   "stats_filter": "[]",
+   "type": "DocType"
   },
   {
    "color": "Grey",
