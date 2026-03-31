@@ -1,70 +1,271 @@
 {
-    "actions": [],
-    "allow_rename": 1,
-    "creation": "2026-03-04 16:10:50.867139",
-    "doctype": "DocType",
-    "engine": "InnoDB",
-    "field_order": [
-        "gig_worker",
-        "amount",
-        "reason",
-        "status"
-    ],
-    "fields": [
-        {
-            "fieldname": "gig_worker",
-            "fieldtype": "Link",
-            "label": "Gig Worker",
-            "options": "Gig Worker"
-        },
-        {
-            "fieldname": "amount",
-            "fieldtype": "Currency",
-            "label": "Amount"
-        },
-        {
-            "fieldname": "reason",
-            "fieldtype": "Small Text",
-            "label": "Reason"
-        },
-        {
-            "fieldname": "status",
-            "fieldtype": "Select",
-            "label": "Status",
-            "options": "\nRequested\nApproved\nRejected\nPaid"
-        }
-    ],
-    "grid_page_length": 50,
-    "index_web_pages_for_search": 1,
-    "links": [],
-    "modified": "2026-03-05 09:22:41.114056",
-    "modified_by": "Administrator",
-    "module": "Gig Workers",
-    "name": "Welfare Benefit Withdrawal",
-    "owner": "Administrator",
-    "permissions": [
-        {
-            "create": 1,
-            "delete": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "System Manager",
-            "share": 1,
-            "write": 1
-        },
-        {
-            "create": 1,
-            "read": 1,
-            "write": 1,
-            "role": "Gig Worker"
-        }
-    ],
-    "row_format": "Dynamic",
-    "rows_threshold_for_grid_search": 20,
-    "sort_field": "creation",
-    "sort_order": "DESC",
-    "states": []
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-04 16:10:50.867139",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "section_withdrawal_details",
+  "gig_worker",
+  "withdrawal_type",
+  "if_other_mention_here",
+  "col_break_1",
+  "amount",
+  "requested_date",
+  "section_reason",
+  "reason",
+  "supporting_document",
+  "section_bank_details",
+  "bank_name",
+  "account_holder_name",
+  "col_break_bank",
+  "account_number",
+  "ifsc_code",
+  "section_review",
+  "status",
+  "reviewed_by",
+  "col_break_review",
+  "review_date",
+  "rejection_reason",
+  "section_disbursement",
+  "payment_date",
+  "payment_reference",
+  "col_break_disbursement",
+  "transaction_id",
+  "section_refund",
+  "is_refund",
+  "original_withdrawal",
+  "col_break_refund",
+  "refund_reason",
+  "refund_date"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "WBW-.YYYY.-.#####\n",
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "section_withdrawal_details",
+   "fieldtype": "Section Break",
+   "label": "Withdrawal Details"
+  },
+  {
+   "fieldname": "gig_worker",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Gig Worker",
+   "options": "Gig Worker",
+   "reqd": 1
+  },
+  {
+   "fieldname": "withdrawal_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Withdrawal Type",
+   "options": "\nMedical\nEducation\nEmergency\nHousing\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "col_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "requested_date",
+   "fieldtype": "Date",
+   "label": "Request Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_reason",
+   "fieldtype": "Section Break",
+   "label": "Reason & Supporting Documents"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "supporting_document",
+   "fieldtype": "Attach",
+   "label": "Supporting Document"
+  },
+  {
+   "fieldname": "section_bank_details",
+   "fieldtype": "Section Break",
+   "label": "Bank / Payment Details"
+  },
+  {
+   "fieldname": "bank_name",
+   "fieldtype": "Data",
+   "label": "Bank Name"
+  },
+  {
+   "fieldname": "account_holder_name",
+   "fieldtype": "Data",
+   "label": "Account Holder Name"
+  },
+  {
+   "fieldname": "col_break_bank",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "account_number",
+   "fieldtype": "Data",
+   "label": "Account Number"
+  },
+  {
+   "fieldname": "ifsc_code",
+   "fieldtype": "Data",
+   "label": "IFSC Code"
+  },
+  {
+   "fieldname": "section_review",
+   "fieldtype": "Section Break",
+   "label": "Review Details"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nRequested\nApproved\nRejected\nPaid"
+  },
+  {
+   "fieldname": "reviewed_by",
+   "fieldtype": "Link",
+   "label": "Reviewed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_review",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "review_date",
+   "fieldtype": "Date",
+   "label": "Review Date",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.status=='Rejected'",
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason"
+  },
+  {
+   "depends_on": "eval:doc.status=='Approved' || doc.status=='Paid'",
+   "fieldname": "section_disbursement",
+   "fieldtype": "Section Break",
+   "label": "Disbursement Details"
+  },
+  {
+   "fieldname": "payment_date",
+   "fieldtype": "Date",
+   "label": "Payment Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payment_reference",
+   "fieldtype": "Data",
+   "label": "Payment Reference No."
+  },
+  {
+   "fieldname": "col_break_disbursement",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "transaction_id",
+   "fieldtype": "Data",
+   "label": "Transaction ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_refund",
+   "fieldtype": "Section Break",
+   "label": "Refund Details"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_refund",
+   "fieldtype": "Check",
+   "label": "Is Refund"
+  },
+  {
+   "depends_on": "eval:doc.is_refund==1",
+   "fieldname": "original_withdrawal",
+   "fieldtype": "Link",
+   "label": "Original Withdrawal",
+   "options": "Welfare Benefit Withdrawal"
+  },
+  {
+   "fieldname": "col_break_refund",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.is_refund==1",
+   "fieldname": "refund_reason",
+   "fieldtype": "Small Text",
+   "label": "Refund Reason"
+  },
+  {
+   "depends_on": "eval:doc.is_refund==1",
+   "fieldname": "refund_date",
+   "fieldtype": "Date",
+   "label": "Refund Date",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.withdrawal_type ==\"Other\"",
+   "fieldname": "if_other_mention_here",
+   "fieldtype": "Data",
+   "label": "If Other, Mention here"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-31 00:22:32.955135",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Welfare Benefit Withdrawal",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Gig Worker",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
 }
