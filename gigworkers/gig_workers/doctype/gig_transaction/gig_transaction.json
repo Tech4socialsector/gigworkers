@@ -7,28 +7,35 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "basic_details_section",
   "transaction_id",
-  "duplicate_key",
   "gig_worker",
-  "aggregator",
   "platform",
-  "service",
   "service_category",
-  "service_type",
   "role",
+  "trust_level",
+  "column_break_teni",
+  "duplicate_key",
+  "aggregator",
+  "service",
+  "service_type",
   "date",
+  "account_details_section",
   "amount",
   "base_payout",
+  "deducation",
   "incentives",
-  "transaction_date",
-  "welfare_cap",
+  "net_payout_to_worker",
   "welfare_percentage",
+  "welfare_cap",
   "welfare_amount",
+  "column_break_phea",
+  "transaction_date",
   "external_transaction_id",
-  "trust_level",
   "status",
   "suspected_duplicate",
   "duplicate_of",
+  "status_of_order",
   "confirmed_at",
   "settlement_status",
   "otp_section",
@@ -114,9 +121,9 @@
   {
    "fieldname": "trust_level",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Trust Level",
-   "options": "\nHigh\nLow",
-   "reqd": 1
+   "options": "\nHigh\nLow"
   },
   {
    "fieldname": "status",
@@ -124,13 +131,13 @@
    "in_filter": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Status",
-   "options": "\nRegistered\nPayment Pending\nCompleted\nCancelled\nSuspected Duplicate\nDuplicate"
+   "label": "Status of transaction",
+   "options": "\nPayment complete\nPayment pending\nSuspected duplicate\nPayment Cancelled"
   },
   {
    "fieldname": "amount",
    "fieldtype": "Currency",
-   "label": "Amount",
+   "label": "Total bill amount",
    "reqd": 1
   },
   {
@@ -159,7 +166,7 @@
   },
   {
    "fieldname": "transaction_date",
-   "fieldtype": "Date",
+   "fieldtype": "Datetime",
    "label": "transaction_date"
   },
   {
@@ -192,13 +199,14 @@
   {
    "fieldname": "otp_records",
    "fieldtype": "Table",
+   "hidden": 1,
    "label": "OTP Records",
    "options": "Gig Transaction OTP"
   },
   {
    "fieldname": "base_payout",
    "fieldtype": "Currency",
-   "label": "Base Payout",
+   "label": "Base Payout to worker",
    "reqd": 1
   },
   {
@@ -219,12 +227,46 @@
    "fieldtype": "Data",
    "label": "Platform / Service",
    "reqd": 1
+  },
+  {
+   "fieldname": "deducation",
+   "fieldtype": "Currency",
+   "label": "Deducation"
+  },
+  {
+   "description": "Base payout to worker + Incentive - Deduction",
+   "fieldname": "net_payout_to_worker",
+   "fieldtype": "Currency",
+   "label": "Net payout to worker"
+  },
+  {
+   "fieldname": "status_of_order",
+   "fieldtype": "Select",
+   "label": "Status of order"
+  },
+  {
+   "fieldname": "basic_details_section",
+   "fieldtype": "Section Break",
+   "label": "Basic Details"
+  },
+  {
+   "fieldname": "column_break_teni",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "account_details_section",
+   "fieldtype": "Section Break",
+   "label": "Account Details"
+  },
+  {
+   "fieldname": "column_break_phea",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-24 11:07:14.621680",
+ "modified": "2026-04-09 19:54:20.798588",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",

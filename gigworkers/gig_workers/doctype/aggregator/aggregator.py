@@ -2,6 +2,8 @@
 # For license information, please see license.txt
 
 import re
+import hashlib
+from datetime import datetime
 import frappe
 from frappe.model.document import Document
 from frappe.utils.password import update_password
@@ -30,7 +32,7 @@ class Aggregator(Document):
 
 		# Validate each service row
 		service_names = []
-		for svc in (self.services or []):
+		for svc in (self.categories_of_business or []):
 			svc_label = svc.service_name or f"Row {svc.idx}"
 
 			if svc.service_name in service_names:
@@ -170,50 +172,320 @@ class Aggregator(Document):
 				title="Aggregator API Key Email Error",
 			)
 
+	def _generate_registration_certificate_pdf(self):
+		"""Generate a Karnataka Government-styled registration certificate PDF."""
+		from frappe.utils.pdf import get_pdf
+
+		base_url    = frappe.utils.get_url()
+		login_url   = f"{base_url}/login"
+		issue_date  = datetime.now().strftime("%d-%m-%Y")
+		issue_time  = datetime.now().strftime("%H:%M:%S")
+		estamp_ref  = "KA-GWB-" + hashlib.sha256(self.name.encode()).hexdigest()[:10].upper()
+
+		services_rows = ""
+		for svc in (self.categories_of_business or []):
+			services_rows += f"""
+			<tr>
+				<td>{svc.service_name or "-"}</td>
+				<td>{svc.brand_name or "-"}</td>
+				<td>{svc.company_type or "-"}</td>
+				<td>{svc.gstin or "-"}</td>
+				<td style="color:#27ae60;font-weight:bold;">{svc.service_status or "Active"}</td>
+			</tr>"""
+
+		html = f"""
+		<!DOCTYPE html>
+		<html>
+		<head>
+		<meta charset="UTF-8">
+		<style>
+			@import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
+			* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+			body {{ font-family: "Times New Roman", Times, serif; background: #fff; color: #1a1a1a; font-size: 13px; }}
+			.page {{ width: 210mm; min-height: 297mm; padding: 12mm 14mm; position: relative; }}
+
+			/* Outer decorative border */
+			.outer-border {{
+				border: 4px double #8B0000;
+				padding: 10px;
+				position: relative;
+				min-height: 273mm;
+			}}
+			.inner-border {{
+				border: 1.5px solid #c0a020;
+				padding: 14px 18px;
+				min-height: 265mm;
+				position: relative;
+			}}
+
+			/* Watermark */
+			.watermark {{
+				position: fixed;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%) rotate(-35deg);
+				font-size: 80px;
+				color: rgba(200,200,200,0.18);
+				font-weight: bold;
+				white-space: nowrap;
+				pointer-events: none;
+				z-index: 0;
+				letter-spacing: 4px;
+			}}
+
+			/* Header */
+			.gov-header {{ text-align: center; border-bottom: 2px solid #8B0000; padding-bottom: 10px; margin-bottom: 10px; }}
+			.kannada {{ font-size: 20px; font-weight: bold; color: #8B0000; letter-spacing: 1px; }}
+			.eng-title {{ font-size: 16px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }}
+			.dept {{ font-size: 12px; color: #333; margin-top: 3px; }}
+			.board {{ font-size: 13px; font-weight: bold; color: #8B0000; margin-top: 4px; }}
+
+			/* Emblem placeholder */
+			.emblem-row {{ display: flex; align-items: center; justify-content: space-between; }}
+			.emblem {{ width: 70px; height: 70px; border: 2px solid #8B0000; border-radius: 50%;
+			           display: flex; align-items: center; justify-content: center;
+			           font-size: 9px; text-align: center; color: #8B0000; font-weight: bold; padding: 6px; }}
+
+			/* Certificate title */
+			.cert-title {{ text-align: center; margin: 14px 0 10px; }}
+			.cert-title h2 {{ font-size: 17px; text-transform: uppercase; letter-spacing: 2px;
+			                  color: #8B0000; text-decoration: underline; font-weight: bold; }}
+			.cert-subtitle {{ font-size: 12px; margin-top: 4px; color: #444; }}
+
+			/* E-Stamp box */
+			.estamp-box {{
+				border: 2px solid #2c5f2e;
+				background: #f0fff0;
+				padding: 8px 14px;
+				margin-bottom: 14px;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				font-size: 11px;
+			}}
+			.estamp-label {{ color: #2c5f2e; font-weight: bold; font-size: 12px; }}
+			.estamp-ref {{ font-family: monospace; font-size: 13px; font-weight: bold; color: #1a1a1a; letter-spacing: 1px; }}
+			.estamp-date {{ color: #555; font-size: 11px; }}
+
+			/* Details table */
+			.details-table {{ width: 100%; border-collapse: collapse; margin-bottom: 14px; }}
+			.details-table th {{
+				background: #8B0000; color: #fff; padding: 7px 10px;
+				text-align: left; font-size: 12px; letter-spacing: 0.5px;
+			}}
+			.details-table td {{ padding: 6px 10px; border-bottom: 1px solid #e0c080; font-size: 12px; }}
+			.details-table tr:nth-child(even) td {{ background: #fdf8ec; }}
+			.field-label {{ font-weight: bold; color: #555; width: 38%; }}
+			.field-value {{ color: #1a1a1a; }}
+			.reg-id {{ font-size: 15px; font-weight: bold; color: #8B0000; font-family: monospace; }}
+
+			/* Services table */
+			.section-head {{ font-size: 13px; font-weight: bold; color: #8B0000; border-bottom: 1px solid #8B0000;
+			                 padding-bottom: 4px; margin: 14px 0 8px; text-transform: uppercase; letter-spacing: 1px; }}
+			.svc-table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 14px; }}
+			.svc-table th {{ background: #4a4a4a; color: #fff; padding: 6px 8px; text-align: left; }}
+			.svc-table td {{ padding: 5px 8px; border-bottom: 1px solid #ddd; }}
+			.svc-table tr:nth-child(even) td {{ background: #f9f9f9; }}
+
+			/* Login box */
+			.login-box {{
+				background: #f0f4ff;
+				border: 1.5px solid #2c3e8c;
+				padding: 10px 14px;
+				margin-bottom: 14px;
+				font-size: 12px;
+			}}
+			.login-box a {{ color: #2c3e8c; font-weight: bold; }}
+
+			/* Declaration */
+			.declaration {{
+				background: #fff8f0;
+				border-left: 4px solid #8B0000;
+				padding: 8px 12px;
+				font-size: 11px;
+				color: #444;
+				margin-bottom: 14px;
+				line-height: 1.6;
+			}}
+
+			/* Signature row */
+			.sig-row {{ display: flex; justify-content: space-between; margin-top: 20px; font-size: 11px; }}
+			.sig-block {{ text-align: center; }}
+			.sig-line {{ border-top: 1px solid #333; width: 160px; margin: 40px auto 4px; }}
+
+			/* Footer */
+			.footer {{ text-align: center; font-size: 10px; color: #888; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 10px; }}
+		</style>
+		</head>
+		<body>
+		<div class="page">
+		  <div class="watermark">GOVT OF KARNATAKA</div>
+		  <div class="outer-border">
+		  <div class="inner-border">
+
+		    <!-- Government Header -->
+		    <div class="gov-header">
+		      <div class="emblem-row">
+		        <div class="emblem">ಕರ್ನಾಟಕ<br>ರಾಜ್ಯ<br>ಲಾಂಛನ</div>
+		        <div style="flex:1; padding: 0 16px;">
+		          <div class="kannada">ಕರ್ನಾಟಕ ಸರ್ಕಾರ</div>
+		          <div class="eng-title">Government of Karnataka</div>
+		          <div class="dept">Department of Labour, Skill Development, Employment and Livelihood</div>
+		          <div class="board">Karnataka Platform Based Gig Workers Social Security and Welfare Board</div>
+		          <div class="dept" style="margin-top:2px;">Vikasa Soudha, Bengaluru – 560 001, Karnataka, India</div>
+		        </div>
+		        <div class="emblem">VERIFIED<br>DOCUMENT<br>✓</div>
+		      </div>
+		    </div>
+
+		    <!-- E-Stamp -->
+		    <div class="estamp-box">
+		      <div>
+		        <div class="estamp-label">🔖 e-Stamp Reference</div>
+		        <div class="estamp-ref">{estamp_ref}</div>
+		      </div>
+		      <div style="text-align:right;">
+		        <div class="estamp-label">Date of Issue</div>
+		        <div class="estamp-date">{issue_date} at {issue_time} IST</div>
+		        <div class="estamp-date" style="margin-top:3px;">State: Karnataka &nbsp;|&nbsp; Category: Aggregator Registration</div>
+		      </div>
+		    </div>
+
+		    <!-- Certificate Title -->
+		    <div class="cert-title">
+		      <h2>Certificate of Registration</h2>
+		      <div class="cert-subtitle">Issued under the Karnataka Platform Based Gig Workers Social Security and Welfare Act</div>
+		    </div>
+
+		    <!-- Registration Details -->
+		    <div class="section-head">Aggregator Registration Details</div>
+		    <table class="details-table">
+		      <tr><td class="field-label">Registration ID</td>
+		          <td class="field-value"><span class="reg-id">{self.name}</span></td></tr>
+		      <tr><td class="field-label">Aggregator / Company Name</td>
+		          <td class="field-value">{self.aggregator_name or "-"}</td></tr>
+		      <tr><td class="field-label">Authorised Person</td>
+		          <td class="field-value">{self.name1 or "-"}</td></tr>
+		      <tr><td class="field-label">Designation</td>
+		          <td class="field-value">{self.desigination or "-"}</td></tr>
+		      <tr><td class="field-label">Registered Email</td>
+		          <td class="field-value">{self.email or "-"}</td></tr>
+		      <tr><td class="field-label">Mobile Number</td>
+		          <td class="field-value">{self.mobile or "-"}</td></tr>
+		      <tr><td class="field-label">Gender</td>
+		          <td class="field-value">{self.gender or "-"}</td></tr>
+		      <tr><td class="field-label">Date of Birth</td>
+		          <td class="field-value">{self.date_of_birth or "-"}</td></tr>
+		      <tr><td class="field-label">Aadhaar Number</td>
+		          <td class="field-value">{("*" * 8 + str(self.aadhaar_number)[-4:]) if self.aadhaar_number else "-"}</td></tr>
+		      <tr><td class="field-label">Registration Status</td>
+		          <td class="field-value"><b style="color:#e67e22;">{self.status or "Submitted"}</b></td></tr>
+		      <tr><td class="field-label">Registration Date</td>
+		          <td class="field-value">{issue_date}</td></tr>
+		    </table>
+
+		    <!-- Services -->
+		    <div class="section-head">Categories of Business / Aggregation Activities (as per GST Filings)</div>
+		    <table class="svc-table">
+		      <thead>
+		        <tr>
+		          <th>Service Name</th>
+		          <th>Brand / App Name</th>
+		          <th>Company Type</th>
+		          <th>GSTIN</th>
+		          <th>Status</th>
+		        </tr>
+		      </thead>
+		      <tbody>
+		        {services_rows if services_rows else '<tr><td colspan="5" style="text-align:center;color:#888;">No services registered yet</td></tr>'}
+		      </tbody>
+		    </table>
+
+		    <!-- Declaration -->
+		    <div class="declaration">
+		      This is to certify that <b>{self.aggregator_name}</b> (Registration ID: <b>{self.name}</b>) has been
+		      registered as an Aggregator under the <i>Karnataka Platform Based Gig Workers Social Security and Welfare Act</i>.
+		      This certificate is system-generated and is digitally authenticated by the Karnataka Gig Workers Welfare Board.
+		      Any tampering with this document is a punishable offence under applicable law.
+		      This certificate is valid subject to continued compliance with the Act and Board regulations.
+		    </div>
+
+		    <!-- Footer -->
+		    <div class="footer">
+		      e-Stamp Ref: {estamp_ref} &nbsp;|&nbsp; Generated: {issue_date} {issue_time} IST &nbsp;|&nbsp;
+		      Karnataka Gig Workers Welfare Board, Vikasa Soudha, Bengaluru – 560 001
+		      <br>Helpline: 1800-XXX-XXXX &nbsp;|&nbsp; Email: support@kgwwb.karnataka.gov.in
+		    </div>
+
+		  </div>
+		  </div>
+		</div>
+		</body>
+		</html>
+		"""
+
+		try:
+			return get_pdf(html, {"orientation": "Portrait"})
+		except Exception as e:
+			frappe.log_error(f"PDF generation failed for {self.name}: {e}", "Aggregator Certificate PDF Error")
+			return None
+
 	def send_status_email(self, status):
 		if not self.email:
 			return
 
+		base_url  = frappe.utils.get_url()
+		login_url = f"{base_url}/login"
+
 		status_messages = {
 			"Submitted": {
-				"subject": "Application Submitted - Awaiting Admin Approval",
+				"subject": f"[{self.name}] Application Submitted – Karnataka Gig Workers Welfare Board",
 				"body": f"""
-				<p>Dear {self.aggregator_name},</p>
-				<p>Your aggregator application has been successfully <b>submitted</b>.</p>
-				<p>It is currently waiting for approval by the admin. You will be notified once there is an update.</p>
-				<p>Thank you,<br>Gig Workers Team</p>
+				<p>Dear <b>{self.aggregator_name}</b>,</p>
+				<p>Your aggregator registration application has been successfully <b>submitted</b> to the
+				Karnataka Platform Based Gig Workers Social Security and Welfare Board.</p>
+				<table style="border-collapse:collapse;margin:12px 0;font-size:13px;">
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Registration ID</b></td><td><b style="color:#8B0000;">{self.name}</b></td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Applicant</b></td><td>{self.aggregator_name}</td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Status</b></td><td><b>Submitted – Awaiting Admin Approval</b></td></tr>
+				</table>
+				<p>Your <b>Registration Certificate</b> is attached to this email for your records.
+				You will be notified once your application is reviewed.</p>
+				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
 				"""
 			},
 			"Under Process": {
-				"subject": "Application Under Process",
+				"subject": f"[{self.name}] Application Under Process – Karnataka Gig Workers Welfare Board",
 				"body": f"""
-				<p>Dear {self.aggregator_name},</p>
-				<p>Your aggregator application is currently <b>under process</b>.</p>
+				<p>Dear <b>{self.aggregator_name}</b>,</p>
+				<p>Your aggregator application (ID: <b>{self.name}</b>) is currently <b>under process</b>.</p>
 				<p>Our admin team is reviewing your details. You will be notified once a decision is made.</p>
-				<p>Thank you,<br>Gig Workers Team</p>
+				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
 				"""
 			},
 			"Approved": {
-				"subject": "Congratulations! Application Approved",
+				"subject": f"[{self.name}] Application Approved – Karnataka Gig Workers Welfare Board",
 				"body": f"""
-				<p>Dear {self.aggregator_name},</p>
-				<p>We are pleased to inform you that your aggregator application has been <b>approved</b>.</p>
-				<p>Here are your login credentials:</p>
-				<ul>
-					<li><b>Username/Email:</b> {self.email}</li>
-					<li><b>Password:</b> {self.mobile}</li>
-				</ul>
-				<p>Please log in and change your password as soon as possible.</p>
-				<p>Thank you,<br>Gig Workers Team</p>
+				<p>Dear <b>{self.aggregator_name}</b>,</p>
+				<p>We are pleased to inform you that your aggregator application has been <b>approved</b>
+				by the Karnataka Platform Based Gig Workers Social Security and Welfare Board.</p>
+				<table style="border-collapse:collapse;margin:12px 0;font-size:13px;">
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Registration ID</b></td><td><b style="color:#8B0000;">{self.name}</b></td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Login URL</b></td><td><a href="{login_url}">{login_url}</a></td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Username</b></td><td>{self.email}</td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Password</b></td><td>Your registered mobile number</td></tr>
+				</table>
+				<p>Your official <b>Registration Certificate</b> is attached. Please log in and change your password immediately.</p>
+				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
 				"""
 			},
 			"Rejected": {
-				"subject": "Application Rejected",
+				"subject": f"[{self.name}] Application Rejected – Karnataka Gig Workers Welfare Board",
 				"body": f"""
-				<p>Dear {self.aggregator_name},</p>
-				<p>We regret to inform you that your aggregator application has been <b>rejected</b>.</p>
+				<p>Dear <b>{self.aggregator_name}</b>,</p>
+				<p>We regret to inform you that your aggregator application (ID: <b>{self.name}</b>) has been <b>rejected</b>.</p>
 				<p>Please contact the admin for more information.</p>
-				<p>Thank you,<br>Gig Workers Team</p>
+				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
 				"""
 			},
 		}
@@ -221,11 +493,21 @@ class Aggregator(Document):
 		if status not in status_messages:
 			return
 
+		attachments = []
+		if status in ("Submitted", "Approved"):
+			pdf = self._generate_registration_certificate_pdf()
+			if pdf:
+				attachments.append({
+					"fname": f"Registration_Certificate_{self.name}.pdf",
+					"fcontent": pdf,
+				})
+
 		try:
 			frappe.sendmail(
 				recipients=[self.email],
 				subject=status_messages[status]["subject"],
 				message=status_messages[status]["body"],
+				attachments=attachments,
 			)
 		except Exception as e:
 			frappe.log_error(

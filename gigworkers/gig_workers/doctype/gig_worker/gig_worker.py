@@ -6,6 +6,8 @@
 # ============================================================
 
 import re
+import hashlib
+from datetime import datetime
 
 import frappe
 from frappe.model.document import Document
@@ -136,14 +138,15 @@ class GigWorker(Document):
 		from gigworkers.gig_workers.doctype.worker_mapping_log.worker_mapping_log import create_mapping_log
 
 		if self.created_by_aggregator:
-			# Aggregator-initiated registration: hold activation pending worker's consent
-			# (requirements §1.4.2 — send one-time verification link to the gig worker)
-			self._send_verification_link()
+			# Aggregator-initiated registration: activate immediately
+			frappe.db.set_value("Gig Worker", self.name, "status", "Active")
+			self.status = "Active"
+			self.create_user_with_role()
 			create_mapping_log(
 				gig_worker=self.name,
 				event_type="Worker Registered",
 				aggregator=self.created_by_aggregator,
-				worker_status="Pending Verification",
+				worker_status="Active",
 				reference_doctype="Gig Worker",
 				reference_name=self.name,
 				remarks=f"Registered by aggregator {self.created_by_aggregator}",
@@ -197,59 +200,188 @@ class GigWorker(Document):
 				except Exception:
 					frappe.log_error(frappe.get_traceback(), "GigWorker: failed to auto-create Worker Service Mapping")
 
-	def _send_verification_link(self):
-		"""Set status to Pending Verification and email a one-time activation link."""
-		import secrets
-		token = secrets.token_urlsafe(32)
-
-		frappe.db.set_value("Gig Worker", self.name, {
-			"status": "Pending Verification",
-			"verification_token": token,
-			"token_created_at": now(),
-		})
-
-		if not self.email:
-			return
-
-		base_url = frappe.utils.get_url()
-		verify_link = (
-			f"{base_url}/api/method/gigworkers.gig_workers.doctype.gig_worker"
-			f".gig_worker.verify_worker_registration?token={token}"
-		)
-
-		agg_name = frappe.db.get_value(
-			"Aggregator", self.created_by_aggregator, "aggregator_name"
-		) or self.created_by_aggregator
-
-		try:
-			frappe.sendmail(
-				recipients=[self.email],
-				subject="Action Required: Verify Your Registration – Gig Workers Portal",
-				message=f"""
-				<p>Dear {self.worker_name},</p>
-				<p>You have been registered on the <b>Gig Workers Welfare Portal</b> by <b>{agg_name}</b>.</p>
-				<p>Please click the button below to verify and activate your account:</p>
-				<div style="margin:30px 0;">
-					<a href="{verify_link}"
-					   style="display:inline-block;background-color:#4CAF50;color:white;padding:12px 24px;text-decoration:none;border-radius:5px;font-weight:bold;">
-						Verify My Registration
-					</a>
-				</div>
-				<p>If the button doesn't work, copy and paste this link into your browser:<br>
-				<a href="{verify_link}">{verify_link}</a></p>
-				<p>If you were not expecting this registration, please ignore this email.</p>
-				<p>Thank you,<br>Gig Workers Welfare Team</p>
-				""",
-			)
-		except Exception as e:
-			frappe.log_error(
-				message=f"Verification email failed for {self.name}: {e}",
-				title="Gig Worker Verification Email Error",
-			)
-
 	# --------------------------------------------------------
 	#  gigworkers — create Frappe User with Gig Worker role and send email
 	# --------------------------------------------------------
+
+	def _generate_registration_certificate_pdf(self):
+		"""Generate a Karnataka Government-styled Gig Worker registration certificate PDF."""
+		from frappe.utils.pdf import get_pdf
+
+		issue_date = datetime.now().strftime("%d-%m-%Y")
+		issue_time = datetime.now().strftime("%H:%M:%S")
+		estamp_ref = "KA-GWB-" + hashlib.sha256(self.name.encode()).hexdigest()[:10].upper()
+
+		masked_aadhaar = ("*" * 8 + str(self.aadhaar_number)[-4:]) if self.aadhaar_number else "-"
+
+		aggregator_name = "-"
+		if self.created_by_aggregator:
+			aggregator_name = (
+				frappe.db.get_value("Aggregator", self.created_by_aggregator, "aggregator_name")
+				or self.created_by_aggregator
+			)
+
+		html = f"""
+		<!DOCTYPE html>
+		<html>
+		<head>
+		<meta charset="UTF-8">
+		<style>
+			* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+			body {{ font-family: "Times New Roman", Times, serif; background: #fff; color: #1a1a1a; font-size: 13px; }}
+			.page {{ width: 210mm; min-height: 297mm; padding: 12mm 14mm; position: relative; }}
+
+			.outer-border {{ border: 4px double #8B0000; padding: 10px; position: relative; min-height: 273mm; }}
+			.inner-border {{ border: 1.5px solid #c0a020; padding: 14px 18px; min-height: 265mm; position: relative; }}
+
+			.watermark {{
+				position: fixed; top: 50%; left: 50%;
+				transform: translate(-50%, -50%) rotate(-35deg);
+				font-size: 80px; color: rgba(200,200,200,0.18);
+				font-weight: bold; white-space: nowrap; pointer-events: none; z-index: 0; letter-spacing: 4px;
+			}}
+
+			.gov-header {{ text-align: center; border-bottom: 2px solid #8B0000; padding-bottom: 10px; margin-bottom: 10px; }}
+			.kannada {{ font-size: 20px; font-weight: bold; color: #8B0000; letter-spacing: 1px; }}
+			.eng-title {{ font-size: 16px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }}
+			.dept {{ font-size: 12px; color: #333; margin-top: 3px; }}
+			.board {{ font-size: 13px; font-weight: bold; color: #8B0000; margin-top: 4px; }}
+			.emblem-row {{ display: flex; align-items: center; justify-content: space-between; }}
+			.emblem {{ width: 70px; height: 70px; border: 2px solid #8B0000; border-radius: 50%;
+			           display: flex; align-items: center; justify-content: center;
+			           font-size: 9px; text-align: center; color: #8B0000; font-weight: bold; padding: 6px; }}
+
+			.cert-title {{ text-align: center; margin: 14px 0 10px; }}
+			.cert-title h2 {{ font-size: 17px; text-transform: uppercase; letter-spacing: 2px;
+			                  color: #8B0000; text-decoration: underline; font-weight: bold; }}
+			.cert-subtitle {{ font-size: 12px; margin-top: 4px; color: #444; }}
+
+			.estamp-box {{
+				border: 2px solid #2c5f2e; background: #f0fff0;
+				padding: 8px 14px; margin-bottom: 14px;
+				display: flex; justify-content: space-between; align-items: center; font-size: 11px;
+			}}
+			.estamp-label {{ color: #2c5f2e; font-weight: bold; font-size: 12px; }}
+			.estamp-ref {{ font-family: monospace; font-size: 13px; font-weight: bold; color: #1a1a1a; letter-spacing: 1px; }}
+			.estamp-date {{ color: #555; font-size: 11px; }}
+
+			.section-head {{ font-size: 13px; font-weight: bold; color: #8B0000;
+			                 border-bottom: 1px solid #8B0000; padding-bottom: 4px;
+			                 margin: 14px 0 8px; text-transform: uppercase; letter-spacing: 1px; }}
+			.details-table {{ width: 100%; border-collapse: collapse; margin-bottom: 14px; }}
+			.details-table td {{ padding: 6px 10px; border-bottom: 1px solid #e0c080; font-size: 12px; }}
+			.details-table tr:nth-child(even) td {{ background: #fdf8ec; }}
+			.field-label {{ font-weight: bold; color: #555; width: 38%; }}
+			.field-value {{ color: #1a1a1a; }}
+			.reg-id {{ font-size: 15px; font-weight: bold; color: #8B0000; font-family: monospace; }}
+
+			.declaration {{
+				background: #fff8f0; border-left: 4px solid #8B0000;
+				padding: 8px 12px; font-size: 11px; color: #444;
+				margin-bottom: 14px; line-height: 1.6;
+			}}
+			.footer {{ text-align: center; font-size: 10px; color: #888; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 10px; }}
+		</style>
+		</head>
+		<body>
+		<div class="page">
+		  <div class="watermark">GOVT OF KARNATAKA</div>
+		  <div class="outer-border">
+		  <div class="inner-border">
+
+		    <!-- Government Header -->
+		    <div class="gov-header">
+		      <div class="emblem-row">
+		        <div class="emblem">ಕರ್ನಾಟಕ<br>ರಾಜ್ಯ<br>ಲಾಂಛನ</div>
+		        <div style="flex:1; padding: 0 16px;">
+		          <div class="kannada">ಕರ್ನಾಟಕ ಸರ್ಕಾರ</div>
+		          <div class="eng-title">Government of Karnataka</div>
+		          <div class="dept">Department of Labour, Skill Development, Employment and Livelihood</div>
+		          <div class="board">Karnataka Platform Based Gig Workers Social Security and Welfare Board</div>
+		          <div class="dept" style="margin-top:2px;">Vikasa Soudha, Bengaluru – 560 001, Karnataka, India</div>
+		        </div>
+		        <div class="emblem">VERIFIED<br>DOCUMENT<br>✓</div>
+		      </div>
+		    </div>
+
+		    <!-- E-Stamp -->
+		    <div class="estamp-box">
+		      <div>
+		        <div class="estamp-label">🔖 e-Stamp Reference</div>
+		        <div class="estamp-ref">{estamp_ref}</div>
+		      </div>
+		      <div style="text-align:right;">
+		        <div class="estamp-label">Date of Issue</div>
+		        <div class="estamp-date">{issue_date} at {issue_time} IST</div>
+		        <div class="estamp-date" style="margin-top:3px;">State: Karnataka &nbsp;|&nbsp; Category: Gig Worker Registration</div>
+		      </div>
+		    </div>
+
+		    <!-- Certificate Title -->
+		    <div class="cert-title">
+		      <h2>Certificate of Registration</h2>
+		      <div class="cert-subtitle">Issued under the Karnataka Platform Based Gig Workers Social Security and Welfare Act</div>
+		    </div>
+
+		    <!-- Worker Details -->
+		    <div class="section-head">Gig Worker Registration Details</div>
+		    <table class="details-table">
+		      <tr><td class="field-label">Worker ID</td>
+		          <td class="field-value"><span class="reg-id">{self.name}</span></td></tr>
+		      <tr><td class="field-label">Full Name</td>
+		          <td class="field-value">{self.worker_name or "-"}</td></tr>
+		      <tr><td class="field-label">Registered Email</td>
+		          <td class="field-value">{self.email or "-"}</td></tr>
+		      <tr><td class="field-label">Mobile Number</td>
+		          <td class="field-value">{self.phone or "-"}</td></tr>
+		      <tr><td class="field-label">Date of Birth</td>
+		          <td class="field-value">{self.dob or "-"}</td></tr>
+		      <tr><td class="field-label">Gender</td>
+		          <td class="field-value">{self.gender or "-"}</td></tr>
+		      <tr><td class="field-label">Aadhaar Number</td>
+		          <td class="field-value">{masked_aadhaar}</td></tr>
+		      <tr><td class="field-label">PAN Number</td>
+		          <td class="field-value">{self.pan_number or "-"}</td></tr>
+		      <tr><td class="field-label">eShram ID</td>
+		          <td class="field-value">{self.eshram_id or "-"}</td></tr>
+		      <tr><td class="field-label">Location of Work</td>
+		          <td class="field-value">{self.location_of_work or "-"}</td></tr>
+		      <tr><td class="field-label">Registered Under Aggregator</td>
+		          <td class="field-value">{aggregator_name}</td></tr>
+		      <tr><td class="field-label">Registration Status</td>
+		          <td class="field-value"><b style="color:#27ae60;">{self.status or "Active"}</b></td></tr>
+		      <tr><td class="field-label">Registration Date</td>
+		          <td class="field-value">{issue_date}</td></tr>
+		    </table>
+
+		    <!-- Declaration -->
+		    <div class="declaration">
+		      This is to certify that <b>{self.worker_name}</b> (Worker ID: <b>{self.name}</b>) has been
+		      registered as a Gig Worker under the <i>Karnataka Platform Based Gig Workers Social Security and Welfare Act</i>.
+		      This certificate is system-generated and is digitally authenticated by the Karnataka Gig Workers Welfare Board.
+		      Any tampering with this document is a punishable offence under applicable law.
+		      This certificate is valid subject to continued compliance with the Act and Board regulations.
+		    </div>
+
+		    <!-- Footer -->
+		    <div class="footer">
+		      e-Stamp Ref: {estamp_ref} &nbsp;|&nbsp; Generated: {issue_date} {issue_time} IST &nbsp;|&nbsp;
+		      Karnataka Gig Workers Welfare Board, Vikasa Soudha, Bengaluru – 560 001
+		      <br>Helpline: 1800-XXX-XXXX &nbsp;|&nbsp; Email: support@kgwwb.karnataka.gov.in
+		    </div>
+
+		  </div>
+		  </div>
+		</div>
+		</body>
+		</html>
+		"""
+
+		try:
+			return get_pdf(html, {"orientation": "Portrait"})
+		except Exception as e:
+			frappe.log_error(f"PDF generation failed for {self.name}: {e}", "Gig Worker Certificate PDF Error")
+			return None
 
 	def create_user_with_role(self):
 		if not self.email or not self.phone:
@@ -278,22 +410,33 @@ class GigWorker(Document):
 		update_password(self.email, self.phone)
 
 		login_url = frappe.utils.get_url("/login")
+
+		attachments = []
+		pdf = self._generate_registration_certificate_pdf()
+		if pdf:
+			attachments.append({
+				"fname": f"Registration_Certificate_{self.name}.pdf",
+				"fcontent": pdf,
+			})
+
 		try:
 			frappe.sendmail(
 				recipients=[self.email],
-				subject="Registration Successful - Gig Worker",
+				subject=f"[{self.name}] Registration Successful – Karnataka Gig Workers Welfare Board",
 				message=f"""
-				<p>Dear {self.worker_name},</p>
-				<p>You have been successfully registered as a Gig Worker.</p>
-				<p>Here are your login credentials:</p>
-				<ul>
-					<li><b>Login URL:</b> <a href="{login_url}">{login_url}</a></li>
-					<li><b>Username/Email:</b> {self.email}</li>
-					<li><b>Password:</b> {self.phone}</li>
-				</ul>
-				<p>Please log in and change your password as soon as possible.</p>
-				<p>Thank you,<br>Gig Workers Team</p>
+				<p>Dear <b>{self.worker_name}</b>,</p>
+				<p>You have been successfully registered as a Gig Worker under the
+				<b>Karnataka Platform Based Gig Workers Social Security and Welfare Board</b>.</p>
+				<table style="border-collapse:collapse;margin:12px 0;font-size:13px;">
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Worker ID</b></td><td><b style="color:#8B0000;">{self.name}</b></td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Login URL</b></td><td><a href="{login_url}">{login_url}</a></td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Username</b></td><td>{self.email}</td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Password</b></td><td>Your registered mobile number</td></tr>
+				</table>
+				<p>Your official <b>Registration Certificate</b> is attached to this email. Please log in and change your password immediately.</p>
+				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
 				""",
+				attachments=attachments,
 			)
 		except Exception as e:
 			frappe.log_error(
@@ -302,101 +445,3 @@ class GigWorker(Document):
 			)
 
 
-# ------------------------------------------------------------
-# Public API: Verify gig worker registration (aggregator flow)
-# ------------------------------------------------------------
-
-@frappe.whitelist(allow_guest=True)
-def verify_worker_registration(token):
-	"""Called when a gig worker clicks the one-time verification link sent during
-	aggregator-initiated registration (requirements §1.4.2).
-
-	On success: activates the worker and creates their login account.
-	"""
-	row = frappe.db.get_value(
-		"Gig Worker",
-		{"verification_token": token, "status": "Pending Verification"},
-		["name", "token_created_at"],
-		as_dict=True,
-	)
-
-	if not row:
-		frappe.respond_as_web_page(
-			"Verification Failed",
-			"This verification link is invalid or has already been used. "
-			"Please contact your aggregator or the portal admin.",
-			indicator_color="red",
-			http_status_code=400,
-		)
-		return
-
-	worker_name = row.name
-
-	# Check 48-hour expiry
-	TOKEN_EXPIRY_HOURS = 48
-	if row.token_created_at:
-		from frappe.utils import now_datetime, get_datetime
-		created = get_datetime(row.token_created_at)
-		if (now_datetime() - created).total_seconds() > TOKEN_EXPIRY_HOURS * 3600:
-			frappe.db.set_value("Gig Worker", worker_name, {"verification_token": "", "token_created_at": None})
-			frappe.respond_as_web_page(
-				"Link Expired",
-				f"This verification link has expired (valid for {TOKEN_EXPIRY_HOURS} hours). "
-				"Please contact your aggregator to resend the verification email.",
-				indicator_color="orange",
-				http_status_code=400,
-			)
-			return
-
-	# Activate the worker and clear the one-time token
-	frappe.db.set_value("Gig Worker", worker_name, {
-		"status": "Active",
-		"verification_token": "",
-		"token_created_at": None,
-	})
-
-	worker = frappe.get_doc("Gig Worker", worker_name)
-	worker.create_user_with_role()
-
-	from gigworkers.gig_workers.doctype.worker_mapping_log.worker_mapping_log import create_mapping_log
-	create_mapping_log(
-		gig_worker=worker_name,
-		event_type="Worker Activated",
-		aggregator=worker.created_by_aggregator or None,
-		worker_status="Active",
-		reference_doctype="Gig Worker",
-		reference_name=worker_name,
-		remarks="Worker verified email and activated account",
-	)
-
-	frappe.respond_as_web_page(
-		"Registration Verified",
-		f"Welcome, {worker.worker_name}! Your registration has been verified. "
-		"You can now log in to the Gig Workers Welfare Portal.",
-		indicator_color="green",
-	)
-
-
-# ------------------------------------------------------------
-# Admin API: Resend verification email for a pending worker
-# ------------------------------------------------------------
-
-@frappe.whitelist()
-def resend_verification_email(worker_name):
-	"""Regenerate verification token and resend the email.
-	Used when the original verification link failed (e.g. due to a migration issue).
-	"""
-	frappe.only_for(["System Manager", "Aggregator"])
-
-	worker = frappe.get_doc("Gig Worker", worker_name)
-
-	if worker.status == "Active":
-		frappe.throw("This worker is already active.")
-
-	if not worker.created_by_aggregator:
-		frappe.throw("Resend is only applicable to aggregator-registered workers.")
-
-	worker._send_verification_link()
-	frappe.db.commit()
-
-	return {"message": f"Verification email resent to {worker.email}"}

@@ -242,6 +242,7 @@ class GigTransaction(Document):
         self.validate_transaction_date()
         self.prevent_duplicate_transaction()
         self.calculate_welfare_fee()
+        self.calculate_net_payout()
         self.set_duplicate_key()
 
     def validate_status_transition(self):
@@ -322,6 +323,12 @@ class GigTransaction(Document):
         )
         if self.welfare_amount < 0:
             self.welfare_amount = 0
+
+    def calculate_net_payout(self):
+        base    = self.base_payout or 0
+        inc     = self.incentives or 0
+        ded     = self.deducation or 0
+        self.net_payout_to_worker = base + inc - ded
 
     def before_save(self):
         previous    = self.get_doc_before_save()

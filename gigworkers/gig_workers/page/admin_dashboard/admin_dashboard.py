@@ -85,7 +85,6 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         SELECT
             COUNT(DISTINCT gw.name)                                          AS total_workers,
             SUM(gw.status = 'Active')                                        AS active_workers,
-            SUM(gw.status = 'Pending Verification')                          AS pending_verification,
             SUM(gw.status = 'Inactive')                                      AS inactive_workers
         FROM `tabGig Worker` gw
         {worker_agg_join}
@@ -301,7 +300,6 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         "workers": {
             "total": int(worker_stats.total_workers or 0),
             "active": int(worker_stats.active_workers or 0),
-            "pending_verification": int(worker_stats.pending_verification or 0),
             "inactive": int(worker_stats.inactive_workers or 0),
         },
         "welfare_payments": {

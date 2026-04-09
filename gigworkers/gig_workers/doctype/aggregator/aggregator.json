@@ -8,22 +8,21 @@
  "field_order": [
   "service_details_section",
   "aggregator_name",
-  "status",
   "column_break_efqw",
-  "email",
-  "mobile",
-  "services_section",
-  "services",
+  "service_category",
   "personal_details_section",
   "name1",
+  "email",
+  "mobile",
+  "aadhaar_number",
+  "column_break_njko",
   "gender",
   "date_of_birth",
   "desigination",
-  "column_break_njko",
-  "files_section",
-  "aadhaar_number",
   "aadhaar_file",
-  "column_break_cfld"
+  "status",
+  "services_section",
+  "categories_of_business"
  ],
  "fields": [
   {
@@ -62,12 +61,6 @@
    "label": "Service Details"
   },
   {
-   "fieldname": "services",
-   "fieldtype": "Table",
-   "label": "Services",
-   "options": "Aggregator Service"
-  },
-  {
    "fieldname": "personal_details_section",
    "fieldtype": "Section Break",
    "label": "Personal Details"
@@ -77,7 +70,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Name"
+   "label": "Name of Authorised Person"
   },
   {
    "fieldname": "gender",
@@ -96,11 +89,6 @@
    "label": "Desigination"
   },
   {
-   "fieldname": "files_section",
-   "fieldtype": "Section Break",
-   "label": "Files"
-  },
-  {
    "fieldname": "aadhaar_number",
    "fieldtype": "Data",
    "label": "Aadhaar Number"
@@ -115,23 +103,31 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "column_break_cfld",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "column_break_njko",
    "fieldtype": "Column Break"
   },
   {
    "fieldname": "service_details_section",
    "fieldtype": "Section Break",
-   "label": "Account Details"
+   "label": "Aggregator Details"
+  },
+  {
+   "fieldname": "service_category",
+   "fieldtype": "Link",
+   "label": "Service Category",
+   "options": "Service Category"
+  },
+  {
+   "fieldname": "categories_of_business",
+   "fieldtype": "Table",
+   "label": "Categories of business or aggregation activities undertaken by the aggregator as per GST filings",
+   "options": "Aggregator Service"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-24 00:00:00.000000",
+ "modified": "2026-04-09 20:20:16.693615",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregator",
@@ -152,8 +148,8 @@
   },
   {
    "read": 1,
-   "write": 1,
-   "role": "Aggregator"
+   "role": "Aggregator",
+   "write": 1
   }
  ],
  "row_format": "Dynamic",

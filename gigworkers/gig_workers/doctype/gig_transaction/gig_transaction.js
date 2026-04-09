@@ -1,6 +1,14 @@
 // Copyright (c) 2026, Jenifar and contributors
 // For license information, please see license.txt
 
+// Helper: calculate net payout to worker
+function calculate_net_payout(frm) {
+	const base = frm.doc.base_payout || 0;
+	const inc  = frm.doc.incentives  || 0;
+	const ded  = frm.doc.deducation  || 0;
+	frm.set_value("net_payout_to_worker", base + inc - ded);
+}
+
 // Helper: load platform options from the selected aggregator's services
 function load_platform_options(frm) {
 	if (!frm.doc.aggregator) {
@@ -9,7 +17,7 @@ function load_platform_options(frm) {
 		return;
 	}
 	frappe.db.get_list("Aggregator Service", {
-		filters: { parent: frm.doc.aggregator },
+		filters: { parent: frm.doc.aggregator, parentfield: "categories_of_business" },
 		fields: ["service_name"],
 		order_by: "idx asc",
 		limit: 50,
@@ -310,12 +318,22 @@ frappe.ui.form.on("Gig Transaction", {
 	},
 
 	base_payout(frm) {
-		if (!frm.doc.service || !frm.doc.welfare_percentage || !frm.doc.base_payout) return;
-		const rate_amount = (frm.doc.base_payout * frm.doc.welfare_percentage) / 100;
-		const welfare_amount = frm.doc.welfare_cap
-			? Math.min(rate_amount, frm.doc.welfare_cap)
-			: rate_amount;
-		frm.set_value("welfare_amount", welfare_amount);
+		if (frm.doc.service && frm.doc.welfare_percentage && frm.doc.base_payout) {
+			const rate_amount = (frm.doc.base_payout * frm.doc.welfare_percentage) / 100;
+			const welfare_amount = frm.doc.welfare_cap
+				? Math.min(rate_amount, frm.doc.welfare_cap)
+				: rate_amount;
+			frm.set_value("welfare_amount", welfare_amount);
+		}
+		calculate_net_payout(frm);
+	},
+
+	incentives(frm) {
+		calculate_net_payout(frm);
+	},
+
+	deducation(frm) {
+		calculate_net_payout(frm);
 	},
 
 	// ----------------------------------------------------------

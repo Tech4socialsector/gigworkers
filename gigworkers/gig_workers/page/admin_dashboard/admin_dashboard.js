@@ -63,7 +63,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			Completed: "#28a745", Registered: "#007bff", Pending: "#ffc107",
 			Onboarded: "#28a745", Inactive: "#6c757d", Approved: "#28a745",
 			Rejected: "#dc3545", Active: "#1cc88a", Offboarded: "#6c757d",
-			"Pending Verification": "#fd7e14", Deceased: "#343a40",
+			Deceased: "#343a40",
 		};
 		return `<span style="background:${colors[status] || "#6c757d"};color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${status || "-"}</span>`;
 	}
@@ -652,7 +652,6 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				{ label: "Active Aggregators",    value: d.aggregators.active },
 				{ label: "Total Gig Workers",     value: d.workers.total },
 				{ label: "Active Workers",        value: d.workers.active },
-				{ label: "Pending Verification",  value: d.workers.pending_verification },
 				{ label: "Inactive Workers",      value: d.workers.inactive },
 			]);
 
@@ -988,12 +987,11 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				summary: rows => [
 					{ label: "Total",                value: rows.length, color: "#4e73df" },
 					{ label: "Active",               value: rows.filter(w => w.status === "Active").length, color: "#1cc88a" },
-					{ label: "Pending Verification", value: rows.filter(w => w.status === "Pending Verification").length, color: "#fd7e14" },
 					{ label: "Inactive",             value: rows.filter(w => w.status === "Inactive").length, color: "#6c757d" },
 				],
 				chart: rows => {
-					const statuses = ["Active", "Pending Verification", "Inactive", "Onboarded", "Offboarded", "Deceased"].filter(s => rows.some(w => w.status === s));
-					return { type: "donut", data: { labels: statuses, datasets: [{ values: statuses.map(s => rows.filter(w => w.status === s).length) }] }, colors: ["#1cc88a", "#fd7e14", "#6c757d", "#28a745", "#858796", "#343a40"] };
+					const statuses = ["Active", "Inactive", "Onboarded", "Offboarded", "Deceased"].filter(s => rows.some(w => w.status === s));
+					return { type: "donut", data: { labels: statuses, datasets: [{ values: statuses.map(s => rows.filter(w => w.status === s).length) }] }, colors: ["#1cc88a", "#6c757d", "#28a745", "#858796", "#343a40"] };
 				},
 			},
 
@@ -1005,17 +1003,6 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				chart: rows => {
 					const { labels, values } = group_count(rows, w => w.created_by_aggregator);
 					return { type: "bar", data: { labels, datasets: [{ name: "Active Workers", values }] }, colors: ["#1cc88a"] };
-				},
-			},
-
-			pending_workers: {
-				title: "Pending Verification Workers",
-				rows:    () => d.recent_workers.filter(w => w.status === "Pending Verification"),
-				cols:    worker_cols,
-				summary: rows => [{ label: "Pending Workers", value: rows.length, color: "#fd7e14" }],
-				chart: rows => {
-					const { labels, values } = group_count(rows, w => w.created_by_aggregator);
-					return { type: "bar", data: { labels, datasets: [{ name: "Pending Workers", values }] }, colors: ["#fd7e14"] };
 				},
 			},
 
