@@ -1,0 +1,306 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "Format: {gig_worker}:{aggregator}:{date}:{###}",
+ "creation": "2026-03-04 15:40:09.097905",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_details_section",
+  "transaction_id",
+  "gig_worker",
+  "service_category",
+  "role",
+  "trust_level",
+  "column_break_teni",
+  "duplicate_key",
+  "aggregator",
+  "service",
+  "service_type",
+  "date",
+  "account_details_section",
+  "amount",
+  "base_payout",
+  "deducation",
+  "incentives",
+  "net_payout_to_worker",
+  "welfare_percentage",
+  "welfare_cap",
+  "welfare_amount",
+  "column_break_phea",
+  "transaction_date",
+  "external_transaction_id",
+  "status",
+  "suspected_duplicate",
+  "duplicate_of",
+  "status_of_order",
+  "confirmed_at",
+  "settlement_status",
+  "otp_section",
+  "otp_records"
+ ],
+ "fields": [
+  {
+   "bold": 1,
+   "fieldname": "transaction_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Transaction ID",
+   "read_only": 1
+  },
+  {
+   "description": "Worker | Aggregator | Service | Date | Amount \u2014 used to detect duplicate transactions",
+   "fieldname": "duplicate_key",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Duplicate Key",
+   "read_only": 1
+  },
+  {
+   "fieldname": "service",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Service",
+   "options": "Service",
+   "reqd": 1
+  },
+  {
+   "fieldname": "service_category",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Service Category",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "service_type",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Service Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gig_worker",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Gig Worker",
+   "options": "Gig Worker",
+   "reqd": 1
+  },
+  {
+   "fieldname": "aggregator",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Aggregator",
+   "options": "Aggregator",
+   "reqd": 1
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Data",
+   "label": "Role"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "trust_level",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Trust Level",
+   "options": "\nHigh\nLow"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status of transaction",
+   "options": "\nPayment complete\nPayment pending\nSuspected duplicate\nPayment Cancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Total bill amount",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "service.welfare_percentage_",
+   "fieldname": "welfare_percentage",
+   "fieldtype": "Float",
+   "label": "Welfare Percentage",
+   "read_only": 1
+  },
+  {
+   "fieldname": "welfare_amount",
+   "fieldtype": "Currency",
+   "label": "Welfare Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_transaction_id",
+   "fieldtype": "Data",
+   "label": "External Transaction ID"
+  },
+  {
+   "fieldname": "settlement_status",
+   "fieldtype": "Select",
+   "label": "Settlement Status",
+   "options": "\nPending\nConfirmed\nSettled"
+  },
+  {
+   "fieldname": "transaction_date",
+   "fieldtype": "Datetime",
+   "label": "transaction_date",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "suspected_duplicate",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Suspected Duplicate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duplicate_of",
+   "fieldtype": "Link",
+   "label": "Duplicate Of",
+   "options": "Gig Transaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "confirmed_at",
+   "fieldtype": "Datetime",
+   "label": "Confirmed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "otp_section",
+   "fieldtype": "Section Break",
+   "label": "OTP Confirmation Records"
+  },
+  {
+   "fieldname": "otp_records",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "OTP Records",
+   "options": "Gig Transaction OTP"
+  },
+  {
+   "fieldname": "base_payout",
+   "fieldtype": "Currency",
+   "label": "Base Payout to worker",
+   "reqd": 1
+  },
+  {
+   "fieldname": "incentives",
+   "fieldtype": "Currency",
+   "label": "Incentives",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "service.welfare_cap",
+   "fieldname": "welfare_cap",
+   "fieldtype": "Currency",
+   "label": "Welfare Cap",
+   "read_only": 1
+  },
+  {
+   "fieldname": "deducation",
+   "fieldtype": "Currency",
+   "label": "Deducation",
+   "reqd": 1
+  },
+  {
+   "description": "Base payout to worker + Incentive - Deduction",
+   "fieldname": "net_payout_to_worker",
+   "fieldtype": "Currency",
+   "label": "Net payout to worker"
+  },
+  {
+   "fieldname": "status_of_order",
+   "fieldtype": "Select",
+   "label": "Status of order",
+   "options": "\nOrder delivered\nOrder cancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "basic_details_section",
+   "fieldtype": "Section Break",
+   "label": "Basic Details"
+  },
+  {
+   "fieldname": "column_break_teni",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "account_details_section",
+   "fieldtype": "Section Break",
+   "label": "Account Details"
+  },
+  {
+   "fieldname": "column_break_phea",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-04-10 10:17:15.203962",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Gig Transaction",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "export": 1,
+   "import": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Aggregator",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Gig Worker"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

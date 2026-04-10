@@ -1,0 +1,134 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profile\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":3}},{\"id\":\"2x_2SGqygo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"agg_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"agg_nc_hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>My Stats</b></span>\",\"col\":12}},{\"id\":\"agg_nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Gig Workers\",\"col\":4}},{\"id\":\"agg_nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Active Workers\",\"col\":4}},{\"id\":\"agg_nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Transactions\",\"col\":4}},{\"id\":\"agg_nc4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Completed Transactions\",\"col\":4}},{\"id\":\"agg_nc5\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Welfare Contributed\",\"col\":4}},{\"id\":\"agg_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
+ "creation": "2026-03-24 16:41:56.962035",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Aggregators",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Aggregator",
+   "link_count": 0,
+   "link_to": "Aggregator",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gig Worker",
+   "link_count": 0,
+   "link_to": "Gig Worker",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gig Transaction",
+   "link_count": 0,
+   "link_to": "Gig Transaction",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Welfare Fee Payment",
+   "link_count": 0,
+   "link_to": "Welfare Fee Payment",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-03-24 17:28:21.543109",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Aggregators",
+ "number_cards": [
+  {
+   "label": "My Gig Workers",
+   "number_card_name": "My Gig Workers"
+  },
+  {
+   "label": "My Active Workers",
+   "number_card_name": "My Active Workers"
+  },
+  {
+   "label": "My Transactions",
+   "number_card_name": "My Transactions"
+  },
+  {
+   "label": "My Completed Transactions",
+   "number_card_name": "My Completed Transactions"
+  },
+  {
+   "label": "My Welfare Contributed",
+   "number_card_name": "My Welfare Contributed"
+  }
+ ],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Aggregator"
+  }
+ ],
+ "sequence_id": 4.0,
+ "shortcuts": [
+  {
+   "doc_view": "",
+   "label": "Profile",
+   "link_to": "Aggregator",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Welfare Fund Account",
+   "link_to": "Welfare Fund Account",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Aggregator Dashboard",
+   "type": "URL",
+   "url": "/app/aggregator-dashboard"
+  },
+  {
+   "doc_view": "",
+   "label": "Gig Worker",
+   "link_to": "Gig Worker",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Gig Transaction",
+   "link_to": "Gig Transaction",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Welfare Fee Payment",
+   "link_to": "Welfare Fee Payment",
+   "type": "DocType"
+  }
+ ],
+ "title": "Aggregators"
+}

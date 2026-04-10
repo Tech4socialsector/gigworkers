@@ -1,0 +1,66 @@
+[
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "Yes",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2026-03-17 00:00:01",
+  "module": "Gig Workers",
+  "name": "Service Rate History",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Service",
+  "reference_report": null,
+  "report_name": "Service Rate History",
+  "report_script": null,
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Service Rate History",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "Yes",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2026-03-11 10:54:42.611600",
+  "module": "Gig Workers",
+  "name": "Quarterly Welfare Compliance Report",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Gig Transaction",
+  "reference_report": null,
+  "report_name": "Quarterly Welfare Compliance Report",
+  "report_script": null,
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Quarterly Welfare Compliance Report",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   }
+  ],
+  "timeout": 0
+ }
+]

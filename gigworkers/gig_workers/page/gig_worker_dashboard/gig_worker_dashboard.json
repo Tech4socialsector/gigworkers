@@ -1,0 +1,17 @@
+{
+ "creation": "2026-03-14 00:00:00",
+ "doctype": "Page",
+ "module": "Gig Workers",
+ "name": "gig-worker-dashboard",
+ "page_name": "gig-worker-dashboard",
+ "roles": [
+  {
+   "role": "Gig Worker"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "standard": "Yes",
+ "title": "My Dashboard"
+}

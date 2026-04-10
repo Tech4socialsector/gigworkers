@@ -1,0 +1,163 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "AG.###",
+ "creation": "2026-03-04 15:17:12.359769",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "service_details_section",
+  "aggregator_name",
+  "column_break_efqw",
+  "service_category",
+  "personal_details_section",
+  "name1",
+  "email",
+  "mobile",
+  "aadhaar_number",
+  "column_break_njko",
+  "gender",
+  "date_of_birth",
+  "desigination",
+  "aadhaar_file",
+  "status",
+  "services_section",
+  "categories_of_business"
+ ],
+ "fields": [
+  {
+   "fieldname": "aggregator_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Aggregator Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nSubmitted\nUnder Process\nApproved\nRejected"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Email",
+   "options": "Email",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "mobile",
+   "fieldtype": "Data",
+   "label": "Mobile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "services_section",
+   "fieldtype": "Section Break",
+   "label": "Service Details"
+  },
+  {
+   "fieldname": "personal_details_section",
+   "fieldtype": "Section Break",
+   "label": "Personal Details"
+  },
+  {
+   "fieldname": "name1",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Name of Authorised Person"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "\nMale\nFemale\nOther"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of birth"
+  },
+  {
+   "fieldname": "desigination",
+   "fieldtype": "Data",
+   "label": "Desigination"
+  },
+  {
+   "fieldname": "aadhaar_number",
+   "fieldtype": "Data",
+   "label": "Aadhaar Number"
+  },
+  {
+   "fieldname": "aadhaar_file",
+   "fieldtype": "Attach",
+   "label": "Aadhaar File"
+  },
+  {
+   "fieldname": "column_break_efqw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_njko",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "service_details_section",
+   "fieldtype": "Section Break",
+   "label": "Aggregator Details"
+  },
+  {
+   "fieldname": "service_category",
+   "fieldtype": "Link",
+   "label": "Service Category",
+   "options": "Service Category"
+  },
+  {
+   "fieldname": "categories_of_business",
+   "fieldtype": "Table",
+   "label": "Categories of business or aggregation activities undertaken by the aggregator as per GST filings",
+   "options": "Aggregator Service"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-04-09 20:20:16.693615",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Aggregator",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Aggregator",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "aggregator_name,email",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "aggregator_name"
+}

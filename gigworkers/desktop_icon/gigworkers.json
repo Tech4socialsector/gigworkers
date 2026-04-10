@@ -1,0 +1,21 @@
+{
+ "app": "gigworkers",
+ "bg_color": "gray",
+ "creation": "2026-03-10 09:53:01.291338",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Gigworkers",
+ "link_to": "Gigworkers",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-03-10 10:00:11.419779",
+ "modified_by": "Administrator",
+ "name": "Gigworkers",
+ "owner": "Administrator",
+ "restrict_removal": 0,
+ "roles": [],
+ "sidebar": "Gigworkers",
+ "standard": 1
+}
