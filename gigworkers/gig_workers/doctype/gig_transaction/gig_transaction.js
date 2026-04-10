@@ -17,6 +17,7 @@ function load_platform_options(frm) {
 		return;
 	}
 	frappe.db.get_list("Aggregator Service", {
+		parent_doctype: "Aggregator",
 		filters: { parent: frm.doc.aggregator, parentfield: "categories_of_business" },
 		fields: ["service_name"],
 		order_by: "idx asc",

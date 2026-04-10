@@ -61,7 +61,16 @@ def get_dashboard_data(aggregator=None, service_category=None, worker_override=N
     """, sql_params, as_dict=True)[0]
 
     completed_count = frappe.db.count(
-        "Gig Transaction", {**orm_filters, "status": "Completed"}
+        "Gig Transaction", {**orm_filters, "status": "Payment complete"}
+    )
+    pending_count = frappe.db.count(
+        "Gig Transaction", {**orm_filters, "status": "Payment pending"}
+    )
+    cancelled_count = frappe.db.count(
+        "Gig Transaction", {**orm_filters, "status": "Payment Cancelled"}
+    )
+    suspected_count = frappe.db.count(
+        "Gig Transaction", {**orm_filters, "status": "Suspected duplicate"}
     )
 
     # --- Welfare fund balance (always full, not filtered) ---
@@ -134,6 +143,9 @@ def get_dashboard_data(aggregator=None, service_category=None, worker_override=N
         "stats": {
             "total_transactions": txn_stats.total_transactions or 0,
             "completed_transactions": completed_count or 0,
+            "pending_transactions": pending_count or 0,
+            "cancelled_transactions": cancelled_count or 0,
+            "suspected_duplicates": suspected_count or 0,
             "total_earnings": float(txn_stats.total_earnings or 0),
             "total_base_payout": float(txn_stats.total_base_payout or 0),
             "total_welfare_deducted": float(txn_stats.total_welfare_deducted or 0),

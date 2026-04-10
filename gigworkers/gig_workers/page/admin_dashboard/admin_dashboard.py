@@ -48,24 +48,32 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     """, txn_params, as_dict=True)[0]
 
     status_conditions = dict(txn_params)
-    completed_where_parts = list(txn_conditions) + ["status = 'Completed'"]
-    pending_where_parts = list(txn_conditions) + ["status = 'Registered'"]
+    completed_where_parts = list(txn_conditions) + ["status = 'Payment complete'"]
+    pending_where_parts = list(txn_conditions) + ["status = 'Payment pending'"]
 
     completed_count = frappe.db.sql(
         f"SELECT COUNT(*) AS cnt FROM `tabGig Transaction` WHERE {' AND '.join(completed_where_parts)}",
         status_conditions,
         as_dict=True,
-    )[0].cnt if txn_conditions else frappe.db.count("Gig Transaction", {"status": "Completed"})
+    )[0].cnt if txn_conditions else frappe.db.count("Gig Transaction", {"status": "Payment complete"})
 
     pending_count = frappe.db.sql(
         f"SELECT COUNT(*) AS cnt FROM `tabGig Transaction` WHERE {' AND '.join(pending_where_parts)}",
         status_conditions,
         as_dict=True,
-    )[0].cnt if txn_conditions else frappe.db.count("Gig Transaction", {"status": "Registered"})
+    )[0].cnt if txn_conditions else frappe.db.count("Gig Transaction", {"status": "Payment pending"})
+
+    cancelled_where_parts = list(txn_conditions) + ["status = 'Payment Cancelled'"]
+    cancelled_count = frappe.db.sql(
+        f"SELECT COUNT(*) AS cnt FROM `tabGig Transaction` WHERE {' AND '.join(cancelled_where_parts)}",
+        status_conditions,
+        as_dict=True,
+    )[0].cnt if txn_conditions else frappe.db.count("Gig Transaction", {"status": "Payment Cancelled"})
 
     if not txn_conditions:
-        completed_count = frappe.db.count("Gig Transaction", {"status": "Completed"})
-        pending_count = frappe.db.count("Gig Transaction", {"status": "Registered"})
+        completed_count = frappe.db.count("Gig Transaction", {"status": "Payment complete"})
+        pending_count = frappe.db.count("Gig Transaction", {"status": "Payment pending"})
+        cancelled_count = frappe.db.count("Gig Transaction", {"status": "Payment Cancelled"})
 
     # --- Aggregator stats (not date-filtered; aggregator filter still applies) ---
     agg_filters = {"status": "Active"} if not aggregator else {"status": "Active", "name": aggregator}
@@ -176,7 +184,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     recent_txns = frappe.get_all(
         "Gig Transaction",
         filters=txn_list_filters,
-        fields=["name", "date", "gig_worker", "aggregator", "service",
+        fields=["name", "date", "gig_worker", "aggregator", "service", "service_category",
                 "amount", "base_payout", "welfare_amount", "status"],
         order_by="date desc",
         limit=500,
@@ -268,11 +276,11 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     dup_params = {"dup_agg": aggregator} if aggregator else {}
     duplicate_txns = frappe.db.sql(f"""
         SELECT
-            name, date, gig_worker, aggregator, service,
+            name, date, gig_worker, aggregator, service, service_category,
             amount, base_payout, welfare_amount, status,
             duplicate_of, suspected_duplicate, creation
         FROM `tabGig Transaction`
-        WHERE status = 'Suspected Duplicate'
+        WHERE status = 'Suspected duplicate'
         {dup_agg_cond}
         ORDER BY creation DESC
         LIMIT 500
@@ -280,7 +288,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
 
     suspected_count = frappe.db.count(
         "Gig Transaction",
-        {"status": "Suspected Duplicate", **({"aggregator": aggregator} if aggregator else {})},
+        {"status": "Suspected duplicate", **({"aggregator": aggregator} if aggregator else {})},
     )
 
     return {
@@ -288,6 +296,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
             "total_transactions": txn_stats.total_transactions or 0,
             "completed_transactions": completed_count or 0,
             "pending_transactions": pending_count or 0,
+            "cancelled_transactions": cancelled_count or 0,
             "suspected_duplicates": int(suspected_count or 0),
             "total_amount": float(txn_stats.total_amount or 0),
             "total_base_payout": float(txn_stats.total_base_payout or 0),
@@ -330,7 +339,7 @@ def mark_as_suspected_duplicate(transaction_id):
     frappe.only_for("System Manager")
 
     doc = frappe.get_doc("Gig Transaction", transaction_id)
-    doc.status = "Suspected Duplicate"
+    doc.status = "Suspected duplicate"
     doc.save(ignore_permissions=True)
     frappe.db.commit()
 
@@ -361,8 +370,8 @@ def mark_multiple_as_suspected_duplicate(transaction_ids):
     for txn_id in ids:
         try:
             doc = frappe.get_doc("Gig Transaction", txn_id)
-            if doc.status != "Suspected Duplicate":
-                doc.status = "Suspected Duplicate"
+            if doc.status != "Suspected duplicate":
+                doc.status = "Suspected duplicate"
                 doc.save(ignore_permissions=True)
                 marked += 1
         except frappe.DoesNotExistError:

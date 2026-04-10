@@ -81,9 +81,9 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 	function status_badge(status) {
 		const colors = {
-			Completed: "#28a745", Registered: "#007bff", Pending: "#ffc107",
+			'Payment complete': "#28a745", 'Payment pending': "#007bff", Pending: "#ffc107",
 			Onboarded: "#28a745", Inactive: "#6c757d", Approved: "#28a745",
-			Rejected: "#dc3545", Active: "#1cc88a", Offboarded: "#6c757d",
+			Rejected: "#dc3545", Active: "#1cc88a", Offboarded: "#6c757d", 'Payment Cancelled': "#dc3545", 'Suspected duplicate': "#ffc107"
 		};
 		const color = colors[status] || "#6c757d";
 		return `<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${status || "-"}</span>`;
@@ -506,15 +506,14 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 		<div class="agg-card-row">
 			<div class="agg-stat-card" style="--card-color:#4e73df;"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
-			<div class="agg-stat-card" style="--card-color:#1cc88a;"><div class="label">Completed</div><div class="value">${stats.completed_transactions}</div></div>
-			<div class="agg-stat-card" style="--card-color:#f6c23e;"><div class="label">Pending</div><div class="value">${stats.pending_transactions}</div></div>
+			<div class="agg-stat-card" style="--card-color:#1cc88a;"><div class="label">Payment Complete</div><div class="value">${stats.completed_transactions}</div></div>
+			<div class="agg-stat-card" style="--card-color:#f6c23e;"><div class="label">Payment Pending</div><div class="value">${stats.pending_transactions}</div></div>
+			<div class="agg-stat-card" style="--card-color:#6c757d;"><div class="label">Payment Cancelled</div><div class="value">${stats.cancelled_transactions}</div></div>
 			<div class="agg-stat-card" style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
 				onclick="if(${stats.suspected_duplicates || 0}){var el=document.getElementById('agg-dup-section');if(el)el.scrollIntoView({behavior:'smooth'});}">
 				<div class="label">Suspected Duplicates</div>
 				<div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div>
 			</div>
-			<div class="agg-stat-card" style="--card-color:#36b9cc;"><div class="label">Total Amount Paid</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_amount)}</div></div>
-			<div class="agg-stat-card" style="--card-color:#e74a3b;"><div class="label">Total Welfare Collected</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_welfare)}</div></div>
 		</div>
 
 		<div class="agg-card-row">
@@ -522,7 +521,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			<div class="agg-stat-card" style="--card-color:#1cc88a;"><div class="label">Onboarded Workers</div><div class="value">${workers.active}</div></div>
 			<div class="agg-stat-card" style="--card-color:#28a745;"><div class="label">Welfare Fees Settled</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_payments.total_paid)}</div></div>
 			<div class="agg-stat-card" style="--card-color:#e74a3b;"><div class="label">Welfare Fees Pending</div><div class="value" style="font-size:20px;color:#e74a3b;">${fmt_currency(welfare_payments.pending_amount)}</div></div>
-			<div class="agg-stat-card" style="--card-color:#858796;"><div class="label">Base Payout Total</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_base_payout)}</div></div>
 		</div>
 
 		<!-- Transactions Table -->
@@ -532,7 +530,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			</h5>
 			<table id="agg-txn-table" class="display" style="width:100%">
 				<thead><tr>
-					<th>Transaction ID</th><th>Date</th><th>Gig Worker</th><th>Service</th><th>Platform</th>
+					<th>Transaction ID</th><th>Date</th><th>Gig Worker</th><th>Service</th><th>Service Category</th>
 					<th>Amount</th><th>Base Payout</th><th>Welfare</th><th>Status</th>
 				</tr></thead>
 				<tbody>
@@ -541,7 +539,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 						<td>${t.date || "-"}</td>
 						<td>${t.gig_worker || "-"}</td>
 						<td>${t.service || "-"}</td>
-						<td>${t.platform || "-"}</td>
+						<td>${t.service_category || "-"}</td>
 						<td>${fmt_currency(t.amount)}</td>
 						<td>${fmt_currency(t.base_payout)}</td>
 						<td>${fmt_currency(t.welfare_amount)}</td>
@@ -587,7 +585,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			<table id="agg-dup-table" class="display" style="width:100%">
 				<thead><tr>
 					<th>Transaction ID</th><th>Date</th><th>Gig Worker</th>
-					<th>Service</th><th>Platform</th><th>Amount</th><th>Welfare</th><th>Matches</th>
+					<th>Service</th><th>Service Category</th><th>Amount</th><th>Welfare</th><th>Matches</th>
 				</tr></thead>
 				<tbody>
 					${suspected_dups.map(d => `<tr>
@@ -595,7 +593,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 						<td>${d.date || "-"}</td>
 						<td>${d.gig_worker || "-"}</td>
 						<td>${d.service || "-"}</td>
-						<td>${d.platform || "-"}</td>
+						<td>${d.service_category || "-"}</td>
 						<td style="color:#e74a3b;font-weight:600;">${fmt_currency(d.amount)}</td>
 						<td>${fmt_currency(d.welfare_amount)}</td>
 						<td style="font-size:12px;">

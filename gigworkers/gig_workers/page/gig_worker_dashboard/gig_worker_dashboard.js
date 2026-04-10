@@ -94,8 +94,9 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 
 	function status_badge(status) {
 		const colors = {
-			Completed: "#28a745", Registered: "#007bff", Pending: "#ffc107",
+			'Payment complete': "#28a745", 'Payment pending': "#007bff", Pending: "#ffc107",
 			Requested: "#17a2b8", Approved: "#28a745", Rejected: "#dc3545", Paid: "#6f42c1",
+			'Payment Cancelled': "#dc3545", 'Suspected duplicate': "#ffc107"
 		};
 		const color = colors[status] || "#6c757d";
 		return `<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${status || "-"}</span>`;
@@ -524,7 +525,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 			// Transactions table
 			section_heading("Transaction Details");
 			pdf_table(
-				["Txn ID", "Date", "Aggregator", "Service", "Category", "Amount (INR)", "Base Payout (INR)", "Welfare (INR)", "Status"],
+				["Txn ID", "Date", "Aggregator", "Service", "Service Category", "Amount (INR)", "Base Payout (INR)", "Welfare (INR)", "Status"],
 				d.recent_transactions.map(t => [
 					t.name, t.date || "-", t.aggregator || "-", t.service || "-",
 					t.service_category || "-",
@@ -612,16 +613,16 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 
 		<div class="gw-card-row">
 			<div class="gw-stat-card" style="--card-color:#4e73df;"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
-			<div class="gw-stat-card" style="--card-color:#1cc88a;"><div class="label">Completed</div><div class="value">${stats.completed_transactions}</div></div>
-			<div class="gw-stat-card" style="--card-color:#f6c23e;"><div class="label">Total Earnings</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_earnings)}</div></div>
-			<div class="gw-stat-card" style="--card-color:#36b9cc;"><div class="label">Welfare Balance</div><div class="value" style="font-size:20px;">${fmt_currency(fund.account_balance)}</div></div>
-			<div class="gw-stat-card" style="--card-color:#e74a3b;"><div class="label">Welfare Deducted</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_welfare_deducted)}</div></div>
+			<div class="gw-stat-card" style="--card-color:#1cc88a;"><div class="label">Payment Complete</div><div class="value">${stats.completed_transactions}</div></div>
+			<div class="gw-stat-card" style="--card-color:#f6c23e;"><div class="label">Payment Pending</div><div class="value">${stats.pending_transactions}</div></div>
+			<div class="gw-stat-card" style="--card-color:#6c757d;"><div class="label">Payment Cancelled</div><div class="value">${stats.cancelled_transactions}</div></div>
+			<div class="gw-stat-card" style="--card-color:#e74a3b;"><div class="label">Suspected Duplicates</div><div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div></div>
 		</div>
 
 		<div class="gw-card-row">
+			<div class="gw-stat-card" style="--card-color:#36b9cc;"><div class="label">Welfare Balance</div><div class="value" style="font-size:20px;">${fmt_currency(fund.account_balance)}</div></div>
 			<div class="gw-stat-card" style="--card-color:#858796;"><div class="label">Total Collected</div><div class="value" style="font-size:20px;">${fmt_currency(fund.total_collected)}</div></div>
 			<div class="gw-stat-card" style="--card-color:#5a5c69;"><div class="label">Total Withdrawn</div><div class="value" style="font-size:20px;">${fmt_currency(fund.total_withdrawn)}</div></div>
-			<div class="gw-stat-card" style="--card-color:#1cc88a; flex:2;"><div class="label">Base Payout (Total)</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_base_payout)}</div></div>
 		</div>
 
 		<div class="gw-section">
@@ -634,7 +635,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 			<table id="gw-txn-table" class="display" style="width:100%">
 				<thead><tr>
 					<th>Transaction ID</th><th>Date</th><th>Aggregator</th><th>Service</th>
-					<th>Category</th><th>Amount</th><th>Base Payout</th><th>Welfare</th><th>Status</th>
+					<th>Service Category</th><th>Amount</th><th>Base Payout</th><th>Welfare</th><th>Status</th>
 				</tr></thead>
 				<tbody>
 					${recent_transactions.map(t => `<tr>

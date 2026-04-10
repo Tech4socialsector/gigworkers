@@ -10,7 +10,6 @@
   "basic_details_section",
   "transaction_id",
   "gig_worker",
-  "platform",
   "service_category",
   "role",
   "trust_level",
@@ -76,7 +75,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Service Category",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "service_type",
@@ -132,7 +132,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status of transaction",
-   "options": "\nPayment complete\nPayment pending\nSuspected duplicate\nPayment Cancelled"
+   "options": "\nPayment complete\nPayment pending\nSuspected duplicate\nPayment Cancelled",
+   "reqd": 1
   },
   {
    "fieldname": "amount",
@@ -167,7 +168,8 @@
   {
    "fieldname": "transaction_date",
    "fieldtype": "Datetime",
-   "label": "transaction_date"
+   "label": "transaction_date",
+   "reqd": 1
   },
   {
    "default": "0",
@@ -212,7 +214,8 @@
   {
    "fieldname": "incentives",
    "fieldtype": "Currency",
-   "label": "Incentives"
+   "label": "Incentives",
+   "reqd": 1
   },
   {
    "fetch_from": "service.welfare_cap",
@@ -222,16 +225,10 @@
    "read_only": 1
   },
   {
-   "description": "Which aggregator service this transaction belongs to (e.g. Swiggy, Zomato)",
-   "fieldname": "platform",
-   "fieldtype": "Data",
-   "label": "Platform / Service",
-   "reqd": 1
-  },
-  {
    "fieldname": "deducation",
    "fieldtype": "Currency",
-   "label": "Deducation"
+   "label": "Deducation",
+   "reqd": 1
   },
   {
    "description": "Base payout to worker + Incentive - Deduction",
@@ -242,7 +239,9 @@
   {
    "fieldname": "status_of_order",
    "fieldtype": "Select",
-   "label": "Status of order"
+   "label": "Status of order",
+   "options": "\nOrder delivered\nOrder cancelled",
+   "reqd": 1
   },
   {
    "fieldname": "basic_details_section",
@@ -266,7 +265,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-09 19:54:20.798588",
+ "modified": "2026-04-10 10:17:15.203962",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",

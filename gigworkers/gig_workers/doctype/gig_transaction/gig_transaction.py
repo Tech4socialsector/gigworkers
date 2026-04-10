@@ -9,12 +9,12 @@ from frappe.utils import now, today, getdate, now_datetime, add_to_date, get_dat
 
 # ── Status transition rules ────────────────────────────────────────────────────
 _ALLOWED_TRANSITIONS = {
-    "Registered":          {"Completed", "Cancelled", "Suspected Duplicate"},
-    "Payment Pending":     {"Completed", "Cancelled"},
-    "Completed":           {"Suspected Duplicate"},
-    "Cancelled":           set(),
-    "Suspected Duplicate": {"Duplicate", "Cancelled", "Completed", "Registered"},
+    "Payment pending":     {"Payment complete", "Payment Cancelled", "Suspected duplicate"},
+    "Payment complete":    {"Suspected duplicate", "Payment Cancelled"},
+    "Payment Cancelled":   set(),
+    "Suspected duplicate": {"Duplicate", "Payment Cancelled", "Payment complete", "Payment pending"},
     "Duplicate":           set(),
+    "":                    {"Payment pending", "Payment complete", "Suspected duplicate", "Payment Cancelled"},
 }
 
 OTP_EXPIRY_MINUTES = 30
@@ -210,7 +210,7 @@ class GigTransaction(Document):
             {
                 "duplicate_key": self.duplicate_key,
                 "name": ["!=", self.name],
-                "status": ["not in", ["Cancelled", "Duplicate"]],
+                "status": ["not in", ["Payment Cancelled", "Duplicate"]],
             },
             "name",
         )
@@ -220,16 +220,16 @@ class GigTransaction(Document):
         # Flag the new transaction
         frappe.db.set_value("Gig Transaction", self.name, {
             "suspected_duplicate": 1,
-            "status": "Suspected Duplicate",
+            "status": "Suspected duplicate",
             "duplicate_of": existing,
         })
 
         # Flag the existing transaction if not already flagged
         existing_status = frappe.db.get_value("Gig Transaction", existing, "status")
-        if existing_status not in ("Suspected Duplicate", "Duplicate"):
+        if existing_status not in ("Suspected duplicate", "Duplicate"):
             frappe.db.set_value("Gig Transaction", existing, {
                 "suspected_duplicate": 1,
-                "status": "Suspected Duplicate",
+                "status": "Suspected duplicate",
             })
         else:
             frappe.db.set_value("Gig Transaction", existing, "suspected_duplicate", 1)
@@ -250,7 +250,7 @@ class GigTransaction(Document):
         previous = self.get_doc_before_save()
         if not previous:
             return
-        prev_status = previous.status
+        prev_status = previous.status or ""
         new_status  = self.status
         if prev_status == new_status:
             return
@@ -263,12 +263,12 @@ class GigTransaction(Document):
 
     def set_duplicate_key(self):
         self.duplicate_key = (
-            f"{self.gig_worker or ''} | "
-            f"{self.aggregator or ''} | "
-            f"{self.service_category or self.service or ''} | "
-            f"{self.date or ''} | "
-            f"{self.amount or 0} | "
-            f"{self.platform or ''}"
+            f"{self.get('gig_worker') or ''} | "
+            f"{self.get('aggregator') or ''} | "
+            f"{self.get('service_category') or self.get('service') or ''} | "
+            f"{self.get('date') or ''} | "
+            f"{self.get('amount') or 0} | "
+            f"{self.get('platform') or ''}"
         )
 
     def validate_base_payout(self):
@@ -334,11 +334,11 @@ class GigTransaction(Document):
         previous    = self.get_doc_before_save()
         prev_status = previous.status if previous else None
 
-        if self.status not in ("Completed", "Suspected Duplicate", "Cancelled"):
+        if self.status not in ("Payment complete", "Suspected duplicate", "Payment Cancelled"):
             confirmed_at = now()
 
             if self.trust_level == "High":
-                self.status       = "Completed"
+                self.status       = "Payment complete"
                 self.confirmed_at = confirmed_at
 
             elif self.trust_level == "Low":
@@ -346,7 +346,7 @@ class GigTransaction(Document):
                 otp, otp_hash = _generate_otp()
 
                 self.append("otp_records", _build_otp_record(otp_hash, confirmed_at, email))
-                self.status       = "Completed"
+                self.status       = "Payment complete"
                 self.confirmed_at = confirmed_at
 
                 frappe.enqueue(
@@ -359,7 +359,7 @@ class GigTransaction(Document):
                     is_async=True,
                 )
 
-        if self.status == "Completed" and prev_status != "Completed":
+        if self.status == "Payment complete" and prev_status != "Payment complete":
             self.flags.create_welfare_payment = True
 
     def on_update(self):
@@ -417,7 +417,7 @@ def register_gig_transaction(
         "date":                   date or today(),
         "trust_level":            trust_level,
         "external_transaction_id":external_transaction_id,
-        "status":                 "Registered",
+        "status":                 "Payment pending",
     })
     doc.insert(ignore_permissions=True)
 
@@ -483,7 +483,7 @@ def confirm_transaction(transaction_name):
 
     if doc.trust_level != "Low":
         frappe.throw("Only Low Trust transactions use this flow.")
-    if doc.status == "Completed":
+    if doc.status == "Payment complete":
         frappe.throw("This transaction is already confirmed.")
 
     email = _get_email(doc.gig_worker)
@@ -541,7 +541,7 @@ def verify_otp(transaction_name, otp):
     if active_row.otp_code == otp_hash:
         active_row.confirm_status = "Confirmed"
         active_row.confirmed_at   = now()
-        doc.status       = "Completed"
+        doc.status       = "Payment complete"
         doc.confirmed_at = active_row.confirmed_at
         doc.save(ignore_permissions=True)
         return {"success": True, "message": "OTP verified. Transaction confirmed."}
@@ -564,7 +564,7 @@ def verify_otp(transaction_name, otp):
 def mark_as_suspected_duplicate(transaction_name):
     frappe.only_for("System Manager")
     doc = frappe.get_doc("Gig Transaction", transaction_name)
-    doc.status = "Suspected Duplicate"
+    doc.status = "Suspected duplicate"
     doc.save(ignore_permissions=True)
     return {"message": f"{transaction_name} marked as Suspected Duplicate."}
 
@@ -580,8 +580,8 @@ def mark_multiple_as_suspected_duplicate(transaction_names):
     for name in names:
         try:
             doc = frappe.get_doc("Gig Transaction", name)
-            if doc.status not in ("Cancelled",):
-                doc.status = "Suspected Duplicate"
+            if doc.status not in ("Payment Cancelled",):
+                doc.status = "Suspected duplicate"
                 doc.save(ignore_permissions=True)
                 updated += 1
         except Exception:
@@ -597,10 +597,10 @@ def mark_as_duplicate(transaction_name, duplicate_of=None):
 
     if doc.status == "Duplicate":
         frappe.throw("Transaction is already marked as Duplicate.")
-    if doc.status == "Cancelled":
+    if doc.status == "Payment Cancelled":
         frappe.throw("Cannot mark a Cancelled transaction as Duplicate.")
 
-    was_completed = doc.status == "Completed"
+    was_completed = doc.status == "Payment complete"
 
     doc.status = "Duplicate"
     if duplicate_of:
@@ -638,12 +638,12 @@ def dismiss_suspected_duplicate(transaction_name):
     """Admin clears the suspected duplicate flag (transaction is legitimate)."""
     frappe.only_for("System Manager")
     doc = frappe.get_doc("Gig Transaction", transaction_name)
-    if doc.status != "Suspected Duplicate":
+    if doc.status != "Suspected duplicate":
         frappe.throw("Transaction is not in Suspected Duplicate status.")
     # Restore to previous logical status based on whether it was completed
     doc.suspected_duplicate = 0
     doc.duplicate_of = None
-    doc.status = "Completed" if doc.confirmed_at else "Registered"
+    doc.status = "Payment complete" if doc.confirmed_at else "Payment pending"
     doc.save(ignore_permissions=True)
     return {"message": f"Suspected duplicate flag cleared for {transaction_name}."}
 

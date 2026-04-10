@@ -60,10 +60,10 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 
 	function status_badge(status) {
 		const colors = {
-			Completed: "#28a745", Registered: "#007bff", Pending: "#ffc107",
+			'Payment complete': "#28a745", 'Payment pending': "#007bff", Pending: "#ffc107",
 			Onboarded: "#28a745", Inactive: "#6c757d", Approved: "#28a745",
 			Rejected: "#dc3545", Active: "#1cc88a", Offboarded: "#6c757d",
-			Deceased: "#343a40",
+			Deceased: "#343a40", 'Payment Cancelled': "#dc3545", 'Suspected duplicate': "#ffc107"
 		};
 		return `<span style="background:${colors[status] || "#6c757d"};color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${status || "-"}</span>`;
 	}
@@ -681,10 +681,10 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			// ── TRANSACTIONS TABLE ───────────────────────────────────────────
 			section_heading("Transaction Details");
 			pdf_table(
-				["Txn ID", "Date", "Aggregator", "Gig Worker", "Service", "Amount (INR)", "Welfare (INR)", "Status"],
+				["Txn ID", "Date", "Aggregator", "Gig Worker", "Service", "Service Category", "Amount (INR)", "Welfare (INR)", "Status"],
 				d.recent_transactions.map(t => [
 					t.name, t.date || "-", t.aggregator || "-", t.gig_worker || "-",
-					t.service || "-", fmt_currency_plain(t.amount),
+					t.service || "-", t.service_category || "-", fmt_currency_plain(t.amount),
 					fmt_currency_plain(t.welfare_amount), t.status || "-",
 				])
 			);
@@ -737,6 +737,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			{ label: "Aggregator",     render: t => t.aggregator || "-" },
 			{ label: "Gig Worker",     render: t => t.gig_worker || "-" },
 			{ label: "Service",        render: t => t.service || "-" },
+			{ label: "Service Category", render: t => t.service_category || "-" },
 			{ label: "Amount",         render: t => fmt_currency(t.amount) },
 			{ label: "Welfare",        render: t => fmt_currency(t.welfare_amount) },
 			{ label: "Base Payout",    render: t => fmt_currency(t.base_payout) },
@@ -1383,6 +1384,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 					<th>Gig Worker</th>
 					<th>Aggregator</th>
 					<th>Service</th>
+					<th>Service Category</th>
 					<th>Amount</th>
 					<th>Duplicate Of</th>
 					<th>Actions</th>
@@ -1394,6 +1396,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 						<td><a href="/app/gig-worker/${d.gig_worker}" style="color:#4e73df;">${d.gig_worker}</a></td>
 						<td>${d.aggregator || "-"}</td>
 						<td>${d.service || "-"}</td>
+						<td>${d.service_category || "-"}</td>
 						<td style="color:#e74a3b;font-weight:600;">${fmt_currency(d.amount)}</td>
 						<td style="font-size:12px;">
 							${d.duplicate_of
@@ -1422,16 +1425,14 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		<div class="admin-section-title">Transactions</div>
 		<div class="admin-card-row">
 			<div class="admin-stat-card drillable" style="--card-color:#4e73df;" data-drilldown="all_txns"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
-			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="completed_txns"><div class="label">Completed</div><div class="value">${stats.completed_transactions}</div></div>
-			<div class="admin-stat-card drillable" style="--card-color:#f6c23e;" data-drilldown="pending_txns"><div class="label">Pending</div><div class="value">${stats.pending_transactions}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="completed_txns"><div class="label">Payment Complete</div><div class="value">${stats.completed_transactions}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#f6c23e;" data-drilldown="pending_txns"><div class="label">Payment Pending</div><div class="value">${stats.pending_transactions}</div></div>
+			<div class="admin-stat-card drillable" style="--card-color:#6c757d;" data-drilldown="cancelled_txns"><div class="label">Payment Cancelled</div><div class="value">${stats.cancelled_transactions}</div></div>
 			<div class="admin-stat-card ${stats.suspected_duplicates ? 'drillable' : ''}" style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
 				${stats.suspected_duplicates ? 'data-drilldown="suspected_dups"' : ''}>
 				<div class="label">Suspected Duplicates</div>
 				<div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div>
 			</div>
-			<div class="admin-stat-card drillable" style="--card-color:#36b9cc;" data-drilldown="txn_amount"><div class="label">Total Amount</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_amount)}</div></div>
-			<div class="admin-stat-card drillable" style="--card-color:#e74a3b;" data-drilldown="welfare_txn"><div class="label">Welfare Collected</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_welfare)}</div></div>
-			<div class="admin-stat-card drillable" style="--card-color:#858796;" data-drilldown="base_payout"><div class="label">Base Payout Total</div><div class="value" style="font-size:20px;">${fmt_currency(stats.total_base_payout)}</div></div>
 		</div>
 
 		<!-- Platform Overview -->
@@ -1441,7 +1442,6 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="active_aggregators"><div class="label">Active Aggregators</div><div class="value">${aggregators.active}</div></div>
 			<div class="admin-stat-card drillable" style="--card-color:#4e73df;" data-drilldown="all_workers"><div class="label">Total Gig Workers</div><div class="value">${workers.total}</div></div>
 			<div class="admin-stat-card drillable" style="--card-color:#1cc88a;" data-drilldown="active_workers"><div class="label">Active Workers</div><div class="value">${workers.active}</div></div>
-			<div class="admin-stat-card drillable" style="--card-color:#fd7e14;" data-drilldown="pending_workers"><div class="label">Pending Verification</div><div class="value">${workers.pending_verification}</div></div>
 			<div class="admin-stat-card drillable" style="--card-color:#6c757d;" data-drilldown="inactive_workers"><div class="label">Inactive Workers</div><div class="value">${workers.inactive}</div></div>
 		</div>
 
@@ -1491,7 +1491,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			<table id="admin-txn-table" class="display" style="width:100%">
 				<thead><tr>
 					<th>Transaction ID</th><th>Date</th><th>Aggregator</th><th>Gig Worker</th>
-					<th>Service</th><th>Amount</th><th>Welfare</th><th>Status</th>
+					<th>Service</th><th>Service Category</th><th>Amount</th><th>Welfare</th><th>Status</th>
 				</tr></thead>
 				<tbody>
 					${recent_transactions.map(t => `<tr>
@@ -1500,6 +1500,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 						<td>${t.aggregator || "-"}</td>
 						<td>${t.gig_worker || "-"}</td>
 						<td>${t.service || "-"}</td>
+						<td>${t.service_category || "-"}</td>
 						<td>${fmt_currency(t.amount)}</td>
 						<td>${fmt_currency(t.welfare_amount)}</td>
 						<td>${status_badge(t.status)}</td>

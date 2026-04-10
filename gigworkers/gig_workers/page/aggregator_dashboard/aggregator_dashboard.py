@@ -79,12 +79,17 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
 
     completed_count = frappe.db.sql(f"""
         SELECT COUNT(*) AS cnt FROM `tabGig Transaction`
-        {sql_cond} AND status = 'Completed'
+        {sql_cond} AND status = 'Payment complete'
     """, sql_params, as_dict=True)[0].cnt
 
     pending_count = frappe.db.sql(f"""
         SELECT COUNT(*) AS cnt FROM `tabGig Transaction`
-        {sql_cond} AND status = 'Registered'
+        {sql_cond} AND status = 'Payment pending'
+    """, sql_params, as_dict=True)[0].cnt
+
+    cancelled_count = frappe.db.sql(f"""
+        SELECT COUNT(*) AS cnt FROM `tabGig Transaction`
+        {sql_cond} AND status = 'Payment Cancelled'
     """, sql_params, as_dict=True)[0].cnt
 
     # --- Worker stats ---
@@ -98,7 +103,7 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
     active_workers_result = frappe.db.sql("""
         SELECT COUNT(DISTINCT gig_worker) AS cnt
         FROM `tabGig Transaction`
-        WHERE aggregator = %s AND status = 'Completed'
+        WHERE aggregator = %s AND status = 'Payment complete'
     """, aggregator_name, as_dict=True)
     active_workers = active_workers_result[0].cnt if active_workers_result else 0
 
@@ -129,7 +134,7 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "Gig Transaction",
         filters=orm_filter,
         fields=["name", "date", "gig_worker", "service", "service_category",
-                "amount", "base_payout", "welfare_amount", "status", "platform"],
+                "amount", "base_payout", "welfare_amount", "status"],
         order_by="date desc",
     )
 
@@ -145,9 +150,9 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
     # --- Suspected duplicate transactions (read-only view for aggregator) ---
     suspected_dups = frappe.get_all(
         "Gig Transaction",
-        filters={"aggregator": aggregator_name, "status": "Suspected Duplicate"},
-        fields=["name", "date", "gig_worker", "service", "amount",
-                "base_payout", "welfare_amount", "duplicate_of", "platform"],
+        filters={"aggregator": aggregator_name, "status": "Suspected duplicate"},
+        fields=["name", "date", "gig_worker", "service", "service_category", "amount",
+                "base_payout", "welfare_amount", "duplicate_of"],
         order_by="creation desc",
     )
 
@@ -166,6 +171,7 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
             "total_transactions":     txn_stats.total_transactions or 0,
             "completed_transactions": int(completed_count or 0),
             "pending_transactions":   int(pending_count or 0),
+            "cancelled_transactions": int(cancelled_count or 0),
             "suspected_duplicates":   len(suspected_dups),
             "total_amount":           float(txn_stats.total_amount or 0),
             "total_base_payout":      float(txn_stats.total_base_payout or 0),
