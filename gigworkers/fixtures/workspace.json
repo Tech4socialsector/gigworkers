@@ -279,8 +279,7 @@
     "url": null
    }
   ],
-  "title": "Doctypes Flow",
-  "type": "Workspace"
+  "title": "Doctypes Flow"
  },
  {
   "charts": [],
@@ -613,8 +612,7 @@
     "url": null
    }
   ],
-  "title": "Database Flows",
-  "type": "Workspace"
+  "title": "Database Flows"
  },
  {
   "charts": [],
@@ -970,8 +968,7 @@
     "url": null
    }
   ],
-  "title": "Database Flow",
-  "type": "Workspace"
+  "title": "Database Flow"
  },
  {
   "charts": [],
@@ -1216,8 +1213,7 @@
     "url": null
    }
   ],
-  "title": "Aggregators",
-  "type": "Workspace"
+  "title": "Aggregators"
  },
  {
   "charts": [],
@@ -1365,7 +1361,6 @@
     "url": null
    }
   ],
-  "title": "Gig Workers",
-  "type": "Workspace"
+  "title": "Gig Workers"
  }
 ]
