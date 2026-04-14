@@ -378,7 +378,13 @@ class GigWorker(Document):
 		"""
 
 		try:
-			return get_pdf(html, {"orientation": "Portrait"})
+			return get_pdf(html, {
+				"orientation": "Portrait",
+				"margin-top": "0",
+				"margin-bottom": "0",
+				"margin-left": "0",
+				"margin-right": "0"
+			})
 		except Exception as e:
 			frappe.log_error(f"PDF generation failed for {self.name}: {e}", "Gig Worker Certificate PDF Error")
 			return None
