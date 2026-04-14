@@ -35,7 +35,8 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Fee Amount"
+   "label": "Fee Amount",
+   "options": "INR"
   },
   {
    "fieldname": "payment",
