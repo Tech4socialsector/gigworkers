@@ -267,7 +267,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			section_heading("Transaction Details");
 			pdf_table(
 				["Txn ID", "Date", "Gig Worker", "Service", "Amount (INR)", "Base Payout (INR)", "Welfare (INR)", "Status"],
-				d.recent_transactions.map(t => [
+				(d.recent_transactions || []).map(t => [
 					t.name, t.date || "-", t.gig_worker || "-", t.service || "-",
 					fmt_currency_plain(t.amount), fmt_currency_plain(t.base_payout),
 					fmt_currency_plain(t.welfare_amount), t.status || "-",
@@ -278,7 +278,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			section_heading("Worker Mapping Log");
 			pdf_table(
 				["Log ID", "Gig Worker", "Service", "Event", "Worker Status", "Logged At"],
-				d.worker_list.map(w => [
+				(d.worker_list || []).map(w => [
 					w.name, w.gig_worker || "-", w.service || "-",
 					w.event_type || "-", w.worker_status || "-",
 					(w.log_datetime || "").substring(0, 16),
@@ -289,7 +289,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			section_heading("Pending Welfare Fee Payments");
 			pdf_table(
 				["Payment ID", "Transaction", "Fee Amount (INR)", "Due Date", "Status"],
-				d.pending_wfp.map(p => [
+				(d.pending_wfp || []).map(p => [
 					p.name, p.transaction || "-",
 					fmt_currency_plain(p.fee_amount), p.payment_date || "-", p.payment_status || "-",
 				])

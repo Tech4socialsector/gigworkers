@@ -147,6 +147,24 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         order_by="payment_date desc",
     )
 
+    # --- Worker Mapping Log ---
+    worker_list_sql_cond = "WHERE aggregator = %(agg)s"
+    worker_list_params   = {"agg": aggregator_name}
+    if from_date:
+        worker_list_sql_cond += " AND log_datetime >= %(from_date)s"
+        worker_list_params["from_date"] = from_date
+    if to_date:
+        worker_list_sql_cond += " AND log_datetime <= %(to_date)s"
+        worker_list_params["to_date"] = to_date + " 23:59:59"
+        
+    worker_list = frappe.db.sql(f"""
+        SELECT name, gig_worker, service, event_type, worker_status, log_datetime
+        FROM `tabWorker Mapping Log`
+        {worker_list_sql_cond}
+        ORDER BY log_datetime DESC
+    """, worker_list_params, as_dict=True)
+
+
     # --- Suspected duplicate transactions (read-only view for aggregator) ---
     suspected_dups = frappe.get_all(
         "Gig Transaction",
@@ -188,5 +206,6 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         },
         "recent_transactions": recent_txns,
         "pending_wfp":         pending_wfp,
+        "worker_list":         worker_list,
         "suspected_dups":      suspected_dups,
     }
