@@ -85,8 +85,8 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     worker_agg_cond = ""
     worker_params = {}
     if aggregator:
-        worker_agg_join = "JOIN `tabWorker Service Mapping` wsm ON wsm.gig_worker = gw.name"
-        worker_agg_cond = "AND wsm.aggregator = %(aggregator)s"
+        worker_agg_join = ""
+        worker_agg_cond = "AND gw.name_of_aggregator = %(aggregator)s"
         worker_params["aggregator"] = aggregator
 
     worker_stats = frappe.db.sql(f"""
@@ -117,7 +117,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     """, pending_wfp_params, as_dict=True)[0].pending
 
     # --- Welfare fund summary (always current, not date-filtered) ---
-    fund_agg_cond = "WHERE gig_worker IN (SELECT gig_worker FROM `tabWorker Service Mapping` WHERE aggregator = %(aggregator)s)" if aggregator else ""
+    fund_agg_cond = "WHERE gig_worker IN (SELECT name FROM `tabGig Worker` WHERE name_of_aggregator = %(aggregator)s)" if aggregator else ""
     fund_params = {"aggregator": aggregator} if aggregator else {}
     fund_stats = frappe.db.sql(f"""
         SELECT
@@ -155,14 +155,14 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
             a.name                              AS aggregator_id,
             a.aggregator_name,
             a.status,
-            COUNT(DISTINCT wsm.gig_worker)      AS worker_count,
+            COUNT(DISTINCT gw.name)             AS worker_count,
             COUNT(DISTINCT t.name)              AS txn_count,
             COALESCE(SUM(t.amount), 0)          AS txn_amount,
             COALESCE(SUM(t.welfare_amount), 0)  AS welfare_collected,
             COALESCE(SUM(CASE WHEN wfp.payment_status = 'Pending'
                               THEN wfp.fee_amount ELSE 0 END), 0) AS pending_fees
         FROM `tabAggregator` a
-        LEFT JOIN `tabWorker Service Mapping` wsm ON wsm.aggregator = a.name
+        LEFT JOIN `tabGig Worker` gw ON gw.name_of_aggregator = a.name
         LEFT JOIN `tabGig Transaction` t ON t.aggregator = a.name {txn_date_cond}
         LEFT JOIN `tabWelfare Fee Payment` wfp ON wfp.aggregator = a.name {wfp_date_cond}
         {agg_filter_cond}
@@ -212,12 +212,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     # --- Gig Workers list (with aggregator filter) ---
     worker_list_filters = {}
     if aggregator:
-        worker_ids = frappe.db.get_all(
-            "Worker Service Mapping",
-            filters={"aggregator": aggregator},
-            pluck="gig_worker",
-        )
-        worker_list_filters["name"] = ["in", worker_ids] if worker_ids else ["in", ["__none__"]]
+        worker_list_filters["name_of_aggregator"] = aggregator
 
     recent_workers = frappe.get_all(
         "Gig Worker",
@@ -247,20 +242,20 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     )
 
     # --- Welfare fund breakdown per aggregator (for drilldown) ---
-    wfa_agg_cond = "WHERE wsm.aggregator = %(aggregator)s" if aggregator else ""
+    wfa_agg_cond = "WHERE gw.name_of_aggregator = %(aggregator)s" if aggregator else ""
     welfare_fund_by_agg = frappe.db.sql(f"""
         SELECT
-            wsm.aggregator                            AS aggregator_id,
+            gw.name_of_aggregator                     AS aggregator_id,
             MAX(a.aggregator_name)                    AS aggregator_name,
             COUNT(DISTINCT wfa.name)                  AS worker_count,
             COALESCE(SUM(wfa.account_balance), 0)     AS total_balance,
             COALESCE(SUM(wfa.total_collected), 0)     AS total_collected,
             COALESCE(SUM(wfa.total_withdrawn), 0)     AS total_withdrawn
         FROM `tabWelfare Fund Account` wfa
-        LEFT JOIN `tabWorker Service Mapping` wsm ON wsm.gig_worker = wfa.gig_worker
-        LEFT JOIN `tabAggregator` a ON a.name = wsm.aggregator
+        LEFT JOIN `tabGig Worker` gw ON gw.name = wfa.gig_worker
+        LEFT JOIN `tabAggregator` a ON a.name = gw.name_of_aggregator
         {wfa_agg_cond}
-        GROUP BY wsm.aggregator
+        GROUP BY gw.name_of_aggregator
         ORDER BY total_balance DESC
     """, {"aggregator": aggregator} if aggregator else {}, as_dict=True)
 
