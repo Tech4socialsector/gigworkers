@@ -139,6 +139,7 @@
    "fieldname": "amount",
    "fieldtype": "Currency",
    "label": "Total bill amount",
+   "options": "INR",
    "reqd": 1
   },
   {
@@ -152,6 +153,7 @@
    "fieldname": "welfare_amount",
    "fieldtype": "Currency",
    "label": "Welfare Amount",
+   "options": "INR",
    "read_only": 1
   },
   {
@@ -209,12 +211,14 @@
    "fieldname": "base_payout",
    "fieldtype": "Currency",
    "label": "Base Payout to worker",
+   "options": "INR",
    "reqd": 1
   },
   {
    "fieldname": "incentives",
    "fieldtype": "Currency",
    "label": "Incentives",
+   "options": "INR",
    "reqd": 1
   },
   {
@@ -222,19 +226,22 @@
    "fieldname": "welfare_cap",
    "fieldtype": "Currency",
    "label": "Welfare Cap",
+   "options": "INR",
    "read_only": 1
   },
   {
    "fieldname": "deducation",
    "fieldtype": "Currency",
    "label": "Deducation",
+   "options": "INR",
    "reqd": 1
   },
   {
    "description": "Base payout to worker + Incentive - Deduction",
    "fieldname": "net_payout_to_worker",
    "fieldtype": "Currency",
-   "label": "Net payout to worker"
+   "label": "Net payout to worker",
+   "options": "INR"
   },
   {
    "fieldname": "status_of_order",
