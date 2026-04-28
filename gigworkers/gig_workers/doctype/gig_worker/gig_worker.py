@@ -157,8 +157,8 @@ class GigWorker(Document):
 			self.status = "Active"
 			self.create_user_with_role()
 
-			agg = self.preferred_aggregator or None
-			svc = self.preferred_service or None
+			agg = getattr(self, "preferred_aggregator", None) or None
+			svc = getattr(self, "preferred_service", None) or None
 
 			# If worker chose an aggregator, link them so the aggregator can see this worker
 			if agg:

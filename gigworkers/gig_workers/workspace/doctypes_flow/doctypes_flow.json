@@ -143,5 +143,6 @@
    "type": "Report"
   }
  ],
- "title": "Doctypes Flow"
+ "title": "Doctypes Flow",
+ "type": "Workspace"
 }

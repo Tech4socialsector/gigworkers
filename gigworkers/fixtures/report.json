@@ -3,6 +3,7 @@
   "add_total_row": 0,
   "add_translate_data": 0,
   "columns": [],
+  "default_print_format": null,
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Report",
@@ -23,9 +24,6 @@
   "report_type": "Script Report",
   "roles": [
    {
-    "parent": "Service Rate History",
-    "parentfield": "roles",
-    "parenttype": "Report",
     "role": "System Manager"
    }
   ],
@@ -35,6 +33,7 @@
   "add_total_row": 0,
   "add_translate_data": 0,
   "columns": [],
+  "default_print_format": null,
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Report",
@@ -55,9 +54,6 @@
   "report_type": "Script Report",
   "roles": [
    {
-    "parent": "Quarterly Welfare Compliance Report",
-    "parentfield": "roles",
-    "parenttype": "Report",
     "role": "System Manager"
    }
   ],

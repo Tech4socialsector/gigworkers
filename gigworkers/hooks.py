@@ -12,6 +12,7 @@ permission_query_conditions = {
     "Worker Service Mapping": "gigworkers.permissions.user_based_query",
     "Welfare Fund Account": "gigworkers.permissions.user_based_query",
     "Worker Mapping Log": "gigworkers.permissions.user_based_query",
+    "Grievance": "gigworkers.permissions.user_based_query",
 }
 
 has_permission = {
@@ -21,6 +22,7 @@ has_permission = {
     "Worker Service Mapping": "gigworkers.permissions.user_has_permission",
     "Welfare Fund Account": "gigworkers.permissions.user_has_permission",
     "Worker Mapping Log": "gigworkers.permissions.user_has_permission",
+    "Grievance": "gigworkers.permissions.user_has_permission",
 }
 # Apps
 # ------------------

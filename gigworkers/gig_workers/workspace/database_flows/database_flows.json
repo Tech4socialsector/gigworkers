@@ -167,5 +167,6 @@
    "type": "DocType"
   }
  ],
- "title": "Database Flows"
+ "title": "Database Flows",
+ "type": "Workspace"
 }
