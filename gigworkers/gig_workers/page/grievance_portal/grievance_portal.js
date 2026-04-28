@@ -5,14 +5,17 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 		single_column: true,
 	});
 
-	$(wrapper).find(".page-content").html(`<div id="grv-root" style="padding:24px 20px;max-width:1100px;margin:0 auto;"></div>`);
+	$(wrapper).find(".page-content").html(
+		`<div id="grv-root" style="padding:24px 20px;max-width:1100px;margin:0 auto;"></div>`
+	);
 
-	let _portal_data   = null;
-	let _active_view   = "list";
-	let _filter_status = "";
+	let _portal_data    = null;
+	let _active_view    = "list";
+	let _filter_status  = "";
 	let _attachment_url = "";
+	let _pending_open_grv = null; // grievance name to auto-open (from notification / email link)
 
-	// ── Global styles ────────────────────────────────────────────────────────────
+	// ── Global styles ─────────────────────────────────────────────────────────
 	if (!document.getElementById("grv-global-styles")) {
 		$("<style id='grv-global-styles'>").text(`
 			.grv-btn-primary {
@@ -32,6 +35,15 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 				transition:background .15s;
 			}
 			.grv-btn-secondary:hover { background:#eef2ff; }
+			.grv-btn-warning {
+				background: linear-gradient(135deg,#fd7e14,#e06c00);
+				color:#fff;border:none;border-radius:8px;
+				padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;
+				display:inline-flex;align-items:center;gap:6px;
+				transition:opacity .15s;
+			}
+			.grv-btn-warning:hover { opacity:.88; }
+			.grv-btn-warning:disabled { opacity:.6;cursor:not-allowed; }
 			.grv-btn-ghost {
 				background:none;border:none;color:#4e73df;
 				font-size:13px;font-weight:600;cursor:pointer;
@@ -65,9 +77,21 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 		`).appendTo("head");
 	}
 
+	// ── Check for pending grievance from notification click or email link hash ─
+	const _hash_grv = (window.location.hash || "").replace("#", "").trim();
+	if (_hash_grv && _hash_grv.startsWith("GRV-")) {
+		_pending_open_grv = _hash_grv;
+		history.replaceState(null, null, window.location.pathname + window.location.search);
+	}
+	const _session_grv = sessionStorage.getItem("grv_portal_doc");
+	if (_session_grv) {
+		sessionStorage.removeItem("grv_portal_doc");
+		_pending_open_grv = _session_grv;
+	}
+
 	fetch_portal_data();
 
-	// ── Data fetch ───────────────────────────────────────────────────────────────
+	// ── Data fetch ────────────────────────────────────────────────────────────
 	function fetch_portal_data() {
 		show_loading();
 		frappe.call({
@@ -75,7 +99,13 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			callback(r) {
 				if (r.message) {
 					_portal_data = r.message;
-					render_list_view();
+					if (_pending_open_grv) {
+						const grv_to_open = _pending_open_grv;
+						_pending_open_grv = null;
+						fetch_detail(grv_to_open);
+					} else {
+						render_list_view();
+					}
 				} else {
 					show_error("Failed to load grievances. Please refresh.");
 				}
@@ -91,20 +121,20 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			args: { grievance_name: name },
 			callback(r) {
 				if (r.message) { render_detail_view(r.message); }
-				else { show_error("Failed to load grievance."); }
+				else { show_error("Failed to load grievance details."); }
 			},
-			error() { show_error("Failed to load grievance."); },
+			error() { show_error("Failed to load grievance details."); },
 		});
 	}
 
-	// ── Helpers ──────────────────────────────────────────────────────────────────
+	// ── Helpers ───────────────────────────────────────────────────────────────
 	function show_loading() {
 		$("#grv-root").html(`
 			<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
 				height:260px;color:#a0aec0;gap:16px;">
 				<div style="width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#4e73df;
 					border-radius:50%;animation:grv-spin 0.7s linear infinite;"></div>
-				<span style="font-size:14px;">Loading...</span>
+				<span style="font-size:14px;">Loading…</span>
 			</div>
 			<style>@keyframes grv-spin{to{transform:rotate(360deg)}}</style>`);
 	}
@@ -117,7 +147,7 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			</div>`);
 	}
 
-	const STATUS_COLOR = { Open:"#e74a3b","In Review":"#fd7e14",Resolved:"#28a745",Closed:"#6c757d" };
+	const STATUS_COLOR   = { Open:"#e74a3b","In Review":"#fd7e14",Resolved:"#28a745",Closed:"#6c757d" };
 	const PRIORITY_COLOR = { Low:"#28a745",Medium:"#17a2b8",High:"#fd7e14",Urgent:"#e74a3b" };
 	const PRIORITY_ICON  = { Low:"fa-arrow-down",Medium:"fa-minus",High:"fa-arrow-up",Urgent:"fa-exclamation" };
 	const CAT_ICON = {
@@ -141,17 +171,17 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 		</span>`;
 	}
 
-	function fmt_date(d) { return d ? d.substring(0, 10) : "-"; }
+	function fmt_date(d)     { return d ? d.substring(0, 10) : "-"; }
 	function fmt_datetime(d) { return d ? d.substring(0, 16).replace("T", " ") : "-"; }
 
 	function cat_display(cat, other_cat) {
 		return cat === "Other" && other_cat ? `Other – ${other_cat}` : (cat || "-");
 	}
 
-	// ── List View ────────────────────────────────────────────────────────────────
+	// ── List View ─────────────────────────────────────────────────────────────
 	function render_list_view() {
-		const data = _portal_data;
-		const role = data.role;
+		const data    = _portal_data;
+		const role    = data.role;
 		const all_grv = data.grievances || [];
 		const filtered = _filter_status ? all_grv.filter(g => g.status === _filter_status) : all_grv;
 
@@ -160,7 +190,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			counts[s] = all_grv.filter(g => g.status === s).length;
 		});
 
-		// Stat cards
 		const stats_html = ["Open","In Review","Resolved","Closed"].map(s => {
 			const c = STATUS_COLOR[s];
 			return `<div style="flex:1;min-width:110px;background:#fff;border-radius:12px;
@@ -172,7 +201,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			</div>`;
 		}).join("");
 
-		// Filter tabs
 		const tabs = [["","All",all_grv.length],...["Open","In Review","Resolved","Closed"].map(s=>[s,s,counts[s]])]
 			.map(([val, label, cnt]) => {
 				const active = _filter_status === val;
@@ -190,7 +218,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 				</button>`;
 			}).join("");
 
-		// No-profile warning banner for workers
 		const warn_banner = (role === "worker" && !data.has_gw_profile)
 			? `<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;
 				padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
@@ -201,7 +228,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 				</span>
 			</div>` : "";
 
-		// Cards
 		const cards_html = filtered.length === 0
 			? `<div style="text-align:center;padding:56px 24px;background:#fff;border-radius:14px;
 				box-shadow:0 2px 10px rgba(0,0,0,.05);">
@@ -219,35 +245,31 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			: filtered.map(g => {
 				const pclr = PRIORITY_COLOR[g.priority] || "#17a2b8";
 				const picon = PRIORITY_ICON[g.priority] || "fa-minus";
-				const cd = cat_display(g.category, g.other_category);
-				const icon = CAT_ICON[g.category] || "fa-file-text-o";
+				const cd    = cat_display(g.category, g.other_category);
+				const icon  = CAT_ICON[g.category] || "fa-file-text-o";
+				const agg_label = g.aggregator_name || g.aggregator || "";
 				return `
 				<div class="grv-card-hover" data-grv-name="${g.name}"
 					style="background:#fff;border-radius:12px;margin-bottom:12px;cursor:pointer;
 						box-shadow:0 2px 10px rgba(0,0,0,.06);overflow:hidden;
 						transition:box-shadow .2s,transform .2s;">
-					<!-- Priority top bar -->
 					<div style="height:3px;background:${pclr};"></div>
 					<div style="padding:16px 20px;">
 						<div style="display:flex;align-items:flex-start;gap:14px;">
-							<!-- Category icon circle -->
 							<div style="width:40px;height:40px;border-radius:10px;background:${pclr}18;
 								display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
 								<i class="fa ${icon}" style="color:${pclr};font-size:15px;"></i>
 							</div>
 							<div style="flex:1;min-width:0;">
-								<!-- Badges row -->
 								<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;">
 									<span style="font-size:11px;font-weight:700;color:#a0aec0;">${g.name}</span>
 									${status_badge(g.status)}
 									${priority_badge(g.priority)}
 								</div>
-								<!-- Title -->
 								<div style="font-size:15px;font-weight:700;color:#2d3748;margin-bottom:5px;
 									white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
 									${g.title}
 								</div>
-								<!-- Meta row -->
 								<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:12px;color:#718096;">
 									<span><i class="fa ${icon}" style="margin-right:3px;"></i>${cd}</span>
 									<span>·</span>
@@ -255,9 +277,9 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 									${role !== "worker" && g.gig_worker_name ? `
 									<span>·</span>
 									<span><i class="fa fa-user" style="margin-right:3px;"></i>${g.gig_worker_name}</span>` : ""}
-									${g.aggregator ? `
+									${agg_label ? `
 									<span>·</span>
-									<span><i class="fa fa-building" style="margin-right:3px;"></i>${g.aggregator}</span>` : ""}
+									<span><i class="fa fa-building" style="margin-right:3px;"></i>${agg_label}</span>` : ""}
 								</div>
 							</div>
 							<div style="flex-shrink:0;color:#cbd5e0;margin-top:8px;">
@@ -305,51 +327,44 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 
 		$("#grv-root").html(html);
 
-		// Events
 		if (role === "worker") {
 			$("#grv-btn-new").on("click", () => render_new_form());
 		}
-
 		$(".grv-tab-btn").on("click", function () {
 			_filter_status = $(this).data("status");
 			render_list_view();
 		});
-
 		$("[data-filter-stat]").on("click", function () {
 			const s = $(this).data("filter-stat");
 			_filter_status = _filter_status === s ? "" : s;
 			render_list_view();
 		});
-
 		$("[data-grv-name]").on("click", function () {
 			fetch_detail($(this).data("grv-name"));
 		});
 	}
 
-	// ── New Grievance Form ───────────────────────────────────────────────────────
+	// ── New Grievance Form ────────────────────────────────────────────────────
 	function render_new_form() {
 		_active_view = "new";
 		_attachment_url = "";
 		const aggregators = (_portal_data && _portal_data.aggregators) || [];
-		const user_name = (_portal_data && _portal_data.user_display_name) || frappe.session.user_fullname || "";
+		const user_name   = (_portal_data && _portal_data.user_display_name) || frappe.session.user_fullname || "";
 
 		const agg_options = aggregators.map(a =>
 			`<option value="${a.name}">${a.aggregator_name || a.name}</option>`
 		).join("");
 
 		const html = `
-		<!-- Back nav -->
 		<div style="margin-bottom:20px;">
 			<button id="grv-back" class="grv-btn-ghost">
 				<i class="fa fa-arrow-left"></i> Back to Grievances
 			</button>
 		</div>
 
-		<!-- Form card -->
 		<div style="background:#fff;border-radius:16px;overflow:hidden;
 			box-shadow:0 4px 24px rgba(0,0,0,.10);max-width:780px;margin:0 auto;">
 
-			<!-- Coloured header -->
 			<div style="background:linear-gradient(135deg,#4e73df,#3657c5);padding:24px 30px;">
 				<div style="display:flex;align-items:center;gap:14px;">
 					<div style="width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,.2);
@@ -359,17 +374,15 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 					<div>
 						<h4 style="font-weight:800;color:#fff;margin:0 0 3px;font-size:18px;">Submit New Grievance</h4>
 						<p style="font-size:12px;color:rgba(255,255,255,.75);margin:0;">
-							Submitted by: <strong>${user_name}</strong> &nbsp;·&nbsp; Will be notified to Admin ${aggregators.length ? "& Aggregator" : ""}
+							Submitted by: <strong>${user_name}</strong>
 						</p>
 					</div>
 				</div>
 			</div>
 
-			<!-- Form body -->
 			<div style="padding:28px 30px;">
 				<form id="grv-form">
 
-					<!-- Title -->
 					<div class="grv-field">
 						<label class="grv-label">Title <span class="grv-req">*</span></label>
 						<input id="grv-f-title" class="grv-input" type="text"
@@ -380,7 +393,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 						</div>
 					</div>
 
-					<!-- Category + Priority -->
 					<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 						<div class="grv-field">
 							<label class="grv-label">Category <span class="grv-req">*</span></label>
@@ -410,7 +422,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 						</div>
 					</div>
 
-					<!-- Other category (hidden by default) -->
 					<div class="grv-field" id="grv-other-cat-wrap" style="display:none;
 						background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:14px 16px;">
 						<label class="grv-label" style="color:#92400e;">
@@ -420,7 +431,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 							placeholder="e.g. App crash, Incorrect deduction, Login issue…" maxlength="100" />
 					</div>
 
-					<!-- Aggregator -->
 					${agg_options ? `
 					<div class="grv-field">
 						<label class="grv-label">Related Aggregator <span style="font-weight:400;color:#a0aec0;">(Optional)</span></label>
@@ -428,10 +438,9 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 							<option value="">-- None --</option>
 							${agg_options}
 						</select>
-						<span class="grv-hint">Select if this grievance relates to a specific platform/aggregator</span>
+						<span class="grv-hint">Select if this grievance relates to a specific aggregator</span>
 					</div>` : ""}
 
-					<!-- Description -->
 					<div class="grv-field">
 						<label class="grv-label">Description <span class="grv-req">*</span></label>
 						<textarea id="grv-f-desc" class="grv-input" rows="5"
@@ -443,7 +452,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 						</div>
 					</div>
 
-					<!-- Attachment -->
 					<div class="grv-field">
 						<label class="grv-label">Supporting Document <span style="font-weight:400;color:#a0aec0;">(Optional)</span></label>
 						<div style="border:2px dashed #dde1ef;border-radius:10px;padding:16px 18px;
@@ -453,9 +461,7 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 								<i class="fa fa-paperclip"></i> Attach File
 							</button>
 							<div style="flex:1;min-width:120px;">
-								<div id="grv-attach-name" style="font-size:13px;color:#a0aec0;">
-									No file selected
-								</div>
+								<div id="grv-attach-name" style="font-size:13px;color:#a0aec0;">No file selected</div>
 								<div style="font-size:11px;color:#b0b8d1;margin-top:2px;">
 									Supported: images, PDF, screenshots (max 5 MB)
 								</div>
@@ -467,12 +473,9 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 						</div>
 					</div>
 
-					<!-- Actions -->
 					<div style="display:flex;justify-content:flex-end;gap:12px;
 						padding-top:20px;border-top:1px solid #f0f4f8;">
-						<button type="button" id="grv-btn-cancel" class="grv-btn-secondary">
-							Cancel
-						</button>
+						<button type="button" id="grv-btn-cancel" class="grv-btn-secondary">Cancel</button>
 						<button type="submit" id="grv-btn-submit" class="grv-btn-primary">
 							<i class="fa fa-paper-plane"></i> Submit Grievance
 						</button>
@@ -484,10 +487,8 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 
 		$("#grv-root").html(html);
 
-		// Highlight selected priority option on load
 		_update_priority_ui($('input[name="grv-priority"]:checked').val());
 
-		// Priority radio selection
 		$(".grv-priority-option").on("click", function () {
 			const p = $(this).data("priority");
 			$(this).find("input").prop("checked", true);
@@ -508,11 +509,9 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			});
 		}
 
-		// Character counters
 		$("#grv-f-title").on("input", function () { $("#grv-title-cnt").text($(this).val().length); });
-		$("#grv-f-desc").on("input", function () { $("#grv-desc-cnt").text($(this).val().length); });
+		$("#grv-f-desc").on("input",  function () { $("#grv-desc-cnt").text($(this).val().length); });
 
-		// Show/hide other category
 		$("#grv-f-cat").on("change", function () {
 			if ($(this).val() === "Other") {
 				$("#grv-other-cat-wrap").slideDown(180);
@@ -523,7 +522,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			}
 		});
 
-		// Attach file
 		$("#grv-btn-attach").on("click", function () {
 			new frappe.ui.FileUploader({
 				allow_multiple: false,
@@ -550,26 +548,24 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 			$("#grv-btn-attach").html('<i class="fa fa-paperclip"></i> Attach File');
 		});
 
-		// Back / Cancel
 		$("#grv-back, #grv-btn-cancel").on("click", function () {
 			_active_view = "list";
 			render_list_view();
 		});
 
-		// Submit
 		$("#grv-form").on("submit", function (e) {
 			e.preventDefault();
 
-			const title        = $("#grv-f-title").val().trim();
-			const category     = $("#grv-f-cat").val();
-			const other_cat    = $("#grv-f-other-cat").val().trim();
-			const priority     = $('input[name="grv-priority"]:checked').val() || "Medium";
-			const description  = $("#grv-f-desc").val().trim();
-			const aggregator   = $("#grv-f-agg").val() || "";
-			const attachment   = _attachment_url || "";
+			const title       = $("#grv-f-title").val().trim();
+			const category    = $("#grv-f-cat").val();
+			const other_cat   = $("#grv-f-other-cat").val().trim();
+			const priority    = $('input[name="grv-priority"]:checked').val() || "Medium";
+			const description = $("#grv-f-desc").val().trim();
+			const aggregator  = $("#grv-f-agg").val() || "";
+			const attachment  = _attachment_url || "";
 
-			if (!title)    { _shake("#grv-f-title");   frappe.show_alert({ message:"Title is required.",indicator:"red" }); return; }
-			if (!category) { _shake("#grv-f-cat");     frappe.show_alert({ message:"Please select a category.",indicator:"red" }); return; }
+			if (!title)    { _shake("#grv-f-title"); frappe.show_alert({ message:"Title is required.",indicator:"red" }); return; }
+			if (!category) { _shake("#grv-f-cat");   frappe.show_alert({ message:"Please select a category.",indicator:"red" }); return; }
 			if (category === "Other" && !other_cat) {
 				_shake("#grv-f-other-cat");
 				frappe.show_alert({ message:"Please specify the category.",indicator:"red" });
@@ -585,7 +581,7 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 				args: { title, category, description, priority, aggregator, attachment, other_category: other_cat },
 				callback(r) {
 					if (r.message) {
-						frappe.show_alert({ message:`Grievance <strong>${r.message}</strong> submitted.`, indicator:"green" });
+						frappe.show_alert({ message:`Grievance <strong>${r.message}</strong> submitted successfully.`, indicator:"green" });
 						_active_view = "list";
 						fetch_portal_data();
 					} else {
@@ -610,11 +606,10 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 		}
 	}
 
-	// ── Detail View ──────────────────────────────────────────────────────────────
+	// ── Detail View ───────────────────────────────────────────────────────────
 	function render_detail_view(grv) {
-		const role = _portal_data ? _portal_data.role : "worker";
-		const can_reply  = true;
-		const can_status = can_reply;
+		const role     = _portal_data ? _portal_data.role : "worker";
+		const can_manage = (role === "admin" || role === "aggregator");
 		const sc = STATUS_COLOR[grv.status] || "#6c757d";
 		const pc = PRIORITY_COLOR[grv.priority] || "#17a2b8";
 
@@ -623,9 +618,12 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 
 		const cd = cat_display(grv.category, grv.other_category);
 
+		// Aggregators for reassign dialog
+		const all_aggregators = (_portal_data && _portal_data.aggregators) || [];
+
 		const replies_html = (grv.replies && grv.replies.length)
 			? grv.replies.map(r => {
-				const rc = r.replied_by_role === "Admin" ? "#4e73df" : r.replied_by_role === "Aggregator" ? "#1cc88a" : "#fd7e14";
+				const rc   = r.replied_by_role === "Admin" ? "#4e73df" : r.replied_by_role === "Aggregator" ? "#1cc88a" : "#fd7e14";
 				const init = (r.replied_by_name || r.replied_by || "?")[0].toUpperCase();
 				return `
 				<div style="display:flex;gap:12px;margin-bottom:16px;">
@@ -651,16 +649,28 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 				<span style="font-size:13px;">No replies yet.</span>
 			</div>`;
 
+		// Aggregator display in meta
+		const agg_display = grv.aggregator_name || grv.aggregator || "";
+
 		const html = `
-		<!-- Back nav -->
-		<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+		<!-- Back nav + actions bar -->
+		<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
 			<button id="grv-back-detail" class="grv-btn-ghost">
 				<i class="fa fa-arrow-left"></i> Back to Grievances
 			</button>
 			<span style="color:#e2e8f0;">|</span>
 			<span style="font-size:13px;font-weight:600;color:#a0aec0;">${grv.name}</span>
-			${can_status ? `
-			<div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+
+			${can_manage ? `
+			<div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+
+				<!-- Reassign button -->
+				${all_aggregators.length ? `
+				<button id="grv-btn-reassign" class="grv-btn-warning">
+					<i class="fa fa-exchange"></i> Reassign
+				</button>` : ""}
+
+				<!-- Status update -->
 				<label style="font-size:12px;font-weight:600;color:#718096;">Status:</label>
 				<select id="grv-status-sel"
 					style="padding:7px 12px;border:1.5px solid #dde1ef;border-radius:8px;
@@ -681,7 +691,7 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 				<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
 					${status_badge(grv.status)}
 					${priority_badge(grv.priority)}
-					<span style="font-size:12px;color:rgba(255,255,255,.8);">
+					<span style="font-size:12px;color:rgba(255,255,255,.85);">
 						<i class="fa ${CAT_ICON[grv.category]||"fa-file-text-o"}"></i> ${cd}
 					</span>
 				</div>
@@ -696,7 +706,7 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 					${[
 						["Submitted", fmt_date(grv.submitted_date), "fa-calendar"],
 						grv.gig_worker_name ? ["Worker", grv.gig_worker_name, "fa-user"] : null,
-						grv.aggregator ? ["Aggregator", grv.aggregator, "fa-building"] : null,
+						agg_display ? ["Aggregator", agg_display, "fa-building"] : null,
 						["Replies", (grv.replies||[]).length, "fa-comments"],
 					].filter(Boolean).map(([lbl,val,icon]) => `
 					<div style="background:#f7f9ff;border-radius:10px;padding:12px 14px;border:1px solid #e8eef8;">
@@ -725,7 +735,7 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 					</div>` : ""}
 				</div>
 
-				<!-- Replies -->
+				<!-- Replies section -->
 				<div>
 					<div style="font-size:13px;font-weight:700;color:#4a5568;margin-bottom:14px;
 						display:flex;align-items:center;gap:8px;">
@@ -737,7 +747,6 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 				</div>
 
 				<!-- Reply box -->
-				${can_reply ? `
 				<div style="margin-top:22px;padding-top:20px;border-top:2px solid #f0f4f8;">
 					<div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:10px;
 						display:flex;align-items:center;gap:6px;">
@@ -759,7 +768,7 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 							<i class="fa fa-paper-plane"></i> ${role === "worker" ? "Send Follow-Up" : "Send Reply"}
 						</button>
 					</div>
-				</div>` : ""}
+				</div>
 
 			</div>
 		</div>`;
@@ -767,55 +776,123 @@ frappe.pages["grievance-portal"].on_page_load = function (wrapper) {
 		$("#grv-root").html(html);
 
 		// Back
-		$("#grv-back-detail").on("click", () => { _active_view="list"; render_list_view(); });
+		$("#grv-back-detail").on("click", () => { _active_view = "list"; render_list_view(); });
 
-		// Status update
-		if (can_status) {
+		if (can_manage) {
+			// Status colour update on change
 			$("#grv-status-sel").on("change", function () {
 				$(this).css("color", STATUS_COLOR[$(this).val()] || "#6c757d");
 			});
+
+			// Update status
 			$("#grv-btn-update-status").on("click", function () {
 				const ns = $("#grv-status-sel").val();
-				$(this).prop("disabled",true).html('<i class="fa fa-spinner fa-spin"></i>');
+				$(this).prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i>');
 				frappe.call({
 					method: "gigworkers.gig_workers.page.grievance_portal.grievance_portal.update_grievance_status",
 					args: { grievance_name: grv.name, new_status: ns },
 					callback(r) {
 						if (r.message) {
-							frappe.show_alert({ message:`Status updated to "${r.message.status}".`, indicator:"green" });
-							fetch_detail(grv.name);
-						}
-					},
-				});
-			});
-		}
-
-		// Send reply
-		if (can_reply) {
-			$("#grv-btn-reply").on("click", function () {
-				const txt = $("#grv-reply-txt").val().trim();
-				if (!txt) { frappe.show_alert({ message:"Reply cannot be empty.",indicator:"red" }); return; }
-				$(this).prop("disabled",true).html('<i class="fa fa-spinner fa-spin"></i> Sending…');
-				frappe.call({
-					method: "gigworkers.gig_workers.page.grievance_portal.grievance_portal.add_reply",
-					args: { grievance_name: grv.name, reply_text: txt },
-					callback(r) {
-						if (!r.exc) {
-							frappe.show_alert({ message:"Reply sent.", indicator:"green" });
+							frappe.show_alert({ message:`Status updated to <strong>${r.message.status}</strong>.`, indicator:"green" });
 							fetch_detail(grv.name);
 						} else {
-							frappe.show_alert({ message:"Failed to send reply.",indicator:"red" });
-							const lbl = role === "worker" ? "Send Follow-Up" : "Send Reply";
-							$("#grv-btn-reply").prop("disabled",false).html(`<i class="fa fa-paper-plane"></i> ${lbl}`);
+							frappe.show_alert({ message:"Failed to update status.", indicator:"red" });
+							$("#grv-btn-update-status").prop("disabled", false).html("Update");
 						}
 					},
 					error() {
-						frappe.show_alert({ message:"Error sending reply.",indicator:"red" });
-						const lbl = role === "worker" ? "Send Follow-Up" : "Send Reply";
-						$("#grv-btn-reply").prop("disabled",false).html(`<i class="fa fa-paper-plane"></i> ${lbl}`);
+						frappe.show_alert({ message:"Error updating status.", indicator:"red" });
+						$("#grv-btn-update-status").prop("disabled", false).html("Update");
 					},
 				});
 			});
+
+			// Reassign
+			if (all_aggregators.length) {
+				$("#grv-btn-reassign").on("click", function () {
+					const agg_options = all_aggregators
+						.filter(a => a.name !== grv.aggregator)
+						.map(a => ({ label: a.aggregator_name || a.name, value: a.name }));
+
+					if (!agg_options.length) {
+						frappe.show_alert({ message:"No other aggregators available.", indicator:"orange" });
+						return;
+					}
+
+					frappe.prompt(
+						[
+							{
+								fieldname: "new_aggregator",
+								fieldtype: "Select",
+								label: "Reassign To",
+								options: agg_options.map(o => o.label).join("\n"),
+								reqd: 1,
+								description: "Select the aggregator who should handle this grievance.",
+							},
+						],
+						function (values) {
+							// Map label back to value (name)
+							const selected = agg_options.find(o => o.label === values.new_aggregator);
+							if (!selected) {
+								frappe.show_alert({ message:"Invalid selection.", indicator:"red" });
+								return;
+							}
+							frappe.call({
+								method: "gigworkers.gig_workers.page.grievance_portal.grievance_portal.reassign_grievance",
+								args: {
+									grievance_name: grv.name,
+									new_aggregator: selected.value,
+								},
+								callback(r) {
+									if (r.message) {
+										frappe.show_alert({
+											message: `Grievance reassigned to <strong>${r.message.aggregator_name}</strong>.`,
+											indicator: "green",
+										});
+										fetch_detail(grv.name);
+									} else {
+										frappe.show_alert({ message:"Failed to reassign.", indicator:"red" });
+									}
+								},
+								error(r) {
+									const msg = r && r._server_messages
+										? JSON.parse(r._server_messages)[0].replace(/<[^>]+>/g,"")
+										: "Error reassigning grievance.";
+									frappe.show_alert({ message: msg, indicator:"red" });
+								},
+							});
+						},
+						`Reassign Grievance: ${grv.name}`,
+						"Reassign"
+					);
+				});
+			}
 		}
+
+		// Send reply
+		$("#grv-btn-reply").on("click", function () {
+			const txt = $("#grv-reply-txt").val().trim();
+			if (!txt) { frappe.show_alert({ message:"Reply cannot be empty.",indicator:"red" }); return; }
+			$(this).prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i> Sending…');
+			frappe.call({
+				method: "gigworkers.gig_workers.page.grievance_portal.grievance_portal.add_reply",
+				args: { grievance_name: grv.name, reply_text: txt },
+				callback(r) {
+					if (!r.exc) {
+						frappe.show_alert({ message:"Reply sent successfully.", indicator:"green" });
+						fetch_detail(grv.name);
+					} else {
+						frappe.show_alert({ message:"Failed to send reply.",indicator:"red" });
+						const lbl = role === "worker" ? "Send Follow-Up" : "Send Reply";
+						$("#grv-btn-reply").prop("disabled", false).html(`<i class="fa fa-paper-plane"></i> ${lbl}`);
+					}
+				},
+				error() {
+					frappe.show_alert({ message:"Error sending reply.",indicator:"red" });
+					const lbl = role === "worker" ? "Send Follow-Up" : "Send Reply";
+					$("#grv-btn-reply").prop("disabled", false).html(`<i class="fa fa-paper-plane"></i> ${lbl}`);
+				},
+			});
+		});
 	}
 };

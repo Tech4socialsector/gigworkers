@@ -34,6 +34,18 @@ def _create_notification_log(for_user, subject, content, grv):
 		pass
 
 
+def _get_category_assigned_email(category):
+	"""Return the first configured email for the given category from Grievance Category Setting."""
+	try:
+		settings = frappe.get_single("Grievance Category Setting")
+		for rule in settings.category_rules:
+			if rule.category == category and rule.assigned_email:
+				return rule.assigned_email
+	except Exception:
+		pass
+	return None
+
+
 @frappe.whitelist()
 def get_portal_data():
 	user = frappe.session.user
@@ -47,10 +59,12 @@ def get_portal_data():
 			SELECT
 				g.name, g.title, g.category, g.other_category, g.priority, g.status,
 				g.gig_worker, g.aggregator, g.submitted_date, g.description, g.owner,
-				COALESCE(gw.worker_name, u.full_name, g.owner) AS gig_worker_name
+				COALESCE(gw.worker_name, u.full_name, g.owner) AS gig_worker_name,
+				a.aggregator_name
 			FROM `tabGrievance` g
 			LEFT JOIN `tabGig Worker` gw ON gw.name = g.gig_worker
 			LEFT JOIN `tabUser` u ON u.name = g.owner
+			LEFT JOIN `tabAggregator` a ON a.name = g.aggregator
 			ORDER BY g.creation DESC
 			""",
 			as_dict=True,
@@ -65,10 +79,12 @@ def get_portal_data():
 			SELECT
 				g.name, g.title, g.category, g.other_category, g.priority, g.status,
 				g.gig_worker, g.aggregator, g.submitted_date, g.description, g.owner,
-				COALESCE(gw.worker_name, u.full_name, g.owner) AS gig_worker_name
+				COALESCE(gw.worker_name, u.full_name, g.owner) AS gig_worker_name,
+				a.aggregator_name
 			FROM `tabGrievance` g
 			LEFT JOIN `tabGig Worker` gw ON gw.name = g.gig_worker
 			LEFT JOIN `tabUser` u ON u.name = g.owner
+			LEFT JOIN `tabAggregator` a ON a.name = g.aggregator
 			WHERE g.aggregator = %(aggregator)s
 				OR gw.created_by_aggregator = %(aggregator)s
 			ORDER BY g.creation DESC
@@ -80,16 +96,17 @@ def get_portal_data():
 	elif is_worker:
 		gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
 		if gig_worker:
-			# Has a GW profile — match by gig_worker OR owner
 			grievances = frappe.db.sql(
 				"""
 				SELECT
 					g.name, g.title, g.category, g.other_category, g.priority, g.status,
 					g.gig_worker, g.aggregator, g.submitted_date, g.description, g.owner,
-					COALESCE(gw.worker_name, u.full_name, g.owner) AS gig_worker_name
+					COALESCE(gw.worker_name, u.full_name, g.owner) AS gig_worker_name,
+					a.aggregator_name
 				FROM `tabGrievance` g
 				LEFT JOIN `tabGig Worker` gw ON gw.name = g.gig_worker
 				LEFT JOIN `tabUser` u ON u.name = g.owner
+				LEFT JOIN `tabAggregator` a ON a.name = g.aggregator
 				WHERE g.gig_worker = %(gig_worker)s OR g.owner = %(user)s
 				ORDER BY g.creation DESC
 				""",
@@ -97,15 +114,16 @@ def get_portal_data():
 				as_dict=True,
 			)
 		else:
-			# No GW profile — match by owner only
 			grievances = frappe.db.sql(
 				"""
 				SELECT
 					g.name, g.title, g.category, g.other_category, g.priority, g.status,
 					g.gig_worker, g.aggregator, g.submitted_date, g.description, g.owner,
-					COALESCE(u.full_name, g.owner) AS gig_worker_name
+					COALESCE(u.full_name, g.owner) AS gig_worker_name,
+					a.aggregator_name
 				FROM `tabGrievance` g
 				LEFT JOIN `tabUser` u ON u.name = g.owner
+				LEFT JOIN `tabAggregator` a ON a.name = g.aggregator
 				WHERE g.owner = %(user)s
 				ORDER BY g.creation DESC
 				""",
@@ -113,7 +131,7 @@ def get_portal_data():
 				as_dict=True,
 			)
 
-	# Get all approved aggregators for workers to tag in their grievance
+	# All approved aggregators — needed by workers (tagging) and by admin/aggregator (reassignment)
 	aggregators = []
 	if is_worker:
 		gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
@@ -129,14 +147,14 @@ def get_portal_data():
 				as_dict=True,
 			)
 		if not aggregators:
-			# Fall back: show all approved aggregators so worker can tag one
 			aggregators = frappe.db.get_all(
 				"Aggregator",
 				filters={"status": "Approved"},
 				fields=["name", "aggregator_name"],
 				order_by="aggregator_name asc",
 			)
-	elif is_admin:
+	else:
+		# Admin and Aggregator both need the full list for reassignment
 		aggregators = frappe.db.get_all(
 			"Aggregator",
 			filters={"status": "Approved"},
@@ -164,7 +182,6 @@ def get_grievance_detail(grievance_name):
 
 	grv = frappe.get_doc("Grievance", grievance_name)
 
-	# Permission check
 	if is_worker:
 		gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
 		owner_match = grv.owner == user
@@ -188,6 +205,10 @@ def get_grievance_detail(grievance_name):
 	else:
 		gig_worker_name = frappe.db.get_value("User", grv.owner, "full_name") or grv.owner
 
+	aggregator_name = ""
+	if grv.aggregator:
+		aggregator_name = frappe.db.get_value("Aggregator", grv.aggregator, "aggregator_name") or grv.aggregator
+
 	replies = []
 	for r in grv.replies:
 		replies.append(
@@ -210,6 +231,7 @@ def get_grievance_detail(grievance_name):
 		"gig_worker": grv.gig_worker,
 		"gig_worker_name": gig_worker_name,
 		"aggregator": grv.aggregator,
+		"aggregator_name": aggregator_name,
 		"submitted_date": str(grv.submitted_date) if grv.submitted_date else "",
 		"description": grv.description,
 		"attachment": grv.attachment,
@@ -231,7 +253,6 @@ def submit_grievance(
 	if category == "Other" and not other_category:
 		frappe.throw("Please specify the category when 'Other' is selected.")
 
-	# Link to GW profile if it exists; otherwise owner field tracks the submitter
 	gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
 
 	grv = frappe.new_doc("Grievance")
@@ -255,6 +276,55 @@ def submit_grievance(
 	return grv.name
 
 
+def _build_grievance_email_body(grv, submitter_name, action_label="A new grievance has been submitted."):
+	cat_display = (
+		f"Other – {grv.other_category}"
+		if grv.category == "Other" and grv.other_category
+		else grv.category
+	)
+	portal_url = f"/app/grievance-portal#{grv.name}"
+	return f"""
+	<p>{action_label}</p>
+	<table style="border-collapse:collapse;width:100%;font-family:sans-serif;font-size:13px;">
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;width:160px;">Grievance ID</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.name}</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Title</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.title}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Category</td>
+			<td style="padding:8px 12px;color:#2d3748;">{cat_display}</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Priority</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.priority}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Submitted By</td>
+			<td style="padding:8px 12px;color:#2d3748;">{submitter_name}</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Status</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.status}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;vertical-align:top;">Description</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.description}</td>
+		</tr>
+	</table>
+	<p style="margin-top:16px;">
+		<a href="{portal_url}"
+			style="background:#4e73df;color:#fff;padding:9px 18px;border-radius:6px;
+				text-decoration:none;font-size:13px;font-weight:600;">
+			View in Grievance Portal
+		</a>
+	</p>
+	"""
+
+
 def _send_grievance_notifications(grv, gig_worker, user):
 	if gig_worker:
 		submitter_name = frappe.db.get_value("Gig Worker", gig_worker, "worker_name") or gig_worker
@@ -262,41 +332,159 @@ def _send_grievance_notifications(grv, gig_worker, user):
 		submitter_name = frappe.db.get_value("User", user, "full_name") or user
 
 	subject = f"New Grievance: {grv.title} [{grv.name}]"
-	cat_display = f"Other – {grv.other_category}" if grv.category == "Other" and grv.other_category else grv.category
+	message = _build_grievance_email_body(grv, submitter_name)
+
+	# ── Category-based assignment ─────────────────────────────────────────────
+	assigned_email = _get_category_assigned_email(grv.category)
+
+	if assigned_email:
+		# Auto-assign the grievance to the matching aggregator if not already set
+		if not grv.aggregator:
+			matched_agg = frappe.db.get_value(
+				"Aggregator", {"email": assigned_email, "status": "Approved"}, "name"
+			)
+			if matched_agg:
+				grv.aggregator = matched_agg
+				grv.db_set("aggregator", matched_agg, update_modified=False)
+
+		# Email goes ONLY to the first configured category assignee
+		frappe.sendmail(recipients=[assigned_email], subject=subject, message=message, now=True)
+		assigned_user = frappe.db.get_value("User", {"email": assigned_email}, "name")
+		if assigned_user:
+			_create_notification_log(assigned_user, subject, message, grv)
+
+		# Admins get in-app notifications but NOT a separate email (already notified via category rule)
+		admin_users = frappe.db.sql(
+			"""
+			SELECT DISTINCT u.name FROM `tabUser` u
+			INNER JOIN `tabHas Role` hr ON hr.parent = u.name
+			WHERE hr.role = 'System Manager' AND u.enabled = 1
+			AND u.name != 'Administrator'
+			""",
+			as_dict=True,
+		)
+		for admin in admin_users:
+			_create_notification_log(admin.name, subject, message, grv)
+
+	else:
+		# No category rule — fall back to emailing all admins + the tagged aggregator
+		admin_users = frappe.db.sql(
+			"""
+			SELECT DISTINCT u.name, u.email FROM `tabUser` u
+			INNER JOIN `tabHas Role` hr ON hr.parent = u.name
+			WHERE hr.role = 'System Manager' AND u.enabled = 1
+			AND u.name != 'Administrator'
+			""",
+			as_dict=True,
+		)
+		for admin in admin_users:
+			if admin.email:
+				frappe.sendmail(recipients=[admin.email], subject=subject, message=message, now=True)
+			_create_notification_log(admin.name, subject, message, grv)
+
+		if grv.aggregator:
+			agg_email = frappe.db.get_value("Aggregator", grv.aggregator, "email")
+			if agg_email:
+				frappe.sendmail(recipients=[agg_email], subject=subject, message=message, now=True)
+				agg_user = frappe.db.get_value("User", {"email": agg_email}, "name")
+				if agg_user:
+					_create_notification_log(agg_user, subject, message, grv)
+
+
+@frappe.whitelist()
+def reassign_grievance(grievance_name, new_aggregator):
+	"""Reassign a grievance to a different aggregator."""
+	user = frappe.session.user
+	is_admin, is_aggregator, _ = _get_role_info(user)
+
+	if not is_admin and not is_aggregator:
+		frappe.throw("Only Admin or Aggregator can reassign grievances.")
+
+	if not frappe.db.exists("Aggregator", new_aggregator):
+		frappe.throw("Invalid aggregator selected.")
+
+	grv = frappe.get_doc("Grievance", grievance_name)
+
+	# Aggregators may only reassign grievances in their own queue
+	if is_aggregator:
+		aggregator = frappe.db.get_value("Aggregator", {"email": user}, "name")
+		worker_agg = (
+			frappe.db.get_value("Gig Worker", grv.gig_worker, "created_by_aggregator")
+			if grv.gig_worker
+			else None
+		)
+		if grv.aggregator != aggregator and worker_agg != aggregator:
+			frappe.throw("Not permitted to reassign this grievance.")
+
+	old_aggregator = grv.aggregator
+	grv.aggregator = new_aggregator
+	grv.save(ignore_permissions=True)
+
+	_notify_aggregator_reassigned(grv, new_aggregator, old_aggregator)
+
+	new_agg_name = (
+		frappe.db.get_value("Aggregator", new_aggregator, "aggregator_name") or new_aggregator
+	)
+	return {"aggregator": new_aggregator, "aggregator_name": new_agg_name}
+
+
+def _notify_aggregator_reassigned(grv, new_aggregator, old_aggregator):
+	reassigned_by = _get_user_display_name(frappe.session.user)
+	portal_url = f"/app/grievance-portal#{grv.name}"
+
+	subject = f"Grievance Assigned to You: {grv.title} [{grv.name}]"
 	message = f"""
-	<p>A new grievance has been submitted.</p>
-	<table style="border-collapse:collapse;width:100%">
-		<tr><td style="padding:6px;font-weight:bold;">Grievance ID</td><td style="padding:6px;">{grv.name}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Title</td><td style="padding:6px;">{grv.title}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Category</td><td style="padding:6px;">{cat_display}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Priority</td><td style="padding:6px;">{grv.priority}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Submitted By</td><td style="padding:6px;">{submitter_name}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Description</td><td style="padding:6px;">{grv.description}</td></tr>
+	<p>A grievance has been assigned to your queue.</p>
+	<table style="border-collapse:collapse;width:100%;font-family:sans-serif;font-size:13px;">
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;width:160px;">Grievance ID</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.name}</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Title</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.title}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Category</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.category}</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Status</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.status}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Reassigned By</td>
+			<td style="padding:8px 12px;color:#2d3748;">{reassigned_by}</td>
+		</tr>
 	</table>
-	<p><a href="/app/grievance/{grv.name}">View Grievance</a></p>
+	<p style="margin-top:16px;">
+		<a href="{portal_url}"
+			style="background:#4e73df;color:#fff;padding:9px 18px;border-radius:6px;
+				text-decoration:none;font-size:13px;font-weight:600;">
+			View in Grievance Portal
+		</a>
+	</p>
 	"""
 
-	admin_users = frappe.db.sql(
-		"""
-		SELECT DISTINCT u.name, u.email FROM `tabUser` u
-		INNER JOIN `tabHas Role` hr ON hr.parent = u.name
-		WHERE hr.role = 'System Manager' AND u.enabled = 1
-		AND u.name != 'Administrator'
-		""",
-		as_dict=True,
-	)
-	for admin in admin_users:
-		if admin.email:
-			frappe.sendmail(recipients=[admin.email], subject=subject, message=message, now=True)
-		_create_notification_log(admin.name, subject, message, grv)
+	new_agg_email = frappe.db.get_value("Aggregator", new_aggregator, "email")
+	if new_agg_email:
+		frappe.sendmail(recipients=[new_agg_email], subject=subject, message=message, now=True)
+		new_agg_user = frappe.db.get_value("User", {"email": new_agg_email}, "name")
+		if new_agg_user:
+			_create_notification_log(new_agg_user, subject, message, grv)
 
-	if grv.aggregator:
-		agg_email = frappe.db.get_value("Aggregator", grv.aggregator, "email")
-		if agg_email:
-			frappe.sendmail(recipients=[agg_email], subject=subject, message=message, now=True)
-			agg_user = frappe.db.get_value("User", {"email": agg_email}, "name")
-			if agg_user:
-				_create_notification_log(agg_user, subject, message, grv)
+	# Notify old aggregator in-app (no email) that the ticket was moved
+	if old_aggregator and old_aggregator != new_aggregator:
+		old_subject = f"Grievance Reassigned: {grv.title} [{grv.name}]"
+		old_message = (
+			f"<p>Grievance <strong>{grv.name}</strong> — <em>{grv.title}</em> "
+			f"has been reassigned to another aggregator by <strong>{reassigned_by}</strong>.</p>"
+		)
+		old_agg_email = frappe.db.get_value("Aggregator", old_aggregator, "email")
+		if old_agg_email:
+			old_agg_user = frappe.db.get_value("User", {"email": old_agg_email}, "name")
+			if old_agg_user:
+				_create_notification_log(old_agg_user, old_subject, old_message, grv)
 
 
 @frappe.whitelist()
@@ -306,7 +494,6 @@ def add_reply(grievance_name, reply_text):
 
 	grv = frappe.get_doc("Grievance", grievance_name)
 
-	# Workers can only reply to their own grievances
 	if is_worker:
 		gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
 		if grv.owner != user and (not gig_worker or grv.gig_worker != gig_worker):
@@ -357,16 +544,38 @@ def add_reply(grievance_name, reply_text):
 def _notify_staff_on_worker_reply(grv, worker_name, reply_text):
 	"""Notify Admin and Aggregator (email + in-app) when a worker adds a reply."""
 	subject = f"Worker Replied on Grievance: {grv.title} [{grv.name}]"
+	portal_url = f"/app/grievance-portal#{grv.name}"
 	message = f"""
-	<p>The gig worker has replied to their grievance.</p>
-	<table style="border-collapse:collapse;width:100%">
-		<tr><td style="padding:6px;font-weight:bold;">Grievance ID</td><td style="padding:6px;">{grv.name}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Title</td><td style="padding:6px;">{grv.title}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Replied By</td><td style="padding:6px;">{worker_name} (Worker)</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Reply</td><td style="padding:6px;">{reply_text}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Current Status</td><td style="padding:6px;">{grv.status}</td></tr>
+	<p>The gig worker has added a follow-up to their grievance.</p>
+	<table style="border-collapse:collapse;width:100%;font-family:sans-serif;font-size:13px;">
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;width:160px;">Grievance ID</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.name}</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Title</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.title}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Replied By</td>
+			<td style="padding:8px 12px;color:#2d3748;">{worker_name} (Worker)</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;vertical-align:top;">Reply</td>
+			<td style="padding:8px 12px;color:#2d3748;">{reply_text}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Current Status</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.status}</td>
+		</tr>
 	</table>
-	<p><a href="/app/grievance/{grv.name}">View Grievance</a></p>
+	<p style="margin-top:16px;">
+		<a href="{portal_url}"
+			style="background:#4e73df;color:#fff;padding:9px 18px;border-radius:6px;
+				text-decoration:none;font-size:13px;font-weight:600;">
+			View in Grievance Portal
+		</a>
+	</p>
 	"""
 
 	admin_users = frappe.db.sql(
@@ -393,7 +602,7 @@ def _notify_staff_on_worker_reply(grv, worker_name, reply_text):
 
 
 def _notify_worker_reply(grv, replied_by_name, replied_by_role, reply_text):
-	# Determine worker email and user account — fall back to owner
+	"""Notify the gig worker (email + in-app) when Admin or Aggregator replies."""
 	worker_email = None
 	worker_user = None
 	if grv.gig_worker:
@@ -407,16 +616,38 @@ def _notify_worker_reply(grv, replied_by_name, replied_by_role, reply_text):
 		return
 
 	subject = f"Reply on Your Grievance: {grv.title} [{grv.name}]"
+	portal_url = f"/app/grievance-portal#{grv.name}"
 	message = f"""
 	<p>You have received a reply on your grievance.</p>
-	<table style="border-collapse:collapse;width:100%">
-		<tr><td style="padding:6px;font-weight:bold;">Grievance ID</td><td style="padding:6px;">{grv.name}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Title</td><td style="padding:6px;">{grv.title}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Replied By</td><td style="padding:6px;">{replied_by_name} ({replied_by_role})</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Reply</td><td style="padding:6px;">{reply_text}</td></tr>
-		<tr><td style="padding:6px;font-weight:bold;">Current Status</td><td style="padding:6px;">{grv.status}</td></tr>
+	<table style="border-collapse:collapse;width:100%;font-family:sans-serif;font-size:13px;">
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;width:160px;">Grievance ID</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.name}</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Title</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.title}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Replied By</td>
+			<td style="padding:8px 12px;color:#2d3748;">{replied_by_name} ({replied_by_role})</td>
+		</tr>
+		<tr>
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;vertical-align:top;">Reply</td>
+			<td style="padding:8px 12px;color:#2d3748;">{reply_text}</td>
+		</tr>
+		<tr style="background:#f7f9ff;">
+			<td style="padding:8px 12px;font-weight:600;color:#4a5568;">Current Status</td>
+			<td style="padding:8px 12px;color:#2d3748;">{grv.status}</td>
+		</tr>
 	</table>
-	<p><a href="/app/grievance-portal">View Your Grievances</a></p>
+	<p style="margin-top:16px;">
+		<a href="{portal_url}"
+			style="background:#4e73df;color:#fff;padding:9px 18px;border-radius:6px;
+				text-decoration:none;font-size:13px;font-weight:600;">
+			View Your Grievances
+		</a>
+	</p>
 	"""
 	frappe.sendmail(recipients=[worker_email], subject=subject, message=message, now=True)
 	if worker_user:
