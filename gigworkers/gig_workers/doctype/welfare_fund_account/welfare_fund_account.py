@@ -120,17 +120,52 @@ def get_list_summary():
 
 @frappe.whitelist()
 def get_list_breakdown(metric):
-	"""Per-worker breakdown for drill-down from the list view summary cards."""
+	"""Transaction-level breakdown for drill-down from the list view summary cards."""
 	allowed = {"account_balance", "total_withdrawn"}
 	if metric not in allowed:
 		frappe.throw(frappe._("Invalid metric"))
 
-	rows = frappe.db.sql(
-		f"""
-		SELECT name, gig_worker, `{metric}` AS value
-		FROM `tabWelfare Fund Account`
-		ORDER BY `{metric}` DESC
-		""",
-		as_dict=True,
-	)
+	if metric == "account_balance":
+		rows = frappe.db.sql(
+			"""
+			SELECT
+				gt.name               AS transaction_id,
+				gt.date               AS transaction_date,
+				gt.aggregator,
+				agg.aggregator_name,
+				gt.service_category,
+				gt.service_type,
+				le.amount             AS value
+			FROM `tabWelfare Fund Ledger Entry` le
+			INNER JOIN `tabGig Transaction` gt
+				ON gt.name = le.gig_transaction
+			LEFT JOIN `tabAggregator` agg
+				ON agg.name = gt.aggregator
+			WHERE le.entry_type = 'Credit'
+			  AND le.gig_transaction IS NOT NULL
+			  AND le.gig_transaction != ''
+			ORDER BY gt.date DESC, le.amount DESC
+			""",
+			as_dict=True,
+		)
+	else:
+		rows = frappe.db.sql(
+			"""
+			SELECT
+				le.reference_name       AS withdrawal_id,
+				wfa.gig_worker,
+				le.entry_date           AS withdrawal_date,
+				wbw.withdrawal_type,
+				wbw.status,
+				le.amount               AS value
+			FROM `tabWelfare Fund Ledger Entry` le
+			INNER JOIN `tabWelfare Fund Account` wfa
+				ON wfa.name = le.parent
+			LEFT JOIN `tabWelfare Benefit Withdrawal` wbw
+				ON wbw.name = le.reference_name
+			WHERE le.entry_type = 'Debit'
+			ORDER BY le.entry_date DESC, le.amount DESC
+			""",
+			as_dict=True,
+		)
 	return rows
