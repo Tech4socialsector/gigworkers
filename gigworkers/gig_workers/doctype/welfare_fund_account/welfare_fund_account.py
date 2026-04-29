@@ -101,3 +101,18 @@ class WelfareFundAccount(Document):
 		})
 		doc.insert(ignore_permissions=True)
 		return doc
+
+
+@frappe.whitelist()
+def get_list_summary():
+	"""Aggregate totals shown as number cards on the Welfare Fund Account list view."""
+	row = frappe.db.sql(
+		"""
+		SELECT
+			COALESCE(SUM(account_balance), 0) AS total_account_balance,
+			COALESCE(SUM(total_withdrawn),  0) AS total_withdrawn
+		FROM `tabWelfare Fund Account`
+		""",
+		as_dict=True,
+	)
+	return row[0] if row else {"total_account_balance": 0, "total_withdrawn": 0}
