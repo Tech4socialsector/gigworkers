@@ -116,3 +116,21 @@ def get_list_summary():
 		as_dict=True,
 	)
 	return row[0] if row else {"total_account_balance": 0, "total_withdrawn": 0}
+
+
+@frappe.whitelist()
+def get_list_breakdown(metric):
+	"""Per-worker breakdown for drill-down from the list view summary cards."""
+	allowed = {"account_balance", "total_withdrawn"}
+	if metric not in allowed:
+		frappe.throw(frappe._("Invalid metric"))
+
+	rows = frappe.db.sql(
+		f"""
+		SELECT name, gig_worker, `{metric}` AS value
+		FROM `tabWelfare Fund Account`
+		ORDER BY `{metric}` DESC
+		""",
+		as_dict=True,
+	)
+	return rows
