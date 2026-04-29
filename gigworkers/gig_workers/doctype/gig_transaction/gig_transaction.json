@@ -22,7 +22,7 @@
   "account_details_section",
   "amount",
   "base_payout",
-  "deducation",
+  "deduction",
   "incentives",
   "net_payout_to_worker",
   "welfare_percentage",
@@ -230,13 +230,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "deducation",
-   "fieldtype": "Currency",
-   "label": "Deducation",
-   "options": "INR",
-   "reqd": 1
-  },
-  {
    "description": "Base payout to worker + Incentive - Deduction",
    "fieldname": "net_payout_to_worker",
    "fieldtype": "Currency",
@@ -267,13 +260,20 @@
   {
    "fieldname": "column_break_phea",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "deduction",
+   "fieldtype": "Currency",
+   "label": "Deduction",
+   "options": "INR",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-10 10:17:15.203962",
- "modified_by": "Administrator",
+ "modified": "2026-04-29 17:18:21.833131",
+ "modified_by": "tech4socialsector@azimpremjifoundation.org",
  "module": "Gig Workers",
  "name": "Gig Transaction",
  "naming_rule": "Expression",

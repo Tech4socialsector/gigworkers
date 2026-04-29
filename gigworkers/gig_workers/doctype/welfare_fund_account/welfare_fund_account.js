@@ -36,7 +36,7 @@ frappe.ui.form.on("Welfare Fund Account", {
 						"settlement_status",
 						"amount",
 						"base_payout",
-						"deducation",
+						"deduction",
 						"incentives",
 						"net_payout_to_worker",
 						"welfare_percentage",
@@ -82,7 +82,7 @@ frappe.ui.form.on("Welfare Fund Account", {
 							<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px 16px; font-size:13px;">
 								<div><span style="color:#6c757d;">Total Bill Amount</span><br><strong>${fmt_currency(gt.amount)}</strong></div>
 								<div><span style="color:#6c757d;">Base Payout</span><br><strong>${fmt_currency(gt.base_payout)}</strong></div>
-								<div><span style="color:#6c757d;">Deduction</span><br><strong>${fmt_currency(gt.deducation)}</strong></div>
+								<div><span style="color:#6c757d;">Deduction</span><br><strong>${fmt_currency(gt.deduction)}</strong></div>
 								<div><span style="color:#6c757d;">Incentives</span><br><strong>${fmt_currency(gt.incentives)}</strong></div>
 								<div><span style="color:#6c757d;">Net Payout</span><br><strong>${fmt_currency(gt.net_payout_to_worker)}</strong></div>
 								<div><span style="color:#6c757d;">Welfare Amount</span><br><strong style="color:#28a745;">${fmt_currency(gt.welfare_amount)}</strong></div>

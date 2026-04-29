@@ -267,8 +267,7 @@ class GigTransaction(Document):
             f"{self.get('aggregator') or ''} | "
             f"{self.get('service_category') or self.get('service') or ''} | "
             f"{self.get('date') or ''} | "
-            f"{self.get('amount') or 0} | "
-            f"{self.get('platform') or ''}"
+            f"{self.get('amount') or 0}"
         )
 
     def validate_base_payout(self):
@@ -327,7 +326,7 @@ class GigTransaction(Document):
     def calculate_net_payout(self):
         base    = self.base_payout or 0
         inc     = self.incentives or 0
-        ded     = self.deducation or 0
+        ded     = self.deduction or 0
         self.net_payout_to_worker = base + inc - ded
 
     def before_save(self):
