@@ -12,6 +12,9 @@
   "total_withdrawn",
   "account_balance",
   "last_updated",
+  "gig_transaction_details_section",
+  "gig_transaction_details",
+  "ledger_entries_section",
   "ledger_entries"
  ],
  "fields": [
@@ -40,6 +43,23 @@
    "fieldname": "total_withdrawn",
    "fieldtype": "Currency",
    "label": "Total Withdrawn"
+  },
+  {
+   "fieldname": "gig_transaction_details_section",
+   "fieldtype": "Section Break",
+   "label": "Gig Transaction Details"
+  },
+  {
+   "fieldname": "gig_transaction_details",
+   "fieldtype": "Table",
+   "label": "Gig Transaction Details",
+   "options": "Welfare Fund Gig Transaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ledger_entries_section",
+   "fieldtype": "Section Break",
+   "label": "Ledger Entries"
   },
   {
    "fieldname": "ledger_entries",
