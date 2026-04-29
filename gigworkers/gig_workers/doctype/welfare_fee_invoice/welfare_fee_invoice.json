@@ -1,0 +1,255 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "format:WFI-{aggregator}-{year}-Q{quarter}",
+ "creation": "2026-04-29 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "invoice_details_section",
+  "aggregator",
+  "aggregator_name",
+  "email",
+  "mobile",
+  "column_break_1",
+  "quarter",
+  "year",
+  "from_date",
+  "to_date",
+  "due_date",
+  "invoice_status",
+  "fetch_button_section",
+  "fetch_welfare_fees",
+  "summary_section",
+  "total_transactions",
+  "total_due_amount",
+  "column_break_summary",
+  "amount_paid",
+  "balance_due",
+  "items_section",
+  "welfare_fee_items",
+  "payment_section",
+  "payment_history",
+  "notes_section",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "invoice_details_section",
+   "fieldtype": "Section Break",
+   "label": "Invoice Details"
+  },
+  {
+   "fieldname": "aggregator",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Aggregator",
+   "options": "Aggregator",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "aggregator.aggregator_name",
+   "fieldname": "aggregator_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Aggregator Name",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "aggregator.email",
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "aggregator.mobile",
+   "fieldname": "mobile",
+   "fieldtype": "Data",
+   "label": "Mobile",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "quarter",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Quarter",
+   "options": "Q1\nQ2\nQ3\nQ4",
+   "reqd": 1
+  },
+  {
+   "fieldname": "year",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Year",
+   "reqd": 1
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "Period From",
+   "reqd": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "Period To",
+   "reqd": 1
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Due Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoice_status",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Invoice Status",
+   "options": "Draft\nPending\nPartially Paid\nFully Paid\nOverdue",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fetch_button_section",
+   "fieldtype": "Section Break",
+   "label": "Fetch Welfare Fees"
+  },
+  {
+   "fieldname": "fetch_welfare_fees",
+   "fieldtype": "Button",
+   "label": "Fetch Pending Welfare Fees for this Quarter"
+  },
+  {
+   "fieldname": "summary_section",
+   "fieldtype": "Section Break",
+   "label": "Invoice Summary"
+  },
+  {
+   "fieldname": "total_transactions",
+   "fieldtype": "Int",
+   "label": "Total Transactions",
+   "read_only": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "total_due_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Total Due Amount",
+   "options": "INR",
+   "read_only": 1,
+   "reqd": 1,
+   "bold": 1,
+   "description": "Sum of all pending welfare fees for this quarter"
+  },
+  {
+   "fieldname": "column_break_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "amount_paid",
+   "fieldtype": "Currency",
+   "label": "Total Amount Paid",
+   "options": "INR",
+   "read_only": 1,
+   "bold": 1,
+   "description": "Sum of all payments received"
+  },
+  {
+   "fieldname": "balance_due",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Balance Due",
+   "options": "INR",
+   "read_only": 1,
+   "bold": 1,
+   "description": "Remaining amount to be paid"
+  },
+  {
+   "fieldname": "items_section",
+   "fieldtype": "Section Break",
+   "label": "Welfare Fee Items",
+   "description": "List of all pending welfare fee payments for this quarter"
+  },
+  {
+   "fieldname": "welfare_fee_items",
+   "fieldtype": "Table",
+   "label": "Welfare Fee Items",
+   "options": "Welfare Fee Invoice Item"
+  },
+  {
+   "fieldname": "payment_section",
+   "fieldtype": "Section Break",
+   "label": "Payment History",
+   "description": "All payments received for this invoice"
+  },
+  {
+   "fieldname": "payment_history",
+   "fieldtype": "Table",
+   "label": "Payment History",
+   "options": "Welfare Invoice Payment"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-04-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Welfare Fee Invoice",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Aggregator",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "aggregator,quarter,year,invoice_status",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "aggregator_name",
+ "track_changes": 1
+}

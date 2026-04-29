@@ -174,6 +174,23 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         order_by="creation desc",
     )
 
+    # --- Quarterly Welfare Fee Invoices ---
+    quarterly_invoices = frappe.get_all(
+        "Welfare Fee Invoice",
+        filters={"aggregator": aggregator_name},
+        fields=["name", "quarter", "year", "from_date", "to_date", "due_date",
+                "total_due_amount", "amount_paid", "balance_due", "invoice_status"],
+        order_by="year desc, quarter desc",
+        limit=4  # Last 4 quarters
+    )
+
+    # Calculate quarterly invoice summary
+    invoice_summary = {
+        "total_outstanding": sum(inv.balance_due for inv in quarterly_invoices if inv.invoice_status not in ["Fully Paid"]),
+        "total_overdue": sum(inv.balance_due for inv in quarterly_invoices if inv.invoice_status == "Overdue"),
+        "pending_invoices": len([inv for inv in quarterly_invoices if inv.invoice_status in ["Pending", "Partially Paid", "Overdue"]])
+    }
+
     return {
         "aggregator":       aggregator,
         "aggregator_id":    aggregator_name,
@@ -204,6 +221,8 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
             "total_payments": wfp_stats.total_payments or 0,
             "pending_amount": float(pending_welfare or 0),
         },
+        "quarterly_invoices": quarterly_invoices,
+        "invoice_summary": invoice_summary,
         "recent_transactions": recent_txns,
         "pending_wfp":         pending_wfp,
         "worker_list":         worker_list,
