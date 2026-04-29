@@ -22,6 +22,7 @@
   "desigination",
   "aadhaar_file",
   "status",
+  "reason_for_reject",
   "services_section",
   "categories_of_business"
  ],
@@ -123,12 +124,18 @@
    "fieldtype": "Table",
    "label": "Categories of business or aggregation activities undertaken by the aggregator as per GST filings",
    "options": "Aggregator Service"
+  },
+  {
+   "depends_on": "eval:doc.status==\"Rejected\"",
+   "fieldname": "reason_for_reject",
+   "fieldtype": "Small Text",
+   "label": "Reason for reject"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-16 02:42:15.238590",
+ "modified": "2026-04-28 19:37:31.178506",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregator",
