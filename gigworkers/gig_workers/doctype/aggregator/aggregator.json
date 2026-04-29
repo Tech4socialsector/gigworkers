@@ -16,15 +16,24 @@
   "email",
   "mobile",
   "aadhaar_number",
+  "company_type",
+  "website_url",
+  "registered_address",
   "column_break_njko",
   "gender",
   "date_of_birth",
   "desigination",
   "aadhaar_file",
+  "company_id",
+  "app_url",
   "status",
   "reason_for_reject",
-  "services_section",
-  "categories_of_business"
+  "documents_section",
+  "pan_number",
+  "pan_file",
+  "column_break_jwdi",
+  "gstin",
+  "gstin_file"
  ],
  "fields": [
   {
@@ -58,11 +67,6 @@
    "reqd": 1
   },
   {
-   "fieldname": "services_section",
-   "fieldtype": "Section Break",
-   "label": "Service Details"
-  },
-  {
    "fieldname": "personal_details_section",
    "fieldtype": "Section Break",
    "label": "Personal Details"
@@ -72,7 +76,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Name of Authorised Person"
+   "label": "Name of Authorised Person",
+   "reqd": 1
   },
   {
    "fieldname": "gender",
@@ -115,28 +120,81 @@
   },
   {
    "fieldname": "service_category",
-   "fieldtype": "Link",
+   "fieldtype": "Table MultiSelect",
    "label": "Service Category",
-   "options": "Service Category"
-  },
-  {
-   "fieldname": "categories_of_business",
-   "fieldtype": "Table",
-   "label": "Categories of business or aggregation activities undertaken by the aggregator as per GST filings",
-   "options": "Aggregator Service"
+   "options": "Aggregator Service Category"
   },
   {
    "depends_on": "eval:doc.status==\"Rejected\"",
    "fieldname": "reason_for_reject",
    "fieldtype": "Small Text",
    "label": "Reason for reject"
+  },
+  {
+   "fieldname": "company_type",
+   "fieldtype": "Select",
+   "label": "Company Type",
+   "options": "\nCIN\nLLPIN",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company_id",
+   "fieldtype": "Data",
+   "label": "Company ID"
+  },
+  {
+   "fieldname": "website_url",
+   "fieldtype": "Data",
+   "label": "Website URL"
+  },
+  {
+   "fieldname": "app_url",
+   "fieldtype": "Data",
+   "label": "App URL"
+  },
+  {
+   "fieldname": "registered_address",
+   "fieldtype": "Small Text",
+   "label": "Registered Address",
+   "reqd": 1
+  },
+  {
+   "fieldname": "documents_section",
+   "fieldtype": "Section Break",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "pan_number",
+   "fieldtype": "Data",
+   "label": "PAN Number",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "pan_file",
+   "fieldtype": "Attach",
+   "label": "PAN File"
+  },
+  {
+   "fieldname": "column_break_jwdi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gstin",
+   "fieldtype": "Data",
+   "label": "GSTIN"
+  },
+  {
+   "fieldname": "gstin_file",
+   "fieldtype": "Attach",
+   "label": "GSTIN File"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-28 19:37:31.178506",
- "modified_by": "Administrator",
+ "modified": "2026-04-29 17:10:12.189520",
+ "modified_by": "tech4socialsector@azimpremjifoundation.org",
  "module": "Gig Workers",
  "name": "Aggregator",
  "naming_rule": "Expression",
