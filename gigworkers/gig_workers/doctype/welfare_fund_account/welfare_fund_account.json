@@ -26,8 +26,9 @@
   },
   {
    "fieldname": "account_balance",
-   "fieldtype": "Currency",
-   "label": "Account Balance"
+   "fieldtype": "Float",
+   "label": "Account Balance",
+   "precision": 2
   },
   {
    "fieldname": "last_updated",
@@ -36,13 +37,15 @@
   },
   {
    "fieldname": "total_collected",
-   "fieldtype": "Currency",
-   "label": "Total Collected"
+   "fieldtype": "Float",
+   "label": "Total Collected",
+   "precision": 2
   },
   {
    "fieldname": "total_withdrawn",
-   "fieldtype": "Currency",
-   "label": "Total Withdrawn"
+   "fieldtype": "Float",
+   "label": "Total Withdrawn",
+   "precision": 2
   },
   {
    "fieldname": "gig_transaction_details_section",

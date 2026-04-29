@@ -25,7 +25,8 @@
   },
   {
    "fieldname": "amount",
-   "fieldtype": "Currency",
+   "fieldtype": "Float",
+   "precision": 2,
    "in_list_view": 1,
    "label": "Amount",
    "read_only": 1,
@@ -33,7 +34,8 @@
   },
   {
    "fieldname": "balance_after",
-   "fieldtype": "Currency",
+   "fieldtype": "Float",
+   "precision": 2,
    "in_list_view": 1,
    "label": "Balance After",
    "read_only": 1
