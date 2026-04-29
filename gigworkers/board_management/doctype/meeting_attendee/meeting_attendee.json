@@ -1,0 +1,55 @@
+{
+ "actions": [],
+ "creation": "2026-04-29 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "board_member",
+  "member_name",
+  "designation",
+  "attended"
+ ],
+ "fields": [
+  {
+   "fieldname": "board_member",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Board Member",
+   "options": "Board Member"
+  },
+  {
+   "fetch_from": "board_member.member_name",
+   "fieldname": "member_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Name",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "board_member.designation",
+   "fieldname": "designation",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Designation",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "attended",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Attended"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Board Management",
+ "name": "Meeting Attendee",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}
