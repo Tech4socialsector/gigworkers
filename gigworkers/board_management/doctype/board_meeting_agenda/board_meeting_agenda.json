@@ -1,0 +1,117 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "BMA-.YYYY.-.###",
+ "creation": "2026-04-29 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "meeting_details_section",
+  "title",
+  "meeting_date",
+  "meeting_time",
+  "column_break_1",
+  "venue",
+  "status",
+  "agenda_items_section",
+  "agenda_items",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "meeting_details_section",
+   "fieldtype": "Section Break",
+   "label": "Meeting Details"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Meeting Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "meeting_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Meeting Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "meeting_time",
+   "fieldtype": "Time",
+   "label": "Meeting Time"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "venue",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Venue"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nConfirmed\nCancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "agenda_items_section",
+   "fieldtype": "Section Break",
+   "label": "Agenda Items"
+  },
+  {
+   "fieldname": "agenda_items",
+   "fieldtype": "Table",
+   "label": "Agenda Items",
+   "options": "Agenda Item"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text Editor",
+   "label": "Notes"
+  }
+ ],
+ "links": [],
+ "modified": "2026-04-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Board Management",
+ "name": "Board Meeting Agenda",
+ "naming_rule": "Expression (using autoname)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "title,meeting_date",
+ "sort_field": "meeting_date",
+ "sort_order": "DESC",
+ "title_field": "title",
+ "track_changes": 1
+}

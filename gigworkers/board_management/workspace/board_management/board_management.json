@@ -1,0 +1,59 @@
+{
+ "app": "gigworkers",
+ "charts": [],
+ "content": "[{\"id\":\"bm_hdr1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Board Management</b></span>\",\"col\":12}},{\"id\":\"bm_sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Board Members\",\"col\":4}},{\"id\":\"bm_sc2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Board Meeting Agenda\",\"col\":4}},{\"id\":\"bm_sc3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Board Meeting Minutes\",\"col\":4}}]",
+ "creation": "2026-04-29 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "users",
+ "idx": 0,
+ "indicator_color": "blue",
+ "is_hidden": 0,
+ "label": "Board Management",
+ "links": [],
+ "modified": "2026-04-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Board Management",
+ "name": "Board Management",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 3.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Board Members",
+   "link_to": "Board Member",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Board Meeting Agenda",
+   "link_to": "Board Meeting Agenda",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "Board Meeting Minutes",
+   "link_to": "Board Meeting Minutes",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Board Management"
+}
