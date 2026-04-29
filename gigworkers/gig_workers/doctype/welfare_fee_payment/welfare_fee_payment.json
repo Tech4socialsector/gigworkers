@@ -12,7 +12,10 @@
   "fee_amount",
   "payment",
   "bank_reference",
+  "column_break_eqcz",
+  "amount_paid",
   "payment_date",
+  "mode_of_payment",
   "payment_status",
   "settlement_status"
  ],
@@ -73,12 +76,27 @@
    "in_standard_filter": 1,
    "label": "Settlement Status",
    "options": "\nInitiated\nSuccess\nFailed"
+  },
+  {
+   "fieldname": "amount_paid",
+   "fieldtype": "Data",
+   "label": "Amount Paid"
+  },
+  {
+   "fieldname": "mode_of_payment",
+   "fieldtype": "Select",
+   "label": "Mode of Payment",
+   "options": "\nOnline\nOffline"
+  },
+  {
+   "fieldname": "column_break_eqcz",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-28 03:00:35.172921",
+ "modified": "2026-04-28 21:41:26.359497",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Welfare Fee Payment",
