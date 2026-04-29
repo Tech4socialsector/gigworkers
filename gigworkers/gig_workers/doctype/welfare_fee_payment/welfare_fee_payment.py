@@ -36,7 +36,7 @@ class WelfareFeePayment(Document):
 		# Credit welfare fund account (creates one if it doesn't exist)
 		from gigworkers.gig_workers.doctype.welfare_fund_account.welfare_fund_account import WelfareFundAccount
 		account = WelfareFundAccount.get_or_create(gig_worker)
-		account.credit(self.fee_amount, reference_doctype="Welfare Fee Payment", reference_name=self.name, remarks=f"Welfare fee settled from transaction {self.transaction}")
+		account.credit(self.fee_amount, reference_doctype="Welfare Fee Payment", reference_name=self.name, remarks=f"Welfare fee settled from transaction {self.transaction}", gig_transaction=self.transaction)
 
 		# Mark the source transaction as fully settled
 		frappe.db.set_value("Gig Transaction", self.transaction, "settlement_status", "Settled")

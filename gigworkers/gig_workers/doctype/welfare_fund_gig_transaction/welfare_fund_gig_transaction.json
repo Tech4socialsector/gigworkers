@@ -1,0 +1,170 @@
+{
+ "actions": [],
+ "creation": "2026-04-29 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "transaction_id",
+  "date",
+  "aggregator",
+  "service",
+  "column_break_1",
+  "service_category",
+  "service_type",
+  "status",
+  "status_of_order",
+  "settlement_status",
+  "account_section",
+  "amount",
+  "base_payout",
+  "deducation",
+  "incentives",
+  "column_break_2",
+  "net_payout_to_worker",
+  "welfare_percentage",
+  "welfare_cap",
+  "welfare_amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "transaction_id",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Transaction ID",
+   "options": "Gig Transaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "aggregator",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Aggregator",
+   "options": "Aggregator",
+   "read_only": 1
+  },
+  {
+   "fieldname": "service",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Service",
+   "options": "Service",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "service_category",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Service Category",
+   "read_only": 1
+  },
+  {
+   "fieldname": "service_type",
+   "fieldtype": "Data",
+   "label": "Service Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Transaction Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status_of_order",
+   "fieldtype": "Data",
+   "label": "Order Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "settlement_status",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Settlement Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "account_section",
+   "fieldtype": "Section Break",
+   "label": "Amount Details"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Total Bill Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_payout",
+   "fieldtype": "Currency",
+   "label": "Base Payout to Worker",
+   "read_only": 1
+  },
+  {
+   "fieldname": "deducation",
+   "fieldtype": "Currency",
+   "label": "Deduction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "incentives",
+   "fieldtype": "Currency",
+   "label": "Incentives",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "net_payout_to_worker",
+   "fieldtype": "Currency",
+   "label": "Net Payout to Worker",
+   "read_only": 1
+  },
+  {
+   "fieldname": "welfare_percentage",
+   "fieldtype": "Float",
+   "label": "Welfare Percentage",
+   "read_only": 1
+  },
+  {
+   "fieldname": "welfare_cap",
+   "fieldtype": "Currency",
+   "label": "Welfare Cap",
+   "read_only": 1
+  },
+  {
+   "fieldname": "welfare_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Welfare Amount",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Welfare Fund Gig Transaction",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "date",
+ "sort_order": "DESC",
+ "states": []
+}

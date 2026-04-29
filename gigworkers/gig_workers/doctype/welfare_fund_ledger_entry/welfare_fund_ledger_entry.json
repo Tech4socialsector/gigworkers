@@ -8,6 +8,7 @@
   "amount",
   "balance_after",
   "entry_date",
+  "gig_transaction",
   "reference_doctype",
   "reference_name",
   "remarks"
@@ -42,6 +43,14 @@
    "fieldtype": "Datetime",
    "in_list_view": 1,
    "label": "Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gig_transaction",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Gig Transaction",
+   "options": "Gig Transaction",
    "read_only": 1
   },
   {

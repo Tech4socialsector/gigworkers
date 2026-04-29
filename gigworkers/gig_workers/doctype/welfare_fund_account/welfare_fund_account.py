@@ -8,7 +8,7 @@ from frappe.utils import now
 
 class WelfareFundAccount(Document):
 
-	def credit(self, amount, reference_doctype=None, reference_name=None, remarks=None):
+	def credit(self, amount, reference_doctype=None, reference_name=None, remarks=None, gig_transaction=None):
 		"""Add welfare fee to the account."""
 		self.total_collected  = (self.total_collected or 0) + amount
 		self.account_balance  = (self.account_balance or 0) + amount
@@ -18,11 +18,50 @@ class WelfareFundAccount(Document):
 			"amount":           amount,
 			"balance_after":    self.account_balance,
 			"entry_date":       now(),
+			"gig_transaction":  gig_transaction or "",
 			"reference_doctype":reference_doctype or "",
 			"reference_name":   reference_name or "",
 			"remarks":          remarks or "Welfare fee credited",
 		})
+		if gig_transaction:
+			self._append_gig_transaction_detail(gig_transaction)
 		self.save(ignore_permissions=True)
+
+	def _append_gig_transaction_detail(self, gig_transaction_name):
+		"""Append a row to gig_transaction_details from the linked Gig Transaction."""
+		gt = frappe.db.get_value(
+			"Gig Transaction",
+			gig_transaction_name,
+			[
+				"transaction_id", "date", "aggregator", "service",
+				"service_category", "service_type", "status", "status_of_order",
+				"settlement_status", "amount", "base_payout", "deducation",
+				"incentives", "net_payout_to_worker", "welfare_percentage",
+				"welfare_cap", "welfare_amount",
+			],
+			as_dict=True,
+		)
+		if not gt:
+			return
+		self.append("gig_transaction_details", {
+			"transaction_id":      gig_transaction_name,
+			"date":                gt.date,
+			"aggregator":          gt.aggregator,
+			"service":             gt.service,
+			"service_category":    gt.service_category,
+			"service_type":        gt.service_type,
+			"status":              gt.status,
+			"status_of_order":     gt.status_of_order,
+			"settlement_status":   gt.settlement_status,
+			"amount":              gt.amount,
+			"base_payout":         gt.base_payout,
+			"deducation":          gt.deducation,
+			"incentives":          gt.incentives,
+			"net_payout_to_worker":gt.net_payout_to_worker,
+			"welfare_percentage":  gt.welfare_percentage,
+			"welfare_cap":         gt.welfare_cap,
+			"welfare_amount":      gt.welfare_amount,
+		})
 
 	def debit(self, amount, reference_doctype=None, reference_name=None, remarks=None):
 		"""Deduct amount from the account."""
