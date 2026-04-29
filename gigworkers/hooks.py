@@ -162,23 +162,18 @@ app_include_js = "/assets/gigworkers/js/desk_overrides.js"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"gigworkers.tasks.all"
-# 	],
-# 	"daily": [
-# 		"gigworkers.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"gigworkers.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"gigworkers.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"gigworkers.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"cron": {
+		# Generate quarterly invoices on the 1st day of the quarter at 2 AM
+		"0 2 1 1,4,7,10 *": [
+			"gigworkers.gig_workers.doctype.welfare_fee_invoice.welfare_fee_invoice.generate_quarterly_invoices"
+		]
+	},
+	"daily": [
+		# Check for overdue invoices and send reminders
+		"gigworkers.gig_workers.doctype.welfare_fee_invoice.utils.check_overdue_invoices"
+	]
+}
 
 # Testing
 # -------
