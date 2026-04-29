@@ -52,7 +52,7 @@ def execute():
 				[
 					"transaction_id", "date", "aggregator", "service",
 					"service_category", "service_type", "status", "status_of_order",
-					"settlement_status", "amount", "base_payout", "deducation",
+					"settlement_status", "amount", "base_payout", "deduction",
 					"incentives", "net_payout_to_worker", "welfare_percentage",
 					"welfare_cap", "welfare_amount",
 				],
@@ -73,7 +73,7 @@ def execute():
 				"settlement_status":   gt.settlement_status,
 				"amount":              gt.amount,
 				"base_payout":         gt.base_payout,
-				"deducation":          gt.deducation,
+				"deduction":           gt.deduction,
 				"incentives":          gt.incentives,
 				"net_payout_to_worker":gt.net_payout_to_worker,
 				"welfare_percentage":  gt.welfare_percentage,

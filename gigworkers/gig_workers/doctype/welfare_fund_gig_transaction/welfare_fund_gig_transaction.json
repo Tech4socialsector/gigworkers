@@ -17,7 +17,7 @@
   "account_section",
   "amount",
   "base_payout",
-  "deducation",
+  "deduction",
   "incentives",
   "column_break_2",
   "net_payout_to_worker",
@@ -113,7 +113,7 @@
    "read_only": 1
   },
   {
-   "fieldname": "deducation",
+   "fieldname": "deduction",
    "fieldtype": "Currency",
    "label": "Deduction",
    "read_only": 1
