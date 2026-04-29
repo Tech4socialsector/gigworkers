@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "prompt",
  "creation": "2026-03-11 09:50:40.310410",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -25,10 +26,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-11 15:24:06.166884",
- "modified_by": "Administrator",
+ "modified": "2026-04-29 17:07:52.439683",
+ "modified_by": "tech4socialsector@azimpremjifoundation.org",
  "module": "Gig Workers",
  "name": "Service Category",
+ "naming_rule": "Set by user",
  "owner": "Administrator",
  "permissions": [
   {

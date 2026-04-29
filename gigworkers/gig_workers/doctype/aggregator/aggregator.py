@@ -30,32 +30,26 @@ class Aggregator(Document):
 			if not re.match(r'^[6-9][0-9]{9}$', self.mobile):
 				frappe.throw("Invalid Mobile Number. Please enter a valid 10-digit Indian mobile number.")
 
-		# Validate each service row
-		service_names = []
-		for svc in (self.categories_of_business or []):
-			svc_label = svc.service_name or f"Row {svc.idx}"
+		# Validate PAN at parent level
+		if self.pan_number:
+			self.pan_number = self.pan_number.upper()
+			if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', self.pan_number):
+				frappe.throw("Invalid PAN Format. Should be like ABCDE1234F.")
 
-			if svc.service_name in service_names:
-				frappe.throw(f"Duplicate service '{svc.service_name}' — each service name must be unique.")
-			service_names.append(svc.service_name)
+		# Validate GSTIN at parent level
+		if self.gstin:
+			self.gstin = self.gstin.upper()
+			if not re.match(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$', self.gstin):
+				frappe.throw("Invalid GSTIN Format. Should be 15 characters like 22ABCDE1234F1Z5.")
 
-			if svc.pan:
-				svc.pan = svc.pan.upper()
-				if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', svc.pan):
-					frappe.throw(f"[{svc_label}] Invalid PAN Format. Should be like ABCDE1234F.")
-
-			if svc.gstin:
-				svc.gstin = svc.gstin.upper()
-				if not re.match(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$', svc.gstin):
-					frappe.throw(f"[{svc_label}] Invalid GSTIN Format. Should be 15 characters like 22ABCDE1234F1Z5.")
-
-			if svc.company_type and svc.company_id:
-				if svc.company_type == 'CIN':
-					if not re.match(r'^[LUu][0-9]{5}[A-Za-z]{2}[0-9]{4}[Pp][Ll][Cc][0-9]{6}$', svc.company_id):
-						frappe.throw(f"[{svc_label}] Invalid CIN Format. Should be like L12345AB2020PLC123456.")
-				elif svc.company_type == 'LLPIN':
-					if not re.match(r'^[A-Z]{3}-[0-9]{4}$', svc.company_id.upper()):
-						frappe.throw(f"[{svc_label}] Invalid LLPIN Format. Should be like AAA-1234.")
+		# Validate Company ID based on Company Type
+		if self.company_type and self.company_id:
+			if self.company_type == 'CIN':
+				if not re.match(r'^[LUu][0-9]{5}[A-Za-z]{2}[0-9]{4}[Pp][Ll][Cc][0-9]{6}$', self.company_id):
+					frappe.throw("Invalid CIN Format. Should be like L12345AB2020PLC123456.")
+			elif self.company_type == 'LLPIN':
+				if not re.match(r'^[A-Z]{3}-[0-9]{4}$', self.company_id.upper()):
+					frappe.throw("Invalid LLPIN Format. Should be like AAA-1234.")
 
 	def after_insert(self):
 		frappe.db.set_value("Aggregator", self.name, "status", "Submitted")
@@ -183,14 +177,16 @@ class Aggregator(Document):
 		estamp_ref  = "KA-GWB-" + hashlib.sha256(self.name.encode()).hexdigest()[:10].upper()
 
 		services_rows = ""
-		for svc in (self.categories_of_business or []):
+		for svc in (self.service_category or []):
+			# Fetch the actual service category name
+			category_name = "-"
+			if svc.service_category:
+				category_doc = frappe.get_doc("Service Category", svc.service_category)
+				category_name = category_doc.category_name or "-"
+
 			services_rows += f"""
 			<tr>
-				<td>{svc.service_name or "-"}</td>
-				<td>{svc.brand_name or "-"}</td>
-				<td>{svc.company_type or "-"}</td>
-				<td>{svc.gstin or "-"}</td>
-				<td style="color:#27ae60;font-weight:bold;">{svc.service_status or "Active"}</td>
+				<td>{category_name}</td>
 			</tr>"""
 
 		html = f"""
@@ -385,19 +381,15 @@ class Aggregator(Document):
 		    </table>
 
 		    <!-- Services -->
-		    <div class="section-head">Categories of Business / Aggregation Activities (as per GST Filings)</div>
+		    <div class="section-head">Service Categories</div>
 		    <table class="svc-table">
 		      <thead>
 		        <tr>
-		          <th>Service Name</th>
-		          <th>Brand / App Name</th>
-		          <th>Company Type</th>
-		          <th>GSTIN</th>
-		          <th>Status</th>
+		          <th>Service Category</th>
 		        </tr>
 		      </thead>
 		      <tbody>
-		        {services_rows if services_rows else '<tr><td colspan="5" style="text-align:center;color:#888;">No services registered yet</td></tr>'}
+		        {services_rows if services_rows else '<tr><td style="text-align:center;color:#888;">No service categories registered yet</td></tr>'}
 		      </tbody>
 		    </table>
 
