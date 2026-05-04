@@ -1,6 +1,50 @@
 // Copyright (c) 2026, Jenifar and contributors
 // For license information, please see license.txt
 
+// Inject dark-theme button styles once per page load
+if (!document.getElementById("wfi-dark-btn-styles")) {
+	let style = document.createElement("style");
+	style.id = "wfi-dark-btn-styles";
+	style.textContent = `
+		/* Dark theme: standalone custom buttons */
+		.wfi-btn-dark {
+			background-color: #2d3748 !important;
+			color: #ffffff !important;
+			border-color: #2d3748 !important;
+		}
+		.wfi-btn-dark:hover,
+		.wfi-btn-dark:focus {
+			background-color: #1a202c !important;
+			color: #f0f0f0 !important;
+			border-color: #1a202c !important;
+		}
+
+		/* Dark theme: Actions group trigger button */
+		.wfi-btn-group-dark.btn-default {
+			background-color: #2d3748 !important;
+			color: #ffffff !important;
+			border-color: #2d3748 !important;
+		}
+		.wfi-btn-group-dark.btn-default:hover,
+		.wfi-btn-group-dark.btn-default:focus {
+			background-color: #1a202c !important;
+			color: #f0f0f0 !important;
+			border-color: #1a202c !important;
+		}
+
+		/* Dark theme: dropdown items inside the Actions group */
+		.wfi-dropdown-dark .dropdown-item {
+			color: #2d3748 !important;
+			font-weight: 500;
+		}
+		.wfi-dropdown-dark .dropdown-item:hover {
+			background-color: #2d3748 !important;
+			color: #ffffff !important;
+		}
+	`;
+	document.head.appendChild(style);
+}
+
 frappe.ui.form.on("Welfare Fee Invoice", {
 	refresh(frm) {
 		// Auto-set quarter dates when quarter/year changes
@@ -14,21 +58,33 @@ frappe.ui.form.on("Welfare Fee Invoice", {
 			if (frm.doc.invoice_status !== "Fully Paid") {
 				frm.add_custom_button(__("Record Payment"), function() {
 					record_payment_dialog(frm);
-				}, __("Actions")).addClass("btn-primary");
+				}, __("Actions")).addClass("wfi-btn-dark");
 			}
 
 			// Add "Send Email Reminder" button if pending or overdue
 			if (["Pending", "Partially Paid", "Overdue"].includes(frm.doc.invoice_status)) {
 				frm.add_custom_button(__("Send Email Reminder"), function() {
 					send_email_reminder(frm);
-				}, __("Actions"));
+				}, __("Actions")).addClass("wfi-btn-dark");
 			}
 
 			// Add "View Transactions" button
 			frm.add_custom_button(__("View Transactions"), function() {
 				frappe.route_options = {"aggregator": frm.doc.aggregator};
 				frappe.set_route("List", "Gig Transaction");
-			});
+			}).addClass("wfi-btn-dark");
+
+			// Apply dark theme to the Actions group trigger and its dropdown
+			setTimeout(() => {
+				frm.page.wrapper
+					.find(".custom-btn-group .btn-default")
+					.filter((_, el) => $(el).text().trim().startsWith("Actions"))
+					.addClass("wfi-btn-group-dark");
+
+				frm.page.wrapper
+					.find(".custom-btn-group .dropdown-menu")
+					.addClass("wfi-dropdown-dark");
+			}, 0);
 
 			// Add color indicators based on status
 			set_status_indicator(frm);
@@ -104,16 +160,45 @@ frappe.ui.form.on("Welfare Fee Invoice", {
 });
 
 function record_payment_dialog(frm) {
+	let balance_due = frm.doc.balance_due || 0;
+	let total_due = frm.doc.total_due_amount || 0;
+	let amount_paid_so_far = frm.doc.amount_paid || 0;
+
 	let dialog = new frappe.ui.Dialog({
 		title: __("Record Payment"),
 		fields: [
+			{
+				fieldtype: "HTML",
+				fieldname: "balance_due_banner",
+				options: `
+					<div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 14px 16px; margin-bottom: 12px;">
+						<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+							<div style="text-align: center; flex: 1; min-width: 120px;">
+								<div style="font-size: 11px; color: #856404; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Total Invoice Amount</div>
+								<div style="font-size: 18px; font-weight: 700; color: #856404;">₹${total_due.toFixed(2)}</div>
+							</div>
+							<div style="text-align: center; flex: 1; min-width: 120px; border-left: 1px solid #ffc107; border-right: 1px solid #ffc107; padding: 0 10px;">
+								<div style="font-size: 11px; color: #155724; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Already Paid</div>
+								<div style="font-size: 18px; font-weight: 700; color: #155724;">₹${amount_paid_so_far.toFixed(2)}</div>
+							</div>
+							<div style="text-align: center; flex: 1; min-width: 120px;">
+								<div style="font-size: 11px; color: #721c24; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Balance Due</div>
+								<div style="font-size: 22px; font-weight: 800; color: #dc3545;">₹${balance_due.toFixed(2)}</div>
+							</div>
+						</div>
+					</div>`
+			},
+			{
+				fieldtype: "Section Break",
+				label: __("Payment Details")
+			},
 			{
 				fieldtype: "Currency",
 				label: __("Amount Paid"),
 				fieldname: "amount_paid",
 				reqd: 1,
-				default: frm.doc.balance_due,
-				description: __("Balance Due: ₹" + frm.doc.balance_due.toFixed(2))
+				default: balance_due,
+				description: __("Enter the amount being paid now (max: ₹" + balance_due.toFixed(2) + ")")
 			},
 			{
 				fieldtype: "Column Break"
@@ -129,34 +214,39 @@ function record_payment_dialog(frm) {
 				fieldtype: "Time",
 				label: __("Payment Time"),
 				fieldname: "payment_time",
-				default: frappe.datetime.now_time()
+				default: frappe.datetime.now_time(),
+				description: __("Time of the payment transaction")
 			},
 			{
-				fieldtype: "Section Break"
+				fieldtype: "Section Break",
+				label: __("Payment Mode & Reference")
 			},
 			{
 				fieldtype: "Select",
 				label: __("Payment Mode"),
 				fieldname: "payment_mode",
-				options: "\nNEFT\nRTGS\nUPI\nIMPS\nCheque\nCash\nOnline Transfer",
-				reqd: 1
+				options: "\nNEFT\nRTGS\nUPI\nIMPS\nCheque\nDemand Draft\nCash\nNet Banking\nOnline Transfer",
+				reqd: 1,
+				description: __("Select the mode used for this payment")
 			},
 			{
 				fieldtype: "Column Break"
 			},
 			{
 				fieldtype: "Data",
-				label: __("Payment Reference/UTR Number"),
+				label: __("Payment Reference / UTR Number"),
 				fieldname: "payment_reference",
-				description: __("Bank transaction reference or cheque number")
+				description: __("Bank UTR, UPI transaction ID, cheque or DD number")
 			},
 			{
-				fieldtype: "Section Break"
+				fieldtype: "Section Break",
+				label: __("Remarks")
 			},
 			{
 				fieldtype: "Small Text",
 				label: __("Remarks"),
-				fieldname: "remarks"
+				fieldname: "remarks",
+				description: __("Any additional notes about this payment (optional)")
 			}
 		],
 		primary_action_label: __("Record Payment"),
@@ -291,47 +381,44 @@ function set_status_indicator(frm) {
 	}
 }
 
-// Template for payment summary (if needed)
+// Template for payment summary
 frappe.templates["welfare_invoice_summary"] = `
-	<div class="invoice-summary" style="padding: 10px;">
-		<div class="row">
+	<div class="invoice-summary" style="padding: 12px 16px; background: #f8f9fa; border-radius: 6px;">
+		<div class="row" style="margin-bottom: 12px;">
 			<div class="col-sm-6">
-				<div class="form-group">
-					<label>Total Transactions:</label>
-					<div class="value"><strong>{{ doc.total_transactions }}</strong></div>
+				<div style="background: #fff; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px 14px;">
+					<div style="font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Total Transactions</div>
+					<div style="font-size: 22px; font-weight: 700; color: #212529; line-height: 1.2;">{{ doc.total_transactions }}</div>
+					<div style="font-size: 11px; color: #868e96; margin-top: 3px;">Count of welfare fee items for this quarter</div>
 				</div>
 			</div>
 			<div class="col-sm-6">
-				<div class="form-group">
-					<label>Period:</label>
-					<div class="value"><strong>{{ doc.from_date }} to {{ doc.to_date }}</strong></div>
+				<div style="background: #fff; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px 14px;">
+					<div style="font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Period</div>
+					<div style="font-size: 14px; font-weight: 600; color: #495057; line-height: 1.4;">{{ doc.from_date }} to {{ doc.to_date }}</div>
 				</div>
 			</div>
 		</div>
-		<hr style="margin: 10px 0;">
 		<div class="row">
 			<div class="col-sm-4">
-				<div class="form-group">
-					<label>Total Due:</label>
-					<div class="value" style="font-size: 18px; color: #333;">
-						<strong>₹{{ doc.total_due_amount.toFixed(2) }}</strong>
-					</div>
+				<div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 10px 14px;">
+					<div style="font-size: 11px; color: #856404; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Total Due Amount</div>
+					<div style="font-size: 20px; font-weight: 700; color: #856404; line-height: 1.2;">₹{{ doc.total_due_amount.toFixed(2) }}</div>
+					<div style="font-size: 11px; color: #9a7522; margin-top: 3px;">Sum of all pending welfare fees for this quarter</div>
 				</div>
 			</div>
 			<div class="col-sm-4">
-				<div class="form-group">
-					<label>Paid:</label>
-					<div class="value" style="font-size: 18px; color: #28a745;">
-						<strong>₹{{ doc.amount_paid.toFixed(2) }}</strong>
-					</div>
+				<div style="background: #d4edda; border: 1px solid #28a745; border-radius: 4px; padding: 10px 14px;">
+					<div style="font-size: 11px; color: #155724; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Total Amount Paid</div>
+					<div style="font-size: 20px; font-weight: 700; color: #155724; line-height: 1.2;">₹{{ doc.amount_paid.toFixed(2) }}</div>
+					<div style="font-size: 11px; color: #1e7e34; margin-top: 3px;">Auto-calculated from payment history</div>
 				</div>
 			</div>
 			<div class="col-sm-4">
-				<div class="form-group">
-					<label>Balance:</label>
-					<div class="value" style="font-size: 18px; color: {{ doc.balance_due > 0 ? '#dc3545' : '#28a745' }};">
-						<strong>₹{{ doc.balance_due.toFixed(2) }}</strong>
-					</div>
+				<div style="background: {{ doc.balance_due > 0 ? '#f8d7da' : '#d4edda' }}; border: 1px solid {{ doc.balance_due > 0 ? '#dc3545' : '#28a745' }}; border-radius: 4px; padding: 10px 14px;">
+					<div style="font-size: 11px; color: {{ doc.balance_due > 0 ? '#721c24' : '#155724' }}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Balance Due</div>
+					<div style="font-size: 20px; font-weight: 700; color: {{ doc.balance_due > 0 ? '#721c24' : '#155724' }}; line-height: 1.2;">₹{{ doc.balance_due.toFixed(2) }}</div>
+					<div style="font-size: 11px; color: {{ doc.balance_due > 0 ? '#8b2835' : '#1e7e34' }}; margin-top: 3px;">Remaining amount to be paid</div>
 				</div>
 			</div>
 		</div>
