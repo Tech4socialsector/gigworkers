@@ -3,7 +3,7 @@
  "allow_import": 1,
  "allow_rename": 1,
  "autoname": "format:WFI-{aggregator}-{year}-Q{quarter}",
- "creation": "2026-04-29 00:00:00.000000",
+ "creation": "2026-04-29 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -137,53 +137,50 @@
    "label": "Invoice Summary"
   },
   {
+   "bold": 1,
+   "description": "Count of welfare fee items for this quarter",
    "fieldname": "total_transactions",
    "fieldtype": "Int",
-   "label": "Total Transactions",
-   "read_only": 1,
-   "bold": 1,
-   "description": "Count of welfare fee items for this quarter"
+   "label": "Total Transactions"
   },
   {
+   "bold": 1,
+   "description": "Sum of all pending welfare fees for this quarter",
    "fieldname": "total_due_amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Total Due Amount",
    "options": "INR",
-   "read_only": 1,
-   "reqd": 1,
-   "bold": 1,
-   "description": "Sum of all pending welfare fees for this quarter"
+   "reqd": 1
   },
   {
    "fieldname": "column_break_summary",
    "fieldtype": "Column Break"
   },
   {
+   "bold": 1,
    "default": "0",
+   "description": "Sum of all payments received",
    "fieldname": "amount_paid",
    "fieldtype": "Currency",
    "label": "Total Amount Paid",
    "options": "INR",
-   "read_only": 1,
-   "bold": 1,
-   "description": "Sum of all payments received"
+   "read_only": 1
   },
   {
+   "bold": 1,
+   "description": "Remaining amount to be paid",
    "fieldname": "balance_due",
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Balance Due",
-   "options": "INR",
-   "read_only": 1,
-   "bold": 1,
-   "description": "Remaining amount to be paid"
+   "options": "INR"
   },
   {
+   "description": "List of all pending welfare fee payments for this quarter",
    "fieldname": "items_section",
    "fieldtype": "Section Break",
-   "label": "Welfare Fee Items",
-   "description": "List of all pending welfare fee payments for this quarter"
+   "label": "Welfare Fee Items"
   },
   {
    "fieldname": "welfare_fee_items",
@@ -192,10 +189,10 @@
    "options": "Welfare Fee Invoice Item"
   },
   {
+   "description": "All payments received for this invoice",
    "fieldname": "payment_section",
    "fieldtype": "Section Break",
-   "label": "Payment History",
-   "description": "All payments received for this invoice"
+   "label": "Payment History"
   },
   {
    "fieldname": "payment_history",
@@ -217,11 +214,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-29 00:00:00.000000",
+ "modified": "2026-05-03 20:31:02.097420",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Welfare Fee Invoice",
- "naming_rule": "Expression",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
