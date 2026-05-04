@@ -22,9 +22,20 @@ frappe.ui.form.on("Gig Transaction", {
 
 		if (frm.is_new()) return;
 
-		const trustLevel = frm.doc.trust_level;
-		const status = frm.doc.status;
+		// ── Read-only for Aggregators on saved transactions ──────────────────
+		if (!frappe.user.has_role("System Manager") && !frm.is_new()) {
+			frm.disable_save();
+			[
+				"amount", "base_payout", "incentives", "deduction", "date",
+				"external_transaction_id", "status_of_order", "gig_worker",
+				"aggregator", "service", "role", "transaction_date",
+				"settlement_status", "status"
+			].forEach(f => frm.set_df_property(f, "read_only", 1));
+		}
 
+		const trustLevel = frm.doc.trust_level;
+		const status     = frm.doc.status;
+		const isAdmin    = frappe.user.has_role("System Manager");
 
 		// ----------------------------------------------------------
 		// HIGH TRUST FLOW
@@ -37,36 +48,82 @@ frappe.ui.form.on("Gig Transaction", {
 				frappe.confirm(
 					"This transaction has <b>High Trust Level</b>.<br>" +
 					"It will be auto-confirmed immediately. Proceed?",
-
 					function () {
-
 						frm.save().then(() => {
-
-							frappe.show_alert({
-								message: __("Transaction auto-confirmed successfully!"),
-								indicator: "green",
-							}, 5);
-
+							frappe.show_alert({ message: __("Transaction auto-confirmed successfully!"), indicator: "green" }, 5);
 							frm.reload_doc();
 						});
-
 					}
 				);
 
-			}, __("Trust Level Actions")).addClass("btn-success");
+			}, __("Trust Level Actions"));
 
 		}
-
 
 		// ----------------------------------------------------------
 		// LOW TRUST FLOW
 		// ----------------------------------------------------------
 
+		if (trustLevel === "Low" && status !== "Completed") {
+
+			frm.add_custom_button(__("Confirm Transaction"), function () {
+
+				frappe.confirm(
+					`<b>Confirm this transaction?</b><br><br>
+					This will:<br>
+					📧 Send OTP to worker email<br>
+					📋 Record OTP in OTP table`,
+					function () {
+						frappe.call({
+							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.confirm_transaction",
+							args: { transaction_name: frm.doc.name },
+							freeze: true,
+							freeze_message: __("Sending OTP..."),
+							callback(r) {
+								if (!r.exc && r.message) {
+									const otp = r.message.otp_reference || "";
+									frappe.show_alert({ message: __("OTP sent successfully (Ref: " + otp + ")"), indicator: "green" }, 5);
+									frm.reload_doc();
+								}
+							}
+						});
+					}
+				);
+
+			}, __("Trust Level Actions"));
+
+			frm.add_custom_button(__("Verify OTP"), function () {
+
+				frappe.prompt(
+					[{ label: "Enter OTP", fieldname: "otp", fieldtype: "Data", reqd: 1 }],
+					function (values) {
+						frappe.call({
+							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.verify_otp",
+							args: { transaction_name: frm.doc.name, otp: values.otp },
+							freeze: true,
+							freeze_message: __("Verifying OTP..."),
+							callback(r) {
+								if (!r.exc && r.message) {
+									if (r.message.success) {
+										frappe.show_alert({ message: __(r.message.message), indicator: "green" }, 5);
+										frm.reload_doc();
+									} else {
+										frappe.msgprint({ title: __("Verification Failed"), indicator: "red", message: __(r.message.message) });
+									}
+								}
+							}
+						});
+					},
+					__("Verify OTP")
+				);
+
+			}, __("Trust Level Actions"));
+
+		}
+
 		// ----------------------------------------------------------
 		// DUPLICATE REVIEW ACTIONS (System Manager only)
 		// ----------------------------------------------------------
-
-		const isAdmin = frappe.user.has_role("System Manager");
 
 		if (isAdmin && status === "Suspected Duplicate") {
 
@@ -83,10 +140,7 @@ frappe.ui.form.on("Gig Transaction", {
 					function (values) {
 						frappe.call({
 							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.mark_as_duplicate",
-							args: {
-								transaction_name: frm.doc.name,
-								duplicate_of: values.duplicate_of || ""
-							},
+							args: { transaction_name: frm.doc.name, duplicate_of: values.duplicate_of || "" },
 							freeze: true,
 							freeze_message: __("Marking as Duplicate..."),
 							callback(r) {
@@ -100,7 +154,7 @@ frappe.ui.form.on("Gig Transaction", {
 					__("Confirm Duplicate"),
 					__("Mark as Duplicate")
 				);
-			}, __("Duplicate Actions")).addClass("btn-danger");
+			}, __("Duplicate Actions"));
 
 			frm.add_custom_button(__("Dismiss (Not a Duplicate)"), function () {
 				frappe.confirm(
@@ -120,128 +174,28 @@ frappe.ui.form.on("Gig Transaction", {
 						});
 					}
 				);
-			}, __("Duplicate Actions")).addClass("btn-warning");
+			}, __("Duplicate Actions"));
 
 		}
 
-		if (trustLevel === "Low" && status !== "Completed") {
+		// ── View Old Data button — shown to ALL roles when adjustments exist ─
+		// Uses both adjustment_count and adjustment_log.length as fallback so
+		// the button appears correctly regardless of user role or Frappe caching.
+		const hasHistory = (frm.doc.adjustment_count || 0) > 0
+			|| (frm.doc.adjustment_log || []).length > 0;
 
-			// -----------------------------
-			// CONFIRM TRANSACTION (SEND OTP)
-			// -----------------------------
-
-			frm.add_custom_button(__("Confirm Transaction"), function () {
-
-				frappe.confirm(
-
-					`<b>Confirm this transaction?</b><br><br>
-					This will:<br>
-					📧 Send OTP to worker email<br>
-					📋 Record OTP in OTP table`,
-
-					function () {
-
-						frappe.call({
-
-							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.confirm_transaction",
-
-							args: {
-								transaction_name: frm.doc.name
-							},
-
-							freeze: true,
-							freeze_message: __("Sending OTP..."),
-
-							callback(r) {
-
-								if (!r.exc && r.message) {
-
-									const otp = r.message.otp_reference || "";
-
-									frappe.show_alert({
-										message: __("OTP sent successfully (Ref: " + otp + ")"),
-										indicator: "green",
-									}, 5);
-
-									frm.reload_doc();
-								}
-
-							}
-
-						});
-
-					}
-
-				);
-
-			}, __("Trust Level Actions")).addClass("btn-primary");
-
-
-			// -----------------------------
-			// VERIFY OTP
-			// -----------------------------
-
-			frm.add_custom_button(__("Verify OTP"), function () {
-
-				frappe.prompt(
-
-					[
-						{
-							label: "Enter OTP",
-							fieldname: "otp",
-							fieldtype: "Data",
-							reqd: 1
-						}
-					],
-
-					function (values) {
-
-						frappe.call({
-
-							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.verify_otp",
-
-							args: {
-								transaction_name: frm.doc.name,
-								otp: values.otp
-							},
-
-							freeze: true,
-							freeze_message: __("Verifying OTP..."),
-
-							callback(r) {
-
-								if (!r.exc && r.message) {
-
-									if (r.message.success) {
-										frappe.show_alert({
-											message: __(r.message.message),
-											indicator: "green",
-										}, 5);
-
-										frm.reload_doc();
-									} else {
-										frappe.msgprint({
-											title: __('Verification Failed'),
-											indicator: 'red',
-											message: __(r.message.message)
-										});
-									}
-
-								}
-
-							}
-
-						});
-
-					},
-
-					__("Verify OTP")
-
-				);
-
-			}, __("Trust Level Actions")).addClass("btn-success");
-
+		if (hasHistory) {
+			frm.add_custom_button(__("View Old Data"), function () {
+				_show_adjustment_history(frm);
+			}).removeClass("btn-default btn-secondary")
+			  .addClass("btn-dark")
+			  .css({ color: "#fff", "background-color": "#343a40", "border-color": "#343a40" });
 		}
+
+		// ── Apply dark theme to ALL custom button group toggles ──────────────
+		// frm.add_custom_button with a group adds a <button class="dropdown-toggle">
+		// as the visible header. We target those directly by their data-label attr.
+		_style_form_group_buttons_dark(frm);
 
 	},
 
@@ -265,7 +219,6 @@ frappe.ui.form.on("Gig Transaction", {
 			function (r) {
 				if (!r) return;
 
-				// Resolve human-readable display names from the linked doctypes
 				if (r.category) {
 					frappe.db.get_value("Service Category", r.category, "category_name", function (cat) {
 						frm.set_value("service_category", (cat && cat.category_name) || r.category);
@@ -282,10 +235,8 @@ frappe.ui.form.on("Gig Transaction", {
 
 				const base_payout = frm.doc.base_payout || 0;
 				if (base_payout && r.welfare_percentage_) {
-					const rate_amount = (base_payout * r.welfare_percentage_) / 100;
-					const welfare_amount = r.welfare_cap
-						? Math.min(rate_amount, r.welfare_cap)
-						: rate_amount;
+					const rate_amount  = (base_payout * r.welfare_percentage_) / 100;
+					const welfare_amount = r.welfare_cap ? Math.min(rate_amount, r.welfare_cap) : rate_amount;
 					frm.set_value("welfare_amount", welfare_amount);
 				}
 			}
@@ -294,22 +245,16 @@ frappe.ui.form.on("Gig Transaction", {
 
 	base_payout(frm) {
 		if (frm.doc.service && frm.doc.welfare_percentage && frm.doc.base_payout) {
-			const rate_amount = (frm.doc.base_payout * frm.doc.welfare_percentage) / 100;
-			const welfare_amount = frm.doc.welfare_cap
-				? Math.min(rate_amount, frm.doc.welfare_cap)
-				: rate_amount;
+			const rate_amount  = (frm.doc.base_payout * frm.doc.welfare_percentage) / 100;
+			const welfare_amount = frm.doc.welfare_cap ? Math.min(rate_amount, frm.doc.welfare_cap) : rate_amount;
 			frm.set_value("welfare_amount", welfare_amount);
 		}
 		calculate_net_payout(frm);
 	},
 
-	incentives(frm) {
-		calculate_net_payout(frm);
-	},
+	incentives(frm) { calculate_net_payout(frm); },
 
-	deduction(frm) {
-		calculate_net_payout(frm);
-	},
+	deduction(frm) { calculate_net_payout(frm); },
 
 	// ----------------------------------------------------------
 	// TRUST LEVEL CHANGE HANDLER
@@ -320,23 +265,127 @@ frappe.ui.form.on("Gig Transaction", {
 		frm.trigger("refresh");
 
 		if (frm.doc.trust_level === "High") {
-
-			frappe.show_alert({
-				message: __("High Trust — transaction will auto-confirm on save."),
-				indicator: "green",
-			}, 5);
-
+			frappe.show_alert({ message: __("High Trust — transaction will auto-confirm on save."), indicator: "green" }, 5);
 		}
 
 		if (frm.doc.trust_level === "Low") {
-
-			frappe.show_alert({
-				message: __("Low Trust — OTP verification required."),
-				indicator: "orange",
-			}, 5);
-
+			frappe.show_alert({ message: __("Low Trust — OTP verification required."), indicator: "orange" }, 5);
 		}
 
 	}
 
 });
+
+
+// ── Dark-theme helper for form group buttons ──────────────────────────────────
+// Frappe renders group buttons as:
+//   <div class="btn-group" data-label="...">
+//     <button class="btn btn-default dropdown-toggle">Group Name</button>
+//     <ul class="dropdown-menu">...</ul>
+//   </div>
+// The visible button is the .dropdown-toggle — that's what we must re-class.
+
+function _style_form_group_buttons_dark(frm) {
+	if (!frm.page || !frm.page.inner_toolbar) return;
+
+	frm.page.inner_toolbar
+		.find(".btn-group > .btn.dropdown-toggle")
+		.each(function () {
+			$(this)
+				.removeClass("btn-default btn-secondary btn-primary btn-success btn-warning btn-info")
+				.addClass("btn-dark")
+				.css({ color: "#fff", "background-color": "#343a40", "border-color": "#343a40" });
+		});
+}
+
+
+// ── Adjustment history popup ──────────────────────────────────────────────────
+
+function _show_adjustment_history(frm) {
+
+	const logs = (frm.doc.adjustment_log || [])
+		.slice()
+		.sort((a, b) => a.adjustment_number - b.adjustment_number);
+
+	if (!logs.length) {
+		frappe.msgprint({
+			title: __("No History"),
+			indicator: "blue",
+			message: __("No adjustment history found for this transaction.")
+		});
+		return;
+	}
+
+	const fmt_cur = v => `₹ ${(parseFloat(v) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+	const fmt_date = v => v ? frappe.datetime.str_to_user(v) : "—";
+
+	// Current (live) values row
+	const current_row = `
+		<tr style="background:#e8f5e9;">
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">Current</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;color:#555;">—</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.amount)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.base_payout)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.incentives)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.deduction)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.net_payout_to_worker)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_date(frm.doc.date)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${frm.doc.status_of_order || "—"}</td>
+		</tr>`;
+
+	// Historical rows (before each adjustment)
+	const history_rows = logs.map(log => `
+		<tr>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;">
+				Before Adj. ${log.adjustment_number}
+				<br><small style="color:#888;font-size:11px;">${log.adjusted_at ? log.adjusted_at.substring(0, 16) : ""}</small>
+			</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;font-size:12px;color:#555;">${log.adjusted_by || "—"}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_amount)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_base_payout)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_incentives)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_deduction)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_net_payout)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_date(log.old_date)}</td>
+			<td style="padding:9px 12px;border:1px solid #dee2e6;">${log.old_status_of_order || "—"}</td>
+		</tr>`).join("");
+
+	const html = `
+		<div style="margin-bottom:12px;padding:10px 14px;border-radius:5px;
+		            background:#1a1a2e;color:#d0d0d0;font-size:13px;">
+		    <b>Adjustment History</b> — ${logs.length} adjustment(s) made.
+		    Each row shows the values <b>before</b> that adjustment was applied.
+		    The green row is the current live data.
+		</div>
+		<div style="overflow-x:auto;">
+		<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:900px;">
+		  <thead>
+		    <tr style="background:#343a40;color:#fff;">
+		      <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Snapshot</th>
+		      <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Adjusted By</th>
+		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Amount</th>
+		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Base Payout</th>
+		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Incentives</th>
+		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Deduction</th>
+		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Net Payout</th>
+		      <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Date</th>
+		      <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Order Status</th>
+		    </tr>
+		  </thead>
+		  <tbody>
+		    ${current_row}
+		    ${history_rows}
+		  </tbody>
+		</table>
+		</div>
+		<p style="margin-top:10px;font-size:12px;color:#888;">
+		    Total adjustments used: <b>${logs.length}</b>
+		</p>`;
+
+	const d = new frappe.ui.Dialog({
+		title: __("Transaction History — ") + frm.doc.name,
+		fields: [{ fieldtype: "HTML", options: html }],
+		size: "extra-large"
+	});
+	d.show();
+}

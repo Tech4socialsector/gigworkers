@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "creation": "2026-05-04 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "max_adjustment_attempts"
+ ],
+ "fields": [
+  {
+   "default": "3",
+   "description": "Maximum number of times an Aggregator can adjust a Gig Transaction after import. This setting is visible to System Managers only.",
+   "fieldname": "max_adjustment_attempts",
+   "fieldtype": "Int",
+   "label": "Max Adjustment Attempts",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "is_single": 1,
+ "links": [],
+ "modified": "2026-05-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Gig Transaction Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
