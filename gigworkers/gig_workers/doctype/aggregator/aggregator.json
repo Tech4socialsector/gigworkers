@@ -122,7 +122,7 @@
    "fieldname": "service_category",
    "fieldtype": "Table MultiSelect",
    "label": "Service Category",
-   "options": "Service Category"
+   "options": "Aggregator Service Category"
   },
   {
    "depends_on": "eval:doc.status==\"Rejected\"",

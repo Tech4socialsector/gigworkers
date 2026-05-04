@@ -105,14 +105,47 @@ class WelfareFundAccount(Document):
 
 @frappe.whitelist()
 def get_list_summary():
-	"""Aggregate totals shown as number cards on the Welfare Fund Account list view."""
-	row = frappe.db.sql(
+	"""Aggregate totals for the Welfare Fund Account list view summary cards.
+	Results are scoped to the records the current user is permitted to see.
+	"""
+	user = frappe.session.user
+	roles = frappe.get_roles(user)
+
+	if "System Manager" in roles:
+		condition = ""
+		params = []
+
+	elif "Aggregator" in roles:
+		aggregator = frappe.db.get_value("Aggregator", {"email": user}, "name")
+		if not aggregator:
+			return {"total_account_balance": 0, "total_withdrawn": 0}
+		condition = """
+			WHERE gig_worker IN (
+				SELECT name FROM `tabGig Worker`
+				WHERE created_by_aggregator = %s
+			)
 		"""
+		params = [aggregator]
+
+	elif "Gig Worker" in roles:
+		gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
+		if not gig_worker:
+			return {"total_account_balance": 0, "total_withdrawn": 0}
+		condition = "WHERE gig_worker = %s"
+		params = [gig_worker]
+
+	else:
+		return {"total_account_balance": 0, "total_withdrawn": 0}
+
+	row = frappe.db.sql(
+		f"""
 		SELECT
 			COALESCE(SUM(account_balance), 0) AS total_account_balance,
 			COALESCE(SUM(total_withdrawn),  0) AS total_withdrawn
 		FROM `tabWelfare Fund Account`
+		{condition}
 		""",
+		params,
 		as_dict=True,
 	)
 	return row[0] if row else {"total_account_balance": 0, "total_withdrawn": 0}
