@@ -1,0 +1,117 @@
+{
+ "actions": [],
+ "creation": "2026-05-04 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "adjustment_number",
+  "adjusted_at",
+  "adjusted_by",
+  "col_break1",
+  "old_amount",
+  "old_base_payout",
+  "old_incentives",
+  "old_deduction",
+  "old_net_payout",
+  "col_break2",
+  "old_date",
+  "old_external_transaction_id",
+  "old_status_of_order"
+ ],
+ "fields": [
+  {
+   "fieldname": "adjustment_number",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Adjustment #",
+   "read_only": 1
+  },
+  {
+   "fieldname": "adjusted_at",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Adjusted At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "adjusted_by",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Adjusted By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "old_amount",
+   "fieldtype": "Currency",
+   "label": "Amount (Before)",
+   "options": "INR",
+   "read_only": 1
+  },
+  {
+   "fieldname": "old_base_payout",
+   "fieldtype": "Currency",
+   "label": "Base Payout (Before)",
+   "options": "INR",
+   "read_only": 1
+  },
+  {
+   "fieldname": "old_incentives",
+   "fieldtype": "Currency",
+   "label": "Incentives (Before)",
+   "options": "INR",
+   "read_only": 1
+  },
+  {
+   "fieldname": "old_deduction",
+   "fieldtype": "Currency",
+   "label": "Deduction (Before)",
+   "options": "INR",
+   "read_only": 1
+  },
+  {
+   "fieldname": "old_net_payout",
+   "fieldtype": "Currency",
+   "label": "Net Payout (Before)",
+   "options": "INR",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "old_date",
+   "fieldtype": "Date",
+   "label": "Date (Before)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "old_external_transaction_id",
+   "fieldtype": "Data",
+   "label": "External Txn ID (Before)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "old_status_of_order",
+   "fieldtype": "Data",
+   "label": "Order Status (Before)",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Gig Transaction Adjustment Log",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

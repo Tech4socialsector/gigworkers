@@ -37,6 +37,9 @@
   "status_of_order",
   "confirmed_at",
   "settlement_status",
+  "adjustment_count",
+  "adjustment_history_section",
+  "adjustment_log",
   "otp_section",
   "otp_records"
  ],
@@ -267,6 +270,28 @@
    "label": "Deduction",
    "options": "INR",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Number of times this transaction has been adjusted after import",
+   "fieldname": "adjustment_count",
+   "fieldtype": "Int",
+   "label": "Adjustment Count",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:doc.adjustment_count > 0",
+   "fieldname": "adjustment_history_section",
+   "fieldtype": "Section Break",
+   "label": "Adjustment History"
+  },
+  {
+   "fieldname": "adjustment_log",
+   "fieldtype": "Table",
+   "label": "Adjustment Log",
+   "options": "Gig Transaction Adjustment Log",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

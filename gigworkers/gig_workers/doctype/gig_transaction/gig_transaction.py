@@ -330,6 +330,9 @@ class GigTransaction(Document):
         self.net_payout_to_worker = base + inc - ded
 
     def before_save(self):
+        if self.flags.get("is_adjustment"):
+            return
+
         previous    = self.get_doc_before_save()
         prev_status = previous.status if previous else None
 
@@ -645,6 +648,164 @@ def dismiss_suspected_duplicate(transaction_name):
     doc.status = "Payment complete" if doc.confirmed_at else "Payment pending"
     doc.save(ignore_permissions=True)
     return {"message": f"Suspected duplicate flag cleared for {transaction_name}."}
+
+
+# ── Gig Adjustment Transaction ────────────────────────────────────────────────
+
+def _get_max_adjustment_attempts():
+    try:
+        val = frappe.db.get_single_value("Gig Transaction Settings", "max_adjustment_attempts")
+        return int(val) if val else 3
+    except Exception:
+        return 3
+
+
+@frappe.whitelist()
+def get_adjustment_info(transaction_names):
+    """Return which transactions can still be adjusted vs those that hit the limit."""
+    import json
+    names = json.loads(transaction_names) if isinstance(transaction_names, str) else transaction_names
+
+    max_attempts = _get_max_adjustment_attempts()
+    adjustable = []
+    blocked = []
+
+    for name in names:
+        count = frappe.db.get_value("Gig Transaction", name, "adjustment_count") or 0
+        if int(count) >= max_attempts:
+            blocked.append(name)
+        else:
+            adjustable.append(name)
+
+    return {"adjustable": adjustable, "blocked": blocked, "max_attempts": max_attempts}
+
+
+def _build_log_entry(doc, adjustment_number):
+    """Snapshot the current doc values before an adjustment is applied."""
+    return {
+        "adjustment_number":        adjustment_number,
+        "adjusted_at":              now(),
+        "adjusted_by":              frappe.session.user,
+        "old_amount":               doc.amount or 0,
+        "old_base_payout":          doc.base_payout or 0,
+        "old_incentives":           doc.incentives or 0,
+        "old_deduction":            doc.deduction or 0,
+        "old_net_payout":           doc.net_payout_to_worker or 0,
+        "old_date":                 str(doc.date) if doc.date else "",
+        "old_external_transaction_id": doc.external_transaction_id or "",
+        "old_status_of_order":      doc.status_of_order or "",
+    }
+
+
+@frappe.whitelist()
+def apply_adjustment(transaction_name, amount=None, base_payout=None,
+                     incentives=None, deduction=None, date=None,
+                     external_transaction_id=None, status_of_order=None):
+    """Apply a single adjustment to a Gig Transaction (max attempts enforced)."""
+    doc = frappe.get_doc("Gig Transaction", transaction_name)
+
+    if "System Manager" not in frappe.get_roles():
+        caller_agg = frappe.db.get_value("Aggregator", {"email": frappe.session.user}, "name")
+        if caller_agg != doc.aggregator:
+            frappe.throw(
+                "Unauthorized: You can only adjust your own transactions.",
+                frappe.PermissionError,
+            )
+
+    max_attempts = _get_max_adjustment_attempts()
+    current_count = int(doc.adjustment_count or 0)
+    if current_count >= max_attempts:
+        frappe.throw(
+            f"This transaction has reached the maximum adjustment limit of {max_attempts}."
+        )
+
+    # Capture the before-state BEFORE making any changes
+    doc.append("adjustment_log", _build_log_entry(doc, current_count + 1))
+
+    if amount is not None:
+        doc.amount = float(amount)
+    if base_payout is not None:
+        doc.base_payout = float(base_payout)
+    if incentives is not None:
+        doc.incentives = float(incentives)
+    if deduction is not None:
+        doc.deduction = float(deduction)
+    if date is not None:
+        doc.date = date
+    if external_transaction_id is not None:
+        doc.external_transaction_id = external_transaction_id
+    if status_of_order is not None:
+        doc.status_of_order = status_of_order
+
+    doc.adjustment_count = current_count + 1
+    doc.flags.is_adjustment = True
+    doc.save(ignore_permissions=True)
+
+    remaining = max_attempts - doc.adjustment_count
+    return {
+        "message": (
+            f"Transaction adjusted successfully. "
+            f"Adjustment {doc.adjustment_count} of {max_attempts} used "
+            f"({remaining} remaining)."
+        ),
+        "adjustment_count": doc.adjustment_count,
+        "remaining_attempts": remaining,
+    }
+
+
+@frappe.whitelist()
+def apply_bulk_adjustment(transaction_names, data):
+    """Apply the same field changes across multiple Gig Transactions."""
+    import json
+    names = json.loads(transaction_names) if isinstance(transaction_names, str) else transaction_names
+    values = json.loads(data) if isinstance(data, str) else data
+
+    max_attempts = _get_max_adjustment_attempts()
+    allowed_fields = {"amount", "base_payout", "incentives", "deduction",
+                      "date", "external_transaction_id", "status_of_order"}
+
+    updated = 0
+    skipped = 0
+
+    for name in names:
+        try:
+            doc = frappe.get_doc("Gig Transaction", name)
+
+            if "System Manager" not in frappe.get_roles():
+                caller_agg = frappe.db.get_value("Aggregator", {"email": frappe.session.user}, "name")
+                if caller_agg != doc.aggregator:
+                    skipped += 1
+                    continue
+
+            current_count = int(doc.adjustment_count or 0)
+            if current_count >= max_attempts:
+                skipped += 1
+                continue
+
+            # Capture before-state for each transaction
+            doc.append("adjustment_log", _build_log_entry(doc, current_count + 1))
+
+            for field, value in values.items():
+                if field not in allowed_fields:
+                    continue
+                if field in ("amount", "base_payout", "incentives", "deduction"):
+                    setattr(doc, field, float(value))
+                else:
+                    setattr(doc, field, value)
+
+            doc.adjustment_count = current_count + 1
+            doc.flags.is_adjustment = True
+            doc.save(ignore_permissions=True)
+            updated += 1
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), f"Bulk adjustment failed for {name}")
+            skipped += 1
+
+    msg = f"{updated} transaction(s) adjusted successfully."
+    if skipped:
+        msg += f" {skipped} skipped (limit reached or unauthorized)."
+
+    return {"message": msg, "updated": updated, "skipped": skipped}
 
 
 # ── Serve OTP confirmation web page ───────────────────────────────────────────
