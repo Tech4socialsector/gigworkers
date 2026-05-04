@@ -141,7 +141,8 @@
    "fieldtype": "Int",
    "label": "Total Transactions",
    "read_only": 1,
-   "bold": 1
+   "bold": 1,
+   "description": "Count of welfare fee items for this quarter"
   },
   {
    "fieldname": "total_due_amount",
