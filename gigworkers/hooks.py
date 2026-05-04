@@ -267,7 +267,7 @@ scheduler_events = {
 fixtures = [
     {
         "dt": "Workspace",
-        "filters": [["module", "=", "Gig Workers"]]
+        "filters": [["app", "=", "gigworkers"]]
     },
     {
         "dt": "Role",
