@@ -17,7 +17,7 @@
    "fieldtype": "Long Text",
    "in_list_view": 1,
    "label": "Reply",
-   "reqd": 1
+   "reqd": 0
   },
   {
    "fieldname": "col_break_reply",
