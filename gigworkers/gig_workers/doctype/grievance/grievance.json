@@ -107,7 +107,7 @@
    "fieldname": "description",
    "fieldtype": "Long Text",
    "label": "Description",
-   "reqd": 1
+   "reqd": 0
   },
   {
    "fieldname": "attachment",
