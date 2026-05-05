@@ -178,13 +178,12 @@ frappe.ui.form.on("Gig Transaction", {
 
 		}
 
-		// ── View Old Data button — shown to ALL roles when adjustments exist ─
-		// Uses both adjustment_count and adjustment_log.length as fallback so
-		// the button appears correctly regardless of user role or Frappe caching.
+		// ── View Old Data button — shown to Aggregators and System Managers only ─
 		const hasHistory = (frm.doc.adjustment_count || 0) > 0
 			|| (frm.doc.adjustment_log || []).length > 0;
+		const canViewHistory = frappe.user.has_role("System Manager") || frappe.user.has_role("Aggregator");
 
-		if (hasHistory) {
+		if (hasHistory && canViewHistory) {
 			frm.add_custom_button(__("View Old Data"), function () {
 				_show_adjustment_history(frm);
 			}).removeClass("btn-default btn-secondary")
