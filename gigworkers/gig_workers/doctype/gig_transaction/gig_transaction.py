@@ -652,12 +652,53 @@ def dismiss_suspected_duplicate(transaction_name):
 
 # ── Gig Adjustment Transaction ────────────────────────────────────────────────
 
+def _ensure_gig_settings():
+    """Insert default row into tabSingles if not present.
+    Uses direct SQL to avoid DoesNotExistError from get_single_value on a brand-new install.
+    """
+    has_row = frappe.db.sql(
+        "SELECT COUNT(*) FROM `tabSingles` WHERE `doctype` = 'Gig Transaction Settings'",
+        as_list=True,
+    )[0][0]
+    if not has_row:
+        frappe.db.sql(
+            "INSERT INTO `tabSingles` (`doctype`, `field`, `value`) "
+            "VALUES ('Gig Transaction Settings', 'max_adjustment_attempts', '3')"
+        )
+        frappe.db.commit()
+
+
 def _get_max_adjustment_attempts():
     try:
+        _ensure_gig_settings()
         val = frappe.db.get_single_value("Gig Transaction Settings", "max_adjustment_attempts")
         return int(val) if val else 3
     except Exception:
         return 3
+
+
+@frappe.whitelist()
+def get_max_adjustment_attempts_setting():
+    """Return max_adjustment_attempts, auto-creating the settings row if missing."""
+    _ensure_gig_settings()
+    val = frappe.db.get_single_value("Gig Transaction Settings", "max_adjustment_attempts")
+    return int(val) if val else 3
+
+
+@frappe.whitelist()
+def set_max_adjustment_attempts_setting(value):
+    """Persist max_adjustment_attempts for System Managers."""
+    frappe.only_for("System Manager")
+    value = int(value)
+    if value < 1:
+        frappe.throw("Adjustment limit must be at least 1.")
+    _ensure_gig_settings()
+    frappe.db.sql(
+        "UPDATE `tabSingles` SET `value` = %s "
+        "WHERE `doctype` = 'Gig Transaction Settings' AND `field` = 'max_adjustment_attempts'",
+        (str(value),),
+    )
+    frappe.db.commit()
 
 
 @frappe.whitelist()

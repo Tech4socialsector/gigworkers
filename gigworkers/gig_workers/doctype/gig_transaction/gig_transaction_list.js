@@ -16,10 +16,12 @@ frappe.listview_settings["Gig Transaction"] = {
 		if (frappe.user_roles.includes("System Manager")) {
 			_dark_btn(listview.page.add_inner_button(__("Set Adjustment Limit"), function () {
 
-				frappe.db.get_single_value("Gig Transaction Settings", "max_adjustment_attempts")
-					.catch(() => null)
-					.then(current_limit => {
-						if (current_limit == null) current_limit = 3;
+				frappe.call({
+					method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.get_max_adjustment_attempts_setting",
+					freeze: true,
+					freeze_message: __("Loading settings..."),
+					callback(r) {
+						const current_limit = (r && r.message) ? r.message : 3;
 
 						const d = new frappe.ui.Dialog({
 							title: __("Set Adjustment Attempt Limit"),
@@ -55,13 +57,8 @@ frappe.listview_settings["Gig Transaction"] = {
 								}
 
 								frappe.call({
-									method: "frappe.client.set_value",
-									args: {
-										doctype: "Gig Transaction Settings",
-										name: "Gig Transaction Settings",
-										fieldname: "max_adjustment_attempts",
-										value: new_limit
-									},
+									method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.set_max_adjustment_attempts_setting",
+									args: { value: new_limit },
 									freeze: true,
 									freeze_message: __("Saving limit..."),
 									callback(r) {
@@ -79,7 +76,8 @@ frappe.listview_settings["Gig Transaction"] = {
 
 						d.show();
 						_dark_dialog_btn(d);
-					});
+					}
+				});
 			}));
 		}
 
