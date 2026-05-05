@@ -17,7 +17,9 @@ frappe.listview_settings["Gig Transaction"] = {
 			_dark_btn(listview.page.add_inner_button(__("Set Adjustment Limit"), function () {
 
 				frappe.db.get_single_value("Gig Transaction Settings", "max_adjustment_attempts")
+					.catch(() => null)
 					.then(current_limit => {
+						if (current_limit == null) current_limit = 3;
 
 						const d = new frappe.ui.Dialog({
 							title: __("Set Adjustment Attempt Limit"),
