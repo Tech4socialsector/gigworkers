@@ -15,7 +15,7 @@ build-backend = "flit_core.buildapi"
 
 # Frappe app version constraints — uses NPM-style semver (space-separated, < not <=)
 [tool.bench.frappe-dependencies]
-frappe = ">=16.0.0 <18.0.0"
+frappe = ">=16.0.0,<18.0.0"
 
 # These dependencies are only installed when developer mode is enabled
 [tool.bench.dev-dependencies]
