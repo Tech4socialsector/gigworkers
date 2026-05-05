@@ -3,6 +3,14 @@
 
 frappe.listview_settings["Gig Transaction"] = {
 
+	additional_fields: ["adjustment_count"],
+
+	get_indicator(doc) {
+		if ((doc.adjustment_count || 0) > 0) {
+			return [__("Adjusted"), "orange", "adjustment_count,>,0"];
+		}
+	},
+
 	onload(listview) {
 
 		if (frappe.user_roles.includes("System Manager")) {
@@ -73,10 +81,12 @@ frappe.listview_settings["Gig Transaction"] = {
 			}));
 		}
 
-		_dark_btn(listview.page.add_inner_button(
-			__("Gig Adjustment Transaction"),
-			() => _adjustment_entry(listview)
-		));
+		if (frappe.user.has_role("System Manager") || frappe.user.has_role("Aggregator")) {
+			_dark_btn(listview.page.add_inner_button(
+				__("Gig Adjustment Transaction"),
+				() => _adjustment_entry(listview)
+			));
+		}
 	}
 };
 

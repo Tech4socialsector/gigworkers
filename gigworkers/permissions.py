@@ -65,17 +65,11 @@ def user_based_query(user=None, doctype=None):
                 return "1=0"
             return f"`tabWorker Mapping Log`.`aggregator` = {frappe.db.escape(aggregator)}"
 
-        elif doctype == "Grievance":
+        elif doctype == "Welfare Fee Invoice":
             aggregator = _get_aggregator_name(user)
             if not aggregator:
                 return "1=0"
-            # Grievances related to this aggregator OR from their workers
-            return (
-                f"(`tabGrievance`.`aggregator` = {frappe.db.escape(aggregator)} "
-                f"OR `tabGrievance`.`gig_worker` IN ("
-                f"SELECT `name` FROM `tabGig Worker` "
-                f"WHERE `created_by_aggregator` = {frappe.db.escape(aggregator)}))"
-            )
+            return f"`tabWelfare Fee Invoice`.`aggregator` = {frappe.db.escape(aggregator)}"
 
         return "1=0"
 
@@ -114,16 +108,6 @@ def user_based_query(user=None, doctype=None):
 
         elif doctype == "Aggregator":
             return "1=0"
-
-        elif doctype == "Grievance":
-            gig_worker = _get_gig_worker_name(user)
-            if gig_worker:
-                return (
-                    f"(`tabGrievance`.`gig_worker` = {frappe.db.escape(gig_worker)} "
-                    f"OR `tabGrievance`.`owner` = {frappe.db.escape(user)})"
-                )
-            # No GW profile yet — fall back to owner (their user account)
-            return f"`tabGrievance`.`owner` = {frappe.db.escape(user)}"
 
         return "1=0"
 
@@ -183,15 +167,10 @@ def user_has_permission(doc, ptype="read", user=None):
         elif doctype == "Worker Mapping Log":
             return doc.aggregator == aggregator
 
-        elif doctype == "Grievance":
+        elif doctype == "Welfare Fee Invoice":
             if ptype == "create":
-                return False  # only workers create grievances
-            worker_agg = (
-                frappe.db.get_value("Gig Worker", doc.gig_worker, "created_by_aggregator")
-                if doc.gig_worker
-                else None
-            )
-            return doc.aggregator == aggregator or worker_agg == aggregator
+                return True
+            return doc.aggregator == aggregator
 
         return False
 
@@ -218,14 +197,6 @@ def user_has_permission(doc, ptype="read", user=None):
 
         elif doctype == "Aggregator":
             return False
-
-        elif doctype == "Grievance":
-            if ptype == "create":
-                return True
-            gig_worker = _get_gig_worker_name(user)
-            if gig_worker:
-                return doc.gig_worker == gig_worker or doc.owner == user
-            return doc.owner == user
 
         return False
 

@@ -12,7 +12,7 @@ permission_query_conditions = {
     "Worker Service Mapping": "gigworkers.permissions.user_based_query",
     "Welfare Fund Account": "gigworkers.permissions.user_based_query",
     "Worker Mapping Log": "gigworkers.permissions.user_based_query",
-    "Grievance": "gigworkers.permissions.user_based_query",
+    "Welfare Fee Invoice": "gigworkers.permissions.user_based_query",
 }
 
 has_permission = {
@@ -22,7 +22,7 @@ has_permission = {
     "Worker Service Mapping": "gigworkers.permissions.user_has_permission",
     "Welfare Fund Account": "gigworkers.permissions.user_has_permission",
     "Worker Mapping Log": "gigworkers.permissions.user_has_permission",
-    "Grievance": "gigworkers.permissions.user_has_permission",
+    "Welfare Fee Invoice": "gigworkers.permissions.user_has_permission",
 }
 # Apps
 # ------------------
@@ -45,7 +45,7 @@ has_permission = {
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/gigworkers/css/gigworkers.css"
-app_include_js = "/assets/gigworkers/js/desk_overrides.js"
+# app_include_js = "/assets/gigworkers/js/desk_overrides.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/gigworkers/css/gigworkers.css"

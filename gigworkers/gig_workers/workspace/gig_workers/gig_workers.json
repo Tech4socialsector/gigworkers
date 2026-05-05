@@ -1,7 +1,7 @@
 {
  "app": "gigworkers",
  "charts": [],
- "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profile\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"hKXFhiNGGY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"njD7hmT246\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}},{\"id\":\"lZMk-y4OXI\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Grievance portal\",\"col\":4}},{\"id\":\"wk_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"wk_nc_hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>My Stats</b></span>\",\"col\":12}},{\"id\":\"wk_nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Worker My Transactions\",\"col\":4}},{\"id\":\"wk_nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Worker Completed Transactions\",\"col\":4}},{\"id\":\"wk_nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Welfare Balance\",\"col\":4}},{\"id\":\"wk_nc4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Total Earnings\",\"col\":4}},{\"id\":\"wk_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
+ "content": "[{\"id\":\"J98LYcdm_6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Gig Workers</span>\",\"col\":12}},{\"id\":\"TAzrkhE5Ic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Worker Dashboard\",\"col\":3}},{\"id\":\"4qOdKkkkee\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profile\",\"col\":3}},{\"id\":\"jYTp03XA5D\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"hKXFhiNGGY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":3}},{\"id\":\"njD7hmT246\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Benefit Withdrawal\",\"col\":3}},{\"id\":\"wk_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"wk_nc_hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>My Stats</b></span>\",\"col\":12}},{\"id\":\"wk_nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Worker My Transactions\",\"col\":4}},{\"id\":\"wk_nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Worker Completed Transactions\",\"col\":4}},{\"id\":\"wk_nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Welfare Balance\",\"col\":4}},{\"id\":\"wk_nc4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Total Earnings\",\"col\":4}},{\"id\":\"wk_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
  "creation": "2026-04-28 04:21:17.333018",
  "custom_blocks": [],
  "docstatus": 0,
@@ -54,13 +54,6 @@
    "link_to": "Gig Worker",
    "stats_filter": "[]",
    "type": "DocType"
-  },
-  {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Grievance portal",
-   "link_to": "grievance-portal",
-   "type": "Page"
   },
   {
    "color": "Grey",
