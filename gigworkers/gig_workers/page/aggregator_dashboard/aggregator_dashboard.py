@@ -191,6 +191,48 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "pending_invoices": len([inv for inv in quarterly_invoices if inv.invoice_status in ["Pending", "Partially Paid", "Overdue"]])
     }
 
+    # ── Monthly transaction trend (last 12 months) ──────────────────────────
+    import datetime as _dt
+    _today = _dt.date.today()
+    _t_mo = _today.month - 11
+    _t_yr = _today.year + (_t_mo - 1) // 12
+    _t_mo = ((_t_mo - 1) % 12) + 1
+    trend_start = f"{_t_yr}-{_t_mo:02d}-01"
+
+    mt_params = {"agg": aggregator_name, "trend_start": trend_start}
+    mt_extra = ""
+    if service_category:
+        mt_extra += " AND service_category = %(svc_cat_mt)s"
+        mt_params["svc_cat_mt"] = service_category
+    if platform:
+        mt_extra += " AND platform = %(platform_mt)s"
+        mt_params["platform_mt"] = platform
+
+    monthly_trend = frappe.db.sql(f"""
+        SELECT
+            LEFT(date, 7)                                                     AS month,
+            COUNT(*)                                                           AS total_count,
+            SUM(CASE WHEN status = 'Payment complete'  THEN 1 ELSE 0 END)   AS completed_count,
+            SUM(CASE WHEN status = 'Payment pending'   THEN 1 ELSE 0 END)   AS pending_count,
+            COALESCE(SUM(amount), 0)                                          AS total_amount,
+            COALESCE(SUM(welfare_amount), 0)                                  AS total_welfare
+        FROM `tabGig Transaction`
+        WHERE aggregator = %(agg)s
+          AND date >= %(trend_start)s
+          {mt_extra}
+        GROUP BY month
+        ORDER BY month
+    """, mt_params, as_dict=True)
+
+    # Status breakdown for donut chart (respects active filters)
+    status_breakdown = frappe.db.sql(f"""
+        SELECT status, COUNT(*) AS cnt
+        FROM `tabGig Transaction`
+        {sql_cond}
+        GROUP BY status
+        ORDER BY cnt DESC
+    """, sql_params, as_dict=True)
+
     return {
         "aggregator":       aggregator,
         "aggregator_id":    aggregator_name,
@@ -227,4 +269,6 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "pending_wfp":         pending_wfp,
         "worker_list":         worker_list,
         "suspected_dups":      suspected_dups,
+        "monthly_trend":       [dict(r) for r in monthly_trend],
+        "status_breakdown":    [dict(r) for r in status_breakdown],
     }

@@ -286,6 +286,32 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         {"status": "Suspected duplicate", **({"aggregator": aggregator} if aggregator else {})},
     )
 
+    # ── Monthly transaction trend (last 12 months) ──────────────────────────
+    import datetime as _dt
+    _today_adm = _dt.date.today()
+    _at_mo = _today_adm.month - 11
+    _at_yr = _today_adm.year + (_at_mo - 1) // 12
+    _at_mo = ((_at_mo - 1) % 12) + 1
+    trend_start_adm = f"{_at_yr}-{_at_mo:02d}-01"
+
+    mt_adm_conds = list(txn_conditions) + ["date >= %(trend_start_adm)s"]
+    mt_adm_params = dict(txn_params)
+    mt_adm_params["trend_start_adm"] = trend_start_adm
+    mt_adm_where = "WHERE " + " AND ".join(mt_adm_conds)
+
+    monthly_trend_adm = frappe.db.sql(f"""
+        SELECT
+            LEFT(date, 7)                                                     AS month,
+            COUNT(*)                                                           AS total_count,
+            SUM(CASE WHEN status = 'Payment complete'  THEN 1 ELSE 0 END)   AS completed_count,
+            COALESCE(SUM(amount), 0)                                          AS total_amount,
+            COALESCE(SUM(welfare_amount), 0)                                  AS total_welfare
+        FROM `tabGig Transaction`
+        {mt_adm_where}
+        GROUP BY month
+        ORDER BY month
+    """, mt_adm_params, as_dict=True)
+
     return {
         "stats": {
             "total_transactions": txn_stats.total_transactions or 0,
@@ -324,6 +350,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         "welfare_fund_by_agg": welfare_fund_by_agg,
         "aggregator_list": aggregator_list,
         "duplicate_transactions": duplicate_txns,
+        "monthly_trend": [dict(r) for r in monthly_trend_adm],
     }
 
 
