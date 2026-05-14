@@ -861,19 +861,23 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				cols:    txn_cols,
 				summary: rows => [
 					{ label: "Total",        value: rows.length, color: "#4e73df" },
-					{ label: "Completed",    value: rows.filter(t => t.status === "Completed").length, color: "#1cc88a" },
-					{ label: "Pending",      value: rows.filter(t => t.status === "Registered").length, color: "#f6c23e" },
+					{ label: "Completed",    value: rows.filter(t => t.status === "Payment complete").length, color: "#1cc88a" },
+					{ label: "Pending",      value: rows.filter(t => t.status === "Payment pending").length, color: "#f6c23e" },
 					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
 				],
 				chart: rows => {
-					const statuses = ["Completed", "Registered", "Suspected Duplicate"].filter(s => rows.some(t => t.status === s));
-					return { type: "donut", data: { labels: statuses, datasets: [{ values: statuses.map(s => rows.filter(t => t.status === s).length) }] }, colors: ["#1cc88a", "#f6c23e", "#e74a3b"] };
+					const sc = {};
+					rows.forEach(t => { sc[t.status] = (sc[t.status] || 0) + 1; });
+					const labels = Object.keys(sc);
+					if (!labels.length) return { type: "donut", data: { labels: ["No Data"], datasets: [{ values: [1] }] }, colors: ["#eee"] };
+					const STATUS_C = { 'Payment complete': '#1cc88a', 'Payment pending': '#4e73df', 'Payment Cancelled': '#e74a3b', 'Suspected duplicate': '#f6c23e' };
+					return { type: "donut", data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] }, colors: labels.map(l => STATUS_C[l] || "#858796") };
 				},
 			},
 
 			completed_txns: {
 				title: "Completed Transactions",
-				rows:    () => d.recent_transactions.filter(t => t.status === "Completed"),
+				rows:    () => d.recent_transactions.filter(t => t.status === "Payment complete"),
 				cols:    txn_cols,
 				summary: rows => {
 					const total = rows.reduce((s, t) => s + (t.amount || 0), 0);
@@ -891,7 +895,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 
 			pending_txns: {
 				title: "Pending Transactions",
-				rows:    () => d.recent_transactions.filter(t => t.status === "Registered"),
+				rows:    () => d.recent_transactions.filter(t => t.status === "Payment pending"),
 				cols:    txn_cols,
 				summary: rows => [
 					{ label: "Count",        value: rows.length, color: "#f6c23e" },
@@ -900,6 +904,21 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				chart: rows => {
 					const { labels, values } = group_by_date(rows, () => 1);
 					return { type: "line", data: { labels, datasets: [{ name: "Pending Txns", values }] }, colors: ["#f6c23e"] };
+				},
+			},
+
+			cancelled_txns: {
+				title: "Cancelled Transactions",
+				rows:    () => d.recent_transactions.filter(t => t.status === "Payment Cancelled"),
+				cols:    txn_cols,
+				summary: rows => [
+					{ label: "Count",        value: rows.length, color: "#6c757d" },
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+					{ label: "Total Welfare Reversed", value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)) },
+				],
+				chart: rows => {
+					const { labels, values } = group_by_date(rows, () => 1);
+					return { type: "bar", data: { labels, datasets: [{ name: "Cancelled Txns", values }] }, colors: ["#6c757d"] };
 				},
 			},
 
@@ -1263,6 +1282,75 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				color: var(--card-color, #4e73df);
 			}
 
+			/* ── Bulk action toolbar for duplicates ── */
+			#dup-bulk-bar {
+				display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+				background: #fff8e1; border: 1.5px solid #ffe082; border-radius: 8px;
+				padding: 10px 16px; margin-bottom: 14px;
+			}
+			#dup-bulk-bar .bulk-count {
+				font-size: 13px; font-weight: 700; color: #856404;
+				flex: 1; min-width: 100px;
+			}
+			.bulk-btn {
+				display: inline-flex; align-items: center; gap: 6px;
+				padding: 7px 16px; border-radius: 7px; font-size: 13px;
+				font-weight: 600; cursor: pointer; border: none; font-family: inherit;
+				transition: all .15s;
+			}
+			.bulk-btn-danger  { background:#e53935; color:#fff; }
+			.bulk-btn-danger:hover  { background:#b71c1c; }
+			.bulk-btn-success { background:#2e7d32; color:#fff; }
+			.bulk-btn-success:hover { background:#1b5e20; }
+			.bulk-btn-ghost   { background:#fff; color:#555; border:1.5px solid #ccc; }
+			.bulk-btn-ghost:hover   { background:#f5f5f5; }
+			.dup-row-cb { width:16px; height:16px; cursor:pointer; accent-color:#e53935; }
+			#dup-select-all { width:16px; height:16px; cursor:pointer; accent-color:#e53935; }
+			#admin-dup-table tbody tr.dup-selected td { background:#fff3e0 !important; }
+
+			/* ── Chart toggle buttons ── */
+			.adm-chart-toggle {
+				padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+				cursor: pointer; border: 1.5px solid #d1d3e2; background: #fff; color: #666;
+				transition: all .15s; font-family: inherit;
+			}
+			.adm-chart-toggle.active {
+				background: #4e73df; color: #fff; border-color: #4e73df;
+			}
+			.adm-chart-toggle:hover:not(.active) { background: #f0f2ff; border-color: #4e73df; color: #4e73df; }
+			.adm-chart-section {
+				background: #fff; border-radius: 10px; padding: 20px;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.07); flex: 1; min-width: 0;
+			}
+			.adm-chart-header {
+				display: flex; align-items: center; justify-content: space-between;
+				margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #eee;
+			}
+			.adm-chart-header h5 { margin: 0; font-weight: 700; color: #444; font-size: 14px; }
+			.adm-chart-summary {
+				display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px;
+				padding-top: 10px; border-top: 1px solid #f0f0f0; font-size: 12px; color: #666;
+			}
+			.adm-chart-summary .sum-item b { font-size: 15px; font-weight: 700; }
+			.adm-status-legend { margin-top: 12px; font-size: 12px; }
+			.adm-status-legend .leg-row {
+				display: flex; align-items: center; justify-content: space-between;
+				padding: 5px 0; border-bottom: 1px solid #f8f8f8;
+			}
+			.adm-status-legend .leg-row:last-child { border-bottom: none; }
+			.adm-status-legend .leg-dot {
+				display: inline-block; width: 10px; height: 10px;
+				border-radius: 2px; margin-right: 7px; flex-shrink: 0;
+			}
+			.adm-status-legend .leg-label { display: flex; align-items: center; }
+			.adm-status-legend .leg-count { font-weight: 700; color: #333; }
+			.adm-status-legend .leg-pct { color: #aaa; font-weight: 400; margin-left: 4px; }
+			.adm-total-badge {
+				text-align: center; margin-top: 8px; font-size: 13px; color: #555;
+				padding: 6px 0; border-top: 1px solid #eee;
+			}
+			.adm-total-badge b { font-size: 20px; font-weight: 700; color: #333; }
+
 			/* ── Drilldown modal overlay ── */
 			#dd-overlay {
 				display: none;
@@ -1370,15 +1458,31 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		<!-- Suspected Duplicates Section -->
 		${duplicate_transactions && duplicate_transactions.length ? `
 		<div class="admin-section" id="dup-section">
-			<h5 style="color:#856404;">
+			<h5 style="color:#856404;margin-bottom:12px;">
 				<i class="fa fa-exclamation-triangle" style="margin-right:6px;"></i>
 				Suspected Duplicate Transactions
 				<span style="float:right;font-size:12px;font-weight:400;color:#888;">
-					Auto-detected at creation — review each and confirm or dismiss
+					Select rows and use Bulk Actions, or act row-by-row
 				</span>
 			</h5>
+
+			<!-- Bulk Action Toolbar -->
+			<div id="dup-bulk-bar">
+				<span class="bulk-count" id="dup-bulk-count">0 selected</span>
+				<button class="bulk-btn bulk-btn-danger" id="btn-bulk-mark-dup">
+					<i class="fa fa-ban"></i> Mark Selected as Duplicate
+				</button>
+				<button class="bulk-btn bulk-btn-success" id="btn-bulk-dismiss">
+					<i class="fa fa-check"></i> Dismiss Selected
+				</button>
+				<button class="bulk-btn bulk-btn-ghost" id="btn-bulk-clear">
+					<i class="fa fa-times"></i> Clear Selection
+				</button>
+			</div>
+
 			<table id="admin-dup-table" class="display" style="width:100%">
 				<thead><tr>
+					<th style="width:32px;text-align:center;"><input type="checkbox" id="dup-select-all" title="Select all"></th>
 					<th>Transaction ID</th>
 					<th>Date</th>
 					<th>Gig Worker</th>
@@ -1390,7 +1494,8 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 					<th>Actions</th>
 				</tr></thead>
 				<tbody>
-					${duplicate_transactions.map(d => `<tr>
+					${duplicate_transactions.map(d => `<tr data-txn="${d.name}" data-dup-of="${d.duplicate_of || ""}">
+						<td style="text-align:center;"><input type="checkbox" class="dup-row-cb" value="${d.name}"></td>
 						<td><a href="/app/gig-transaction/${d.name}" style="color:#4e73df;">${d.name}</a></td>
 						<td>${d.date || "-"}</td>
 						<td><a href="/app/gig-worker/${d.gig_worker}" style="color:#4e73df;">${d.gig_worker}</a></td>
@@ -1422,30 +1527,37 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		` : ""}
 
 		<!-- Analytics Charts -->
-		${(data.monthly_trend && data.monthly_trend.length) ? `
-		<div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
-			<div class="admin-section" style="flex:2;min-width:280px;padding-bottom:8px;">
-				<h5>
-					<i class="fa fa-bar-chart" style="color:#4e73df;margin-right:6px;"></i>
-					Monthly Transaction Trend
-					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Last 12 months</span>
-				</h5>
-				<div id="admin-trend-chart"></div>
-				<p id="admin-trend-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
-				<div style="display:flex;gap:16px;font-size:12px;color:#666;margin-top:6px;">
-					<span><span style="display:inline-block;width:10px;height:10px;background:#4e73df;border-radius:2px;margin-right:4px;"></span>Completed</span>
-					<span><span style="display:inline-block;width:10px;height:10px;background:#c7d5f8;border-radius:2px;margin-right:4px;"></span>Total</span>
+		${(data.monthly_trend && data.monthly_trend.length) || (data.status_breakdown && data.status_breakdown.length) ? `
+		<div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;align-items:flex-start;">
+
+			<!-- Monthly Trend -->
+			<div class="adm-chart-section" style="flex:1;min-width:300px;">
+				<div class="adm-chart-header">
+					<h5><i class="fa fa-bar-chart" style="color:#4e73df;margin-right:7px;"></i>Monthly Transaction Trend
+						<span style="font-size:11px;font-weight:400;color:#aaa;margin-left:8px;">Last 12 months</span>
+					</h5>
+					<div style="display:flex;gap:6px;flex-shrink:0;">
+						<button class="adm-chart-toggle active" data-mode="count">Transactions</button>
+						<button class="adm-chart-toggle" data-mode="amount">Amount (₹)</button>
+					</div>
 				</div>
+				<div id="admin-trend-chart" style="min-height:200px;"></div>
+				<div id="admin-trend-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;"></div>
+				<div id="admin-trend-summary" class="adm-chart-summary"></div>
 			</div>
-			<div class="admin-section" style="flex:1;min-width:220px;padding-bottom:8px;">
-				<h5>
-					<i class="fa fa-pie-chart" style="color:#36b9cc;margin-right:6px;"></i>
-					Transaction Summary
-					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Current filter</span>
-				</h5>
-				<div id="admin-status-chart"></div>
-				<p id="admin-status-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
+
+			<!-- Status Donut -->
+			<div class="adm-chart-section" style="flex:1;min-width:280px;">
+				<div class="adm-chart-header">
+					<h5><i class="fa fa-pie-chart" style="color:#36b9cc;margin-right:7px;"></i>Transaction Summary</h5>
+					<span style="font-size:11px;color:#aaa;">Current filter</span>
+				</div>
+				<div id="admin-status-chart" style="min-height:160px;"></div>
+				<div id="admin-status-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:30px 0;"></div>
+				<div id="admin-total-badge" class="adm-total-badge" style="display:none;"></div>
+				<div id="admin-status-legend" class="adm-status-legend"></div>
 			</div>
+
 		</div>
 		` : ""}
 
@@ -1634,54 +1746,142 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 
 		// ── Standalone analytics charts ──────────────────────────────────────
 		(function init_admin_charts() {
-			const mt = data.monthly_trend || [];
-			if (!mt.length) return;
+			const mt  = data.monthly_trend    || [];
+			const sb  = data.status_breakdown || [];
+			if (!mt.length && !sb.length) return;
 
 			const STATUS_COLORS_ADM = {
-				'Payment complete': '#1cc88a', 'Payment pending': '#4e73df',
-				'Payment Cancelled': '#e74a3b', 'Suspected duplicate': '#f6c23e',
+				'Payment complete':   '#1cc88a',
+				'Payment pending':    '#4e73df',
+				'Payment Cancelled':  '#e74a3b',
+				'Suspected duplicate':'#f6c23e',
 			};
+			const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-			// Monthly Trend Chart
-			if (frappe && frappe.Chart && $("#admin-trend-chart").length) {
+			function fmt_month(m) {
+				const parts = (m || "").split("-");
+				if (parts.length < 2) return m;
+				return MONTHS[parseInt(parts[1]) - 1] + " '" + parts[0].slice(2);
+			}
+
+			function fmt_inr(n) {
+				return "₹" + parseFloat(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+			}
+
+			let trend_mode = "count";
+
+			function render_trend_chart() {
+				if (!mt.length) { $("#admin-trend-empty").show().text("No trend data available"); return; }
+				$("#admin-trend-chart").empty();
+				const labels = mt.map(r => fmt_month(r.month));
+				let datasets, colors;
+
+				if (trend_mode === "count") {
+					datasets = [
+						{ name: "Total",     values: mt.map(r => parseInt(r.total_count)     || 0) },
+						{ name: "Completed", values: mt.map(r => parseInt(r.completed_count) || 0) },
+						{ name: "Pending",   values: mt.map(r => parseInt(r.pending_count)   || 0) },
+					];
+					colors = ["#c7d5f8", "#1cc88a", "#f6c23e"];
+				} else {
+					datasets = [
+						{ name: "Total Amount",  values: mt.map(r => parseFloat(r.total_amount)   || 0) },
+						{ name: "Welfare (₹)",   values: mt.map(r => parseFloat(r.total_welfare)  || 0) },
+					];
+					colors = ["#4e73df", "#1cc88a"];
+				}
+
 				try {
 					new frappe.Chart("#admin-trend-chart", {
 						type: "bar",
-						data: {
-							labels: mt.map(r => r.month),
-							datasets: [
-								{ name: "Total",     values: mt.map(r => r.total_count) },
-								{ name: "Completed", values: mt.map(r => r.completed_count) },
-							],
-						},
-						height: 220,
-						colors: ["#c7d5f8", "#4e73df"],
-						barOptions: { spaceRatio: 0.35 },
+						data: { labels, datasets },
+						height: 260,
+						colors: colors,
+						barOptions: { spaceRatio: 0.3 },
 						axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
 					});
 				} catch (_) {
 					$("#admin-trend-empty").show().text("Chart unavailable");
 				}
+
+				// Summary strip
+				if (trend_mode === "count") {
+					const tot  = mt.reduce((s, r) => s + (parseInt(r.total_count)     || 0), 0);
+					const comp = mt.reduce((s, r) => s + (parseInt(r.completed_count) || 0), 0);
+					const pend = mt.reduce((s, r) => s + (parseInt(r.pending_count)   || 0), 0);
+					$("#admin-trend-summary").html(`
+						<div class="sum-item"><b style="color:#555;">${tot}</b>&nbsp;Total</div>
+						<div class="sum-item"><b style="color:#1cc88a;">${comp}</b>&nbsp;Completed</div>
+						<div class="sum-item"><b style="color:#f6c23e;">${pend}</b>&nbsp;Pending</div>
+					`);
+				} else {
+					const tot_amt = mt.reduce((s, r) => s + (parseFloat(r.total_amount)  || 0), 0);
+					const tot_wf  = mt.reduce((s, r) => s + (parseFloat(r.total_welfare) || 0), 0);
+					$("#admin-trend-summary").html(`
+						<div class="sum-item"><b style="color:#4e73df;">${fmt_inr(tot_amt)}</b>&nbsp;Total Amount</div>
+						<div class="sum-item"><b style="color:#1cc88a;">${fmt_inr(tot_wf)}</b>&nbsp;Total Welfare</div>
+					`);
+				}
 			}
 
-			// Status distribution donut
-			const txns = data.recent_transactions || [];
-			if (frappe && frappe.Chart && $("#admin-status-chart").length && txns.length) {
-				try {
-					const sc = {};
-					txns.forEach(t => { sc[t.status] = (sc[t.status] || 0) + 1; });
-					const labels = Object.keys(sc);
-					new frappe.Chart("#admin-status-chart", {
-						type: "donut",
-						data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] },
-						height: 220,
-						colors: labels.map(l => STATUS_COLORS_ADM[l] || "#858796"),
-					});
-				} catch (_) {
-					$("#admin-status-empty").show().text("Chart unavailable");
-				}
-			} else if (!txns.length) {
+			// Toggle handler (namespaced to avoid duplication on re-render)
+			$(document).off("click.adm_chart_toggle").on("click.adm_chart_toggle", ".adm-chart-toggle", function() {
+				$(".adm-chart-toggle").removeClass("active");
+				$(this).addClass("active");
+				trend_mode = $(this).data("mode");
+				render_trend_chart();
+			});
+
+			if (frappe && frappe.Chart) render_trend_chart();
+
+			// ── Status donut using status_breakdown from backend ──────────────
+			if (!frappe || !frappe.Chart || !$("#admin-status-chart").length) return;
+
+			const breakdown = sb.length ? sb : (() => {
+				const sc = {};
+				(data.recent_transactions || []).forEach(t => { sc[t.status] = (sc[t.status] || 0) + 1; });
+				return Object.keys(sc).map(s => ({ status: s, cnt: sc[s] }));
+			})();
+
+			if (!breakdown.length) {
 				$("#admin-status-empty").show().text("No transaction data");
+				return;
+			}
+
+			try {
+				const labels = breakdown.map(r => r.status);
+				const values = breakdown.map(r => parseInt(r.cnt) || 0);
+				const total  = values.reduce((a, b) => a + b, 0);
+
+				new frappe.Chart("#admin-status-chart", {
+					type: "donut",
+					data: { labels, datasets: [{ values }] },
+					height: 200,
+					colors: labels.map(l => STATUS_COLORS_ADM[l] || "#858796"),
+				});
+
+				// Total badge
+				$("#admin-total-badge").show().html(`<b>${total}</b> total transactions`);
+
+				// Rich legend with count + percentage
+				const legend_html = breakdown.map(r => {
+					const cnt   = parseInt(r.cnt) || 0;
+					const pct   = total ? Math.round(cnt / total * 100) : 0;
+					const color = STATUS_COLORS_ADM[r.status] || "#858796";
+					return `<div class="leg-row">
+						<span class="leg-label">
+							<span class="leg-dot" style="background:${color};"></span>
+							${r.status}
+						</span>
+						<span>
+							<span class="leg-count">${cnt}</span>
+							<span class="leg-pct">(${pct}%)</span>
+						</span>
+					</div>`;
+				}).join("");
+				$("#admin-status-legend").html(legend_html);
+			} catch (_) {
+				$("#admin-status-empty").show().text("Chart unavailable");
 			}
 		})();
 
@@ -1708,7 +1908,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 					lengthMenu: [10, 25, 50, 100, 500],
 					deferRender: true,
 					order: [],
-					columnDefs: [{ orderable: false, targets: [7] }],
+					columnDefs: [{ orderable: false, targets: [0, 9] }],
 					language: {
 						search: "Filter:",
 						lengthMenu: "Show _MENU_ entries",
@@ -1718,6 +1918,117 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 					dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
 				});
 			}
+
+			// ── Bulk selection helpers ───────────────────────────────────────
+			function get_checked_txns() {
+				return $("#admin-dup-table tbody .dup-row-cb:checked").map(function() {
+					return $(this).val();
+				}).get();
+			}
+
+			function update_bulk_bar() {
+				const selected = get_checked_txns();
+				const n = selected.length;
+				if (n > 0) {
+					$("#dup-bulk-bar").css("display", "flex");
+					$("#dup-bulk-count").text(n + " transaction" + (n > 1 ? "s" : "") + " selected");
+				} else {
+					$("#dup-bulk-bar").hide();
+				}
+				// highlight selected rows
+				$("#admin-dup-table tbody tr").each(function() {
+					const cb = $(this).find(".dup-row-cb");
+					$(this).toggleClass("dup-selected", cb.prop("checked"));
+				});
+				// sync select-all state
+				const total_visible = $("#admin-dup-table tbody .dup-row-cb").length;
+				$("#dup-select-all").prop("indeterminate", n > 0 && n < total_visible);
+				$("#dup-select-all").prop("checked", total_visible > 0 && n === total_visible);
+			}
+
+			// Select / deselect all
+			$(document).off("change.dupSelectAll").on("change.dupSelectAll", "#dup-select-all", function() {
+				const checked = $(this).prop("checked");
+				$("#admin-dup-table tbody .dup-row-cb").prop("checked", checked);
+				update_bulk_bar();
+			});
+
+			// Individual checkbox change
+			$(document).off("change.dupRowCb").on("change.dupRowCb", ".dup-row-cb", function() {
+				update_bulk_bar();
+			});
+
+			// Click anywhere on the row (except links/buttons) to toggle checkbox
+			$(document).off("click.dupRowClick").on("click.dupRowClick", "#admin-dup-table tbody tr", function(e) {
+				if ($(e.target).is("a, button, input")) return;
+				const cb = $(this).find(".dup-row-cb");
+				cb.prop("checked", !cb.prop("checked"));
+				update_bulk_bar();
+			});
+
+			// Clear selection
+			$(document).off("click.dupBulkClear").on("click.dupBulkClear", "#btn-bulk-clear", function() {
+				$("#admin-dup-table tbody .dup-row-cb, #dup-select-all").prop("checked", false);
+				update_bulk_bar();
+			});
+
+			// ── Bulk Mark as Duplicate ───────────────────────────────────────
+			$(document).off("click.bulkMarkDup").on("click.bulkMarkDup", "#btn-bulk-mark-dup", function() {
+				const txns = get_checked_txns();
+				if (!txns.length) return;
+				frappe.confirm(
+					`Mark <strong>${txns.length}</strong> transaction${txns.length > 1 ? "s" : ""} as <strong>Duplicate</strong>?<br>
+					<small style="color:#888;">Welfare credits will be reversed for any completed transactions.</small>`,
+					function() {
+						const $btn = $("#btn-bulk-mark-dup");
+						$btn.text("Processing…").prop("disabled", true);
+						frappe.call({
+							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.bulk_mark_as_duplicate",
+							args: { transaction_names: JSON.stringify(txns) },
+							callback(r) {
+								$btn.html('<i class="fa fa-ban"></i> Mark Selected as Duplicate').prop("disabled", false);
+								if (!r.exc && r.message) {
+									const res = r.message;
+									const ok  = res.success ? res.success.length : 0;
+									const bad = res.failed  ? res.failed.length  : 0;
+									if (ok)  frappe.show_alert({ message: `${ok} transaction${ok > 1 ? "s" : ""} marked as Duplicate.`, indicator: "red" });
+									if (bad) frappe.show_alert({ message: `${bad} failed — check console.`, indicator: "orange" });
+									fetch_data(_dash_filters);
+								}
+							},
+						});
+					}
+				);
+			});
+
+			// ── Bulk Dismiss ─────────────────────────────────────────────────
+			$(document).off("click.bulkDismiss").on("click.bulkDismiss", "#btn-bulk-dismiss", function() {
+				const txns = get_checked_txns();
+				if (!txns.length) return;
+				frappe.confirm(
+					`Dismiss the duplicate flag for <strong>${txns.length}</strong> transaction${txns.length > 1 ? "s" : ""}?<br>
+					<small style="color:#888;">These transactions will be restored as legitimate.</small>`,
+					function() {
+						const $btn = $("#btn-bulk-dismiss");
+						$btn.text("Processing…").prop("disabled", true);
+						frappe.call({
+							method: "gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.bulk_dismiss_suspected_duplicate",
+							args: { transaction_names: JSON.stringify(txns) },
+							callback(r) {
+								$btn.html('<i class="fa fa-check"></i> Dismiss Selected').prop("disabled", false);
+								if (!r.exc && r.message) {
+									const res = r.message;
+									const ok  = res.success ? res.success.length : 0;
+									const bad = res.failed  ? res.failed.length  : 0;
+									if (ok)  frappe.show_alert({ message: `${ok} transaction${ok > 1 ? "s" : ""} dismissed.`, indicator: "green" });
+									if (bad) frappe.show_alert({ message: `${bad} failed — check console.`, indicator: "orange" });
+									fetch_data(_dash_filters);
+								}
+							},
+						});
+					}
+				);
+			});
 		}
 
 		bind_filter_events(aggregator_list || []);

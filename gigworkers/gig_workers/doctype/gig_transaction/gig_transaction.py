@@ -650,6 +650,44 @@ def dismiss_suspected_duplicate(transaction_name):
     return {"message": f"Suspected duplicate flag cleared for {transaction_name}."}
 
 
+@frappe.whitelist()
+def bulk_mark_as_duplicate(transaction_names):
+    """Bulk confirm multiple suspected duplicates as Duplicate."""
+    import json
+    frappe.only_for("System Manager")
+    if isinstance(transaction_names, str):
+        transaction_names = json.loads(transaction_names)
+
+    results = {"success": [], "failed": []}
+    for txn in transaction_names:
+        try:
+            mark_as_duplicate(txn)
+            results["success"].append(txn)
+        except Exception as e:
+            results["failed"].append({"name": txn, "error": str(e)})
+
+    return results
+
+
+@frappe.whitelist()
+def bulk_dismiss_suspected_duplicate(transaction_names):
+    """Bulk dismiss multiple suspected duplicates."""
+    import json
+    frappe.only_for("System Manager")
+    if isinstance(transaction_names, str):
+        transaction_names = json.loads(transaction_names)
+
+    results = {"success": [], "failed": []}
+    for txn in transaction_names:
+        try:
+            dismiss_suspected_duplicate(txn)
+            results["success"].append(txn)
+        except Exception as e:
+            results["failed"].append({"name": txn, "error": str(e)})
+
+    return results
+
+
 # ── Gig Adjustment Transaction ────────────────────────────────────────────────
 
 def _ensure_gig_settings():
