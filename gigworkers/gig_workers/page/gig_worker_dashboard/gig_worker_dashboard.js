@@ -17,6 +17,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 	let _gw_data = null;
 	let _active_aggregator = "";
 	let _active_service_cat = "";
+	let _active_drill_month = "";
 
 	// Load DataTables CSS + JS dynamically, then fetch data
 	load_datatables(function () {
@@ -157,8 +158,9 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 				const y      = PAD_T + chartH - barH;
 				const color  = AGG_COLORS[ai % AGG_COLORS.length];
 				bars += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}"
-					fill="${color}" rx="2" opacity="0.85">
-					<title>${agg}: \u20B9${val.toFixed(2)} (${month})</title>
+					fill="${color}" rx="2" opacity="0.85"
+					class="gw-month-bar" data-month="${month}" style="cursor:pointer;">
+					<title>${agg}: \u20B9${val.toFixed(2)} (${month}) \u2014 click to filter table</title>
 				</rect>`;
 			});
 			// Month label
@@ -183,9 +185,12 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 
 		return `
 		<div class="gw-section">
-			<h5>Monthly Earnings (Last 12 Months)</h5>
+			<h5>Monthly Earnings (Last 12 Months)
+				<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Click a bar to filter the table below by month</span>
+			</h5>
+			<div id="gw-month-drill-bar" style="display:none;margin-bottom:10px;"></div>
 			<div style="overflow-x:auto;">
-				<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">
+				<svg id="gw-monthly-chart-svg" viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">
 					${yAxis}
 					${bars}
 					${labels}
@@ -575,6 +580,62 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 			}
 			.gw-stat-card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
 			.gw-stat-card .value { font-size: 26px; font-weight: 700; color: #333; margin-top: 6px; }
+			.gw-stat-card.gw-drillable {
+				cursor: pointer; transition: transform .15s, box-shadow .15s; position: relative;
+			}
+			.gw-stat-card.gw-drillable:hover {
+				transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+			}
+			.gw-stat-card.gw-drillable::after {
+				content: "↗"; position: absolute; top: 10px; right: 12px;
+				font-size: 13px; color: #ddd; transition: color .15s;
+			}
+			.gw-stat-card.gw-drillable:hover::after { color: var(--card-color, #4e73df); }
+			/* Drill-down modal */
+			#gw-dd-overlay {
+				display: none; position: fixed; inset: 0;
+				background: rgba(0,0,0,0.5); z-index: 10000;
+				align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+			}
+			#gw-dd-overlay.active { display: flex; }
+			#gw-dd-modal {
+				background: #f8f9fc; border-radius: 14px;
+				width: 95vw; max-width: 1100px; max-height: 90vh;
+				display: flex; flex-direction: column;
+				box-shadow: 0 28px 70px rgba(0,0,0,0.28); overflow: hidden;
+			}
+			#gw-dd-header {
+				padding: 18px 24px 14px; background: #fff; border-bottom: 1px solid #eee;
+				display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+			}
+			#gw-dd-title { font-size: 16px; font-weight: 700; color: #333; margin: 0; }
+			#gw-dd-count { font-size: 12px; color: #aaa; margin-top: 3px; }
+			#gw-dd-close {
+				background: none; border: none; font-size: 20px; color: #bbb;
+				cursor: pointer; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: all .12s;
+			}
+			#gw-dd-close:hover { color: #333; background: #f5f5f5; }
+			#gw-dd-body { padding: 16px 20px 20px; overflow-y: auto; flex: 1; }
+			#gw-dd-summary { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+			.gw-dd-stat {
+				background: #fff; border-radius: 10px; padding: 12px 20px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07); min-width: 110px;
+			}
+			.gw-dd-stat-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+			.gw-dd-stat-value { font-size: 20px; font-weight: 700; }
+			#gw-dd-chart-wrap {
+				background: #fff; border-radius: 10px; padding: 16px 20px 8px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07); margin-bottom: 16px;
+			}
+			#gw-dd-chart-wrap h6 { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 8px; }
+			#gw-dd-table-wrap {
+				background: #fff; border-radius: 10px; padding: 16px 20px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07); overflow-x: auto;
+			}
+			#gw-dd-table-wrap h6 { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 12px; }
+			#gw-dd-body table.dataTable { font-size: 13px; width: 100% !important; }
+			#gw-dd-body .dt-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+			#gw-dd-body .dt-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 			.gw-section { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 24px; }
 			.gw-section h5 { font-weight: 700; margin-bottom: 14px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 8px; }
 			.gw-profile { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
@@ -612,17 +673,22 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 		${render_cat_breakdown(cat_breakdown, active_filters.service_category)}
 
 		<div class="gw-card-row">
-			<div class="gw-stat-card" style="--card-color:#4e73df;"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
-			<div class="gw-stat-card" style="--card-color:#1cc88a;"><div class="label">Payment Complete</div><div class="value">${stats.completed_transactions}</div></div>
-			<div class="gw-stat-card" style="--card-color:#f6c23e;"><div class="label">Payment Pending</div><div class="value">${stats.pending_transactions}</div></div>
-			<div class="gw-stat-card" style="--card-color:#6c757d;"><div class="label">Payment Cancelled</div><div class="value">${stats.cancelled_transactions}</div></div>
-			<div class="gw-stat-card" style="--card-color:#e74a3b;"><div class="label">Suspected Duplicates</div><div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div></div>
+			<div class="gw-stat-card gw-drillable" style="--card-color:#4e73df;" data-drilldown="total_txns"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
+			<div class="gw-stat-card gw-drillable" style="--card-color:#1cc88a;" data-drilldown="completed_txns"><div class="label">Payment Complete</div><div class="value">${stats.completed_transactions}</div></div>
+			<div class="gw-stat-card gw-drillable" style="--card-color:#f6c23e;" data-drilldown="pending_txns"><div class="label">Payment Pending</div><div class="value">${stats.pending_transactions}</div></div>
+			<div class="gw-stat-card gw-drillable" style="--card-color:#6c757d;" data-drilldown="cancelled_txns"><div class="label">Payment Cancelled</div><div class="value">${stats.cancelled_transactions}</div></div>
+			<div class="gw-stat-card ${stats.suspected_duplicates ? 'gw-drillable' : ''}"
+				style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
+				${stats.suspected_duplicates ? 'data-drilldown="dup_txns"' : ''}>
+				<div class="label">Suspected Duplicates</div>
+				<div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div>
+			</div>
 		</div>
 
 		<div class="gw-card-row">
-			<div class="gw-stat-card" style="--card-color:#36b9cc;"><div class="label">Welfare Balance</div><div class="value" style="font-size:20px;">${fmt_currency(fund.account_balance)}</div></div>
+			<div class="gw-stat-card gw-drillable" style="--card-color:#36b9cc;" data-drilldown="welfare_balance"><div class="label">Welfare Balance</div><div class="value" style="font-size:20px;">${fmt_currency(fund.account_balance)}</div></div>
 			<div class="gw-stat-card" style="--card-color:#858796;"><div class="label">Total Collected</div><div class="value" style="font-size:20px;">${fmt_currency(fund.total_collected)}</div></div>
-			<div class="gw-stat-card" style="--card-color:#5a5c69;"><div class="label">Total Withdrawn</div><div class="value" style="font-size:20px;">${fmt_currency(fund.total_withdrawn)}</div></div>
+			<div class="gw-stat-card gw-drillable" style="--card-color:#5a5c69;" data-drilldown="withdrawals"><div class="label">Total Withdrawn</div><div class="value" style="font-size:20px;">${fmt_currency(fund.total_withdrawn)}</div></div>
 		</div>
 
 		<div class="gw-section">
@@ -673,6 +739,30 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 				</tbody>
 			</table>
 		</div>
+
+		<!-- Drill-down modal overlay -->
+		<div id="gw-dd-overlay">
+			<div id="gw-dd-modal">
+				<div id="gw-dd-header">
+					<div>
+						<div id="gw-dd-title"></div>
+						<div id="gw-dd-count"></div>
+					</div>
+					<button id="gw-dd-close" title="Close (Esc)">&#10005;</button>
+				</div>
+				<div id="gw-dd-body">
+					<div id="gw-dd-summary" style="display:none;"></div>
+					<div id="gw-dd-chart-wrap" style="display:none;">
+						<h6>Chart</h6>
+						<div id="gw-dd-chart"></div>
+					</div>
+					<div id="gw-dd-table-wrap">
+						<h6>Detail Records</h6>
+						<table id="gw-dd-dt-table" class="display" style="width:100%"></table>
+					</div>
+				</div>
+			</div>
+		</div>
 		`;
 
 		$("#gw-dashboard").html(html);
@@ -701,23 +791,280 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 		// Aggregator breakdown cards — click to filter
 		$(".gw-agg-card").on("click", function () {
 			const agg = $(this).data("aggregator");
-			if (_active_aggregator === agg) {
-				_active_aggregator = "";  // toggle off
-			} else {
-				_active_aggregator = agg;
-			}
+			_active_aggregator = (_active_aggregator === agg) ? "" : agg;
 			fetch_dashboard();
 		});
 
 		// Service category cards — click to filter
 		$(".gw-cat-card").on("click", function () {
 			const cat = $(this).data("category");
-			if (_active_service_cat === cat) {
-				_active_service_cat = "";  // toggle off
-			} else {
-				_active_service_cat = cat;
-			}
+			_active_service_cat = (_active_service_cat === cat) ? "" : cat;
 			fetch_dashboard();
 		});
+
+		// ── Monthly chart bar drill-down ──────────────────────────────────────
+		$(document).off("click.gw_month").on("click.gw_month", ".gw-month-bar", function () {
+			const month = $(this).data("month");
+			_active_drill_month = (_active_drill_month === month) ? "" : month;
+
+			// Dim/highlight bars
+			$("#gw-monthly-chart-svg rect.gw-month-bar").attr("opacity", "0.85");
+			if (_active_drill_month) {
+				$(`#gw-monthly-chart-svg rect.gw-month-bar[data-month="${_active_drill_month}"]`).attr("opacity", "1");
+			}
+
+			// Filter transaction DataTable by date column (col 1)
+			if ($.fn.DataTable && $.fn.DataTable.isDataTable("#gw-txn-table")) {
+				$("#gw-txn-table").DataTable().column(1).search(_active_drill_month || "", false, false).draw();
+			}
+
+			// Update drill indicator
+			const $bar = $("#gw-month-drill-bar");
+			if (_active_drill_month) {
+				$bar.html(`
+					<div style="background:#eef2ff;border:1.5px solid #4e73df;border-radius:8px;
+						padding:8px 16px;display:flex;align-items:center;gap:12px;">
+						<i class="fa fa-filter" style="color:#4e73df;"></i>
+						<span style="color:#4e73df;font-weight:600;">Showing month: ${_active_drill_month}</span>
+						<button id="gw-clear-month-drill" style="margin-left:auto;background:#4e73df;
+							color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;">
+							Clear
+						</button>
+					</div>`).show();
+				$("#gw-clear-month-drill").on("click", function () {
+					_active_drill_month = "";
+					$("#gw-monthly-chart-svg rect.gw-month-bar").attr("opacity", "0.85");
+					if ($.fn.DataTable && $.fn.DataTable.isDataTable("#gw-txn-table")) {
+						$("#gw-txn-table").DataTable().column(1).search("", false, false).draw();
+					}
+					$bar.hide();
+				});
+			} else {
+				$bar.hide();
+			}
+
+			// Scroll to table
+			const tbl = document.getElementById("gw-txn-table");
+			if (tbl) tbl.closest(".gw-section").scrollIntoView({ behavior: "smooth" });
+		});
+
+		// ── Stat card + withdrawal drill-down modal ──────────────────────────
+		(function bind_gw_drilldown() {
+			const GW_STATUS_COLORS = {
+				'Payment complete': '#1cc88a', 'Payment pending': '#4e73df',
+				'Payment Cancelled': '#e74a3b', 'Suspected duplicate': '#f6c23e',
+				Requested: '#17a2b8', Approved: '#28a745', Rejected: '#dc3545', Paid: '#6f42c1',
+			};
+
+			const txn_cols = [
+				{ label: "Transaction ID",   render: t => `<a href="/app/gig-transaction/${t.name}" style="color:#4e73df;">${t.name}</a>` },
+				{ label: "Date",             render: t => t.date || "-" },
+				{ label: "Aggregator",       render: t => t.aggregator || "-" },
+				{ label: "Service",          render: t => t.service || "-" },
+				{ label: "Service Category", render: t => t.service_category || "-" },
+				{ label: "Amount",           render: t => fmt_currency(t.amount) },
+				{ label: "Base Payout",      render: t => fmt_currency(t.base_payout) },
+				{ label: "Welfare",          render: t => fmt_currency(t.welfare_amount) },
+				{ label: "Status",           render: t => status_badge(t.status) },
+			];
+
+			function month_trend(rows) {
+				const map = {};
+				rows.forEach(r => { const m = (r.date || "").substring(0, 7) || "?"; map[m] = (map[m] || 0) + 1; });
+				const labels = Object.keys(map).sort();
+				return { labels, values: labels.map(k => map[k]) };
+			}
+
+			const configs = {
+				total_txns: {
+					title: "All Transactions",
+					rows: () => recent_transactions,
+					cols: txn_cols,
+					summary: rows => [
+						{ label: "Total", value: rows.length, color: "#4e73df" },
+						{ label: "Total Earnings", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+						{ label: "Total Welfare", value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)) },
+					],
+					chart: rows => {
+						const sc = {};
+						rows.forEach(t => { sc[t.status] = (sc[t.status] || 0) + 1; });
+						const labels = Object.keys(sc);
+						if (!labels.length) return null;
+						return { type: "donut", data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] }, colors: labels.map(l => GW_STATUS_COLORS[l] || "#858796") };
+					},
+				},
+				completed_txns: {
+					title: "Completed Transactions",
+					rows: () => recent_transactions.filter(t => t.status === "Payment complete"),
+					cols: txn_cols,
+					summary: rows => [
+						{ label: "Count", value: rows.length, color: "#1cc88a" },
+						{ label: "Total Earnings", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)), color: "#1cc88a" },
+					],
+					chart: rows => {
+						const { labels, values } = month_trend(rows);
+						if (!labels.length) return null;
+						return { type: "line", data: { labels, datasets: [{ name: "Completed per Month", values }] }, colors: ["#1cc88a"] };
+					},
+				},
+				pending_txns: {
+					title: "Pending Transactions",
+					rows: () => recent_transactions.filter(t => t.status === "Payment pending"),
+					cols: txn_cols,
+					summary: rows => [
+						{ label: "Count", value: rows.length, color: "#4e73df" },
+						{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+					],
+					chart: rows => {
+						const { labels, values } = month_trend(rows);
+						if (!labels.length) return null;
+						return { type: "bar", data: { labels, datasets: [{ name: "Pending per Month", values }] }, colors: ["#4e73df"] };
+					},
+				},
+				cancelled_txns: {
+					title: "Cancelled Transactions",
+					rows: () => recent_transactions.filter(t => t.status === "Payment Cancelled"),
+					cols: txn_cols,
+					summary: rows => [
+						{ label: "Count", value: rows.length, color: "#6c757d" },
+						{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+					],
+					chart: null,
+				},
+				dup_txns: {
+					title: "Suspected Duplicate Transactions",
+					rows: () => recent_transactions.filter(t => t.status === "Suspected duplicate"),
+					cols: txn_cols,
+					summary: rows => [{ label: "Count", value: rows.length, color: "#f6c23e" }],
+					chart: null,
+				},
+				welfare_balance: {
+					title: "Welfare Fund Details",
+					rows: () => [],
+					cols: [],
+					summary: () => [
+						{ label: "Current Balance", value: fmt_currency(fund.account_balance), color: "#36b9cc" },
+						{ label: "Total Collected", value: fmt_currency(fund.total_collected) },
+						{ label: "Total Withdrawn", value: fmt_currency(fund.total_withdrawn) },
+					],
+					chart: null,
+				},
+				withdrawals: {
+					title: "My Withdrawal Requests",
+					rows: () => withdrawals,
+					cols: [
+						{ label: "Request ID", render: w => `<a href="/app/welfare-benefit-withdrawal/${w.name}" style="color:#4e73df;">${w.name}</a>` },
+						{ label: "Date",       render: w => (w.creation || "").substring(0, 10) },
+						{ label: "Amount",     render: w => fmt_currency(w.amount) },
+						{ label: "Reason",     render: w => w.reason || "-" },
+						{ label: "Status",     render: w => status_badge(w.status) },
+					],
+					summary: rows => [
+						{ label: "Total Requests", value: rows.length },
+						{ label: "Total Withdrawn", value: fmt_currency(rows.reduce((s, w) => s + (w.amount || 0), 0)) },
+					],
+					chart: rows => {
+						if (!rows.length) return null;
+						const sc = {};
+						rows.forEach(w => { sc[w.status] = (sc[w.status] || 0) + 1; });
+						const labels = Object.keys(sc);
+						return { type: "donut", data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] }, colors: labels.map(l => GW_STATUS_COLORS[l] || "#858796") };
+					},
+				},
+			};
+
+			function render_gw_dd_summary(items) {
+				const $el = $("#gw-dd-summary");
+				if (!items || !items.length) { $el.hide(); return; }
+				$el.show().html(items.map(item =>
+					`<div class="gw-dd-stat">
+						<div class="gw-dd-stat-label">${item.label}</div>
+						<div class="gw-dd-stat-value" style="color:${item.color || "#333"};">${item.value}</div>
+					</div>`
+				).join(""));
+			}
+
+			function render_gw_dd_chart(cfg) {
+				const $wrap = $("#gw-dd-chart-wrap");
+				$wrap.hide();
+				$("#gw-dd-chart").empty();
+				if (!cfg || !cfg.data || !cfg.data.labels || !cfg.data.labels.length) return;
+				if (!frappe || !frappe.Chart) return;
+				$wrap.show();
+				try {
+					const opts = { type: cfg.type || "bar", data: cfg.data, height: 240, colors: cfg.colors || ["#4e73df"] };
+					if (cfg.type === "line") {
+						opts.axisOptions = { xIsSeries: true, shortenYAxisNumbers: true };
+						opts.lineOptions  = { regionFill: 1, dotSize: 3 };
+					} else if (cfg.type === "bar") {
+						opts.axisOptions = { xIsSeries: false, shortenYAxisNumbers: true };
+						opts.barOptions  = { spaceRatio: 0.3 };
+					}
+					new frappe.Chart("#gw-dd-chart", opts);
+				} catch (_) {
+					$wrap.hide();
+				}
+			}
+
+			function open_gw_drilldown(type) {
+				const cfg = configs[type];
+				if (!cfg) return;
+				const rows = cfg.rows();
+
+				if ($.fn.DataTable && $.fn.DataTable.isDataTable("#gw-dd-dt-table")) {
+					$("#gw-dd-dt-table").DataTable().destroy();
+					$("#gw-dd-dt-table").empty();
+				}
+
+				$("#gw-dd-title").text(cfg.title);
+				$("#gw-dd-count").text(`${rows.length} record${rows.length !== 1 ? "s" : ""}`);
+
+				render_gw_dd_summary(cfg.summary ? cfg.summary(rows) : null);
+				render_gw_dd_chart(rows.length && cfg.chart ? cfg.chart(rows) : null);
+
+				if (cfg.cols && cfg.cols.length) {
+					const thead = `<thead><tr>${cfg.cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>`;
+					const tbody_html = rows.length
+						? rows.map(row => `<tr>${cfg.cols.map(c => `<td>${c.render(row)}</td>`).join("")}</tr>`).join("")
+						: `<tr><td colspan="${cfg.cols.length}" style="text-align:center;color:#aaa;padding:24px;">No records found</td></tr>`;
+					$("#gw-dd-dt-table").html(`${thead}<tbody>${tbody_html}</tbody>`);
+					if (rows.length && $.fn.DataTable) {
+						$("#gw-dd-dt-table").DataTable({
+							pageLength: 15, lengthMenu: [10, 15, 25, 50, 100], order: [],
+							language: { search: "Filter:", lengthMenu: "Show _MENU_ entries", info: "Showing _START_ to _END_ of _TOTAL_ records", emptyTable: "No records found" },
+							dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
+						});
+					}
+				} else {
+					$("#gw-dd-dt-table").html(`<tbody><tr><td style="text-align:center;padding:24px;color:#888;">No detailed records available for this view.</td></tr></tbody>`);
+				}
+
+				$("#gw-dd-overlay").addClass("active");
+				$("#gw-dd-body").scrollTop(0);
+			}
+
+			function close_gw_drilldown() {
+				if ($.fn.DataTable && $.fn.DataTable.isDataTable("#gw-dd-dt-table")) {
+					$("#gw-dd-dt-table").DataTable().destroy();
+					$("#gw-dd-dt-table").empty();
+				}
+				$("#gw-dd-overlay").removeClass("active");
+			}
+
+			$(document).off("click.gw_drilldown").off("keydown.gw_drilldown");
+			$("#gw-dashboard").off("click.gw_drilldown");
+
+			$("#gw-dashboard").on("click.gw_drilldown", ".gw-drillable[data-drilldown]", function () {
+				open_gw_drilldown($(this).data("drilldown"));
+			});
+
+			$("#gw-dd-close").on("click", close_gw_drilldown);
+			$("#gw-dd-overlay").on("click", function (e) {
+				if ($(e.target).is("#gw-dd-overlay")) close_gw_drilldown();
+			});
+			$(document).on("keydown.gw_drilldown", function (e) {
+				if (e.key === "Escape" && $("#gw-dd-overlay").hasClass("active")) close_gw_drilldown();
+			});
+		})();
 	}
 };

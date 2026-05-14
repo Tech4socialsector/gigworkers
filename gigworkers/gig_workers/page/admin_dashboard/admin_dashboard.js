@@ -1421,6 +1421,34 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		</div>
 		` : ""}
 
+		<!-- Analytics Charts -->
+		${(data.monthly_trend && data.monthly_trend.length) ? `
+		<div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
+			<div class="admin-section" style="flex:2;min-width:280px;padding-bottom:8px;">
+				<h5>
+					<i class="fa fa-bar-chart" style="color:#4e73df;margin-right:6px;"></i>
+					Monthly Transaction Trend
+					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Last 12 months</span>
+				</h5>
+				<div id="admin-trend-chart"></div>
+				<p id="admin-trend-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
+				<div style="display:flex;gap:16px;font-size:12px;color:#666;margin-top:6px;">
+					<span><span style="display:inline-block;width:10px;height:10px;background:#4e73df;border-radius:2px;margin-right:4px;"></span>Completed</span>
+					<span><span style="display:inline-block;width:10px;height:10px;background:#c7d5f8;border-radius:2px;margin-right:4px;"></span>Total</span>
+				</div>
+			</div>
+			<div class="admin-section" style="flex:1;min-width:220px;padding-bottom:8px;">
+				<h5>
+					<i class="fa fa-pie-chart" style="color:#36b9cc;margin-right:6px;"></i>
+					Transaction Summary
+					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Current filter</span>
+				</h5>
+				<div id="admin-status-chart"></div>
+				<p id="admin-status-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
+			</div>
+		</div>
+		` : ""}
+
 		<!-- Transactions -->
 		<div class="admin-section-title">Transactions</div>
 		<div class="admin-card-row">
@@ -1603,6 +1631,59 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		`;
 
 		$("#admin-dashboard").html(html);
+
+		// ── Standalone analytics charts ──────────────────────────────────────
+		(function init_admin_charts() {
+			const mt = data.monthly_trend || [];
+			if (!mt.length) return;
+
+			const STATUS_COLORS_ADM = {
+				'Payment complete': '#1cc88a', 'Payment pending': '#4e73df',
+				'Payment Cancelled': '#e74a3b', 'Suspected duplicate': '#f6c23e',
+			};
+
+			// Monthly Trend Chart
+			if (frappe && frappe.Chart && $("#admin-trend-chart").length) {
+				try {
+					new frappe.Chart("#admin-trend-chart", {
+						type: "bar",
+						data: {
+							labels: mt.map(r => r.month),
+							datasets: [
+								{ name: "Total",     values: mt.map(r => r.total_count) },
+								{ name: "Completed", values: mt.map(r => r.completed_count) },
+							],
+						},
+						height: 220,
+						colors: ["#c7d5f8", "#4e73df"],
+						barOptions: { spaceRatio: 0.35 },
+						axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
+					});
+				} catch (_) {
+					$("#admin-trend-empty").show().text("Chart unavailable");
+				}
+			}
+
+			// Status distribution donut
+			const txns = data.recent_transactions || [];
+			if (frappe && frappe.Chart && $("#admin-status-chart").length && txns.length) {
+				try {
+					const sc = {};
+					txns.forEach(t => { sc[t.status] = (sc[t.status] || 0) + 1; });
+					const labels = Object.keys(sc);
+					new frappe.Chart("#admin-status-chart", {
+						type: "donut",
+						data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] },
+						height: 220,
+						colors: labels.map(l => STATUS_COLORS_ADM[l] || "#858796"),
+					});
+				} catch (_) {
+					$("#admin-status-empty").show().text("Chart unavailable");
+				}
+			} else if (!txns.length) {
+				$("#admin-status-empty").show().text("No transaction data");
+			}
+		})();
 
 		if ($.fn.DataTable) {
 			$("#admin-agg-table").DataTable({

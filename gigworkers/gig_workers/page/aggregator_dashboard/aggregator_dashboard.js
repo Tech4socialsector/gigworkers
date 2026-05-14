@@ -56,9 +56,9 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		$.getScript("https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js", callback);
 	}
 
-	function init_datatable(table_id) {
+	function init_datatable(table_id, extra_opts) {
 		if ($.fn.DataTable) {
-			$(table_id).DataTable({
+			return $(table_id).DataTable(Object.assign({
 				pageLength: 10,
 				lengthMenu: [5, 10, 25, 50, 100],
 				order: [],
@@ -69,8 +69,9 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 					emptyTable: "No data available",
 				},
 				dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
-			});
+			}, extra_opts || {}));
 		}
+		return null;
 	}
 
 	function fmt_currency(val) {
@@ -99,6 +100,322 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		return new Date().toISOString().slice(0, 10).replace(/-/g, "");
 	}
 
+	// ── Standalone charts ────────────────────────────────────────────────────
+
+	const STATUS_COLORS = {
+		'Payment complete': '#1cc88a', 'Payment pending': '#4e73df',
+		'Payment Cancelled': '#e74a3b', 'Suspected duplicate': '#f6c23e',
+		Pending: '#f6c23e', Active: '#1cc88a',
+	};
+
+	function init_agg_charts(data) {
+		const { monthly_trend, status_breakdown } = data;
+
+		// Monthly Trend Chart
+		if (monthly_trend && monthly_trend.length && frappe && frappe.Chart) {
+			try {
+				$("#agg-trend-empty").hide();
+				new frappe.Chart("#agg-trend-chart", {
+					type: "bar",
+					data: {
+						labels: monthly_trend.map(r => r.month),
+						datasets: [
+							{ name: "Total", values: monthly_trend.map(r => r.total_count) },
+							{ name: "Completed", values: monthly_trend.map(r => r.completed_count) },
+						],
+					},
+					height: 220,
+					colors: ["#c7d5f8", "#4e73df"],
+					barOptions: { spaceRatio: 0.35 },
+					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
+				});
+			} catch (e) {
+				$("#agg-trend-empty").show().text("Chart unavailable");
+			}
+		} else {
+			$("#agg-trend-empty").show().text(
+				monthly_trend && monthly_trend.length ? "Chart library unavailable" : "No transaction data yet"
+			);
+		}
+
+		// Status Distribution Donut
+		if (status_breakdown && status_breakdown.length && frappe && frappe.Chart) {
+			try {
+				$("#agg-status-empty").hide();
+				new frappe.Chart("#agg-status-chart", {
+					type: "donut",
+					data: {
+						labels: status_breakdown.map(r => r.status),
+						datasets: [{ values: status_breakdown.map(r => r.cnt) }],
+					},
+					height: 220,
+					colors: status_breakdown.map(r => STATUS_COLORS[r.status] || "#858796"),
+				});
+			} catch (e) {
+				$("#agg-status-empty").show().text("Chart unavailable");
+			}
+		} else {
+			$("#agg-status-empty").show().text(
+				status_breakdown && status_breakdown.length ? "Chart library unavailable" : "No data available"
+			);
+		}
+	}
+
+	// ── Drill-down modal ─────────────────────────────────────────────────────
+
+	function bind_agg_drilldown(data) {
+		const { recent_transactions, worker_list, pending_wfp, suspected_dups } = data;
+
+		const txn_cols = [
+			{ label: "Transaction ID", render: t => `<a href="/app/gig-transaction/${t.name}" style="color:#4e73df;">${t.name}</a>` },
+			{ label: "Date",           render: t => t.date || "-" },
+			{ label: "Gig Worker",     render: t => t.gig_worker || "-" },
+			{ label: "Service",        render: t => t.service || "-" },
+			{ label: "Service Category", render: t => t.service_category || "-" },
+			{ label: "Amount",         render: t => fmt_currency(t.amount) },
+			{ label: "Base Payout",    render: t => fmt_currency(t.base_payout) },
+			{ label: "Welfare",        render: t => fmt_currency(t.welfare_amount) },
+			{ label: "Status",         render: t => status_badge(t.status) },
+		];
+
+		function group_by_month_count(rows) {
+			const map = {};
+			rows.forEach(r => { const m = (r.date || "").substring(0, 7) || "?"; map[m] = (map[m] || 0) + 1; });
+			const labels = Object.keys(map).sort();
+			return { labels, values: labels.map(k => map[k]) };
+		}
+
+		const configs = {
+			total_txns: {
+				title: "All Transactions",
+				rows: () => recent_transactions,
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Total", value: rows.length, color: "#4e73df" },
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+					{ label: "Total Welfare", value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)) },
+				],
+				chart: rows => {
+					const sc = {};
+					rows.forEach(t => { sc[t.status] = (sc[t.status] || 0) + 1; });
+					const labels = Object.keys(sc);
+					if (!labels.length) return null;
+					return { type: "donut", data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] }, colors: labels.map(l => STATUS_COLORS[l] || "#858796") };
+				},
+			},
+			completed_txns: {
+				title: "Completed Transactions",
+				rows: () => recent_transactions.filter(t => t.status === "Payment complete"),
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Count", value: rows.length, color: "#1cc88a" },
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)), color: "#1cc88a" },
+					{ label: "Total Welfare", value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)) },
+				],
+				chart: rows => {
+					const { labels, values } = group_by_month_count(rows);
+					if (!labels.length) return null;
+					return { type: "line", data: { labels, datasets: [{ name: "Completed per Month", values }] }, colors: ["#1cc88a"] };
+				},
+			},
+			pending_txns: {
+				title: "Pending Transactions",
+				rows: () => recent_transactions.filter(t => t.status === "Payment pending"),
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Count", value: rows.length, color: "#4e73df" },
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+				],
+				chart: rows => {
+					const { labels, values } = group_by_month_count(rows);
+					if (!labels.length) return null;
+					return { type: "bar", data: { labels, datasets: [{ name: "Pending per Month", values }] }, colors: ["#4e73df"] };
+				},
+			},
+			cancelled_txns: {
+				title: "Cancelled Transactions",
+				rows: () => recent_transactions.filter(t => t.status === "Payment Cancelled"),
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Count", value: rows.length, color: "#e74a3b" },
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+				],
+				chart: rows => {
+					const { labels, values } = group_by_month_count(rows);
+					if (!labels.length) return null;
+					return { type: "bar", data: { labels, datasets: [{ name: "Cancelled per Month", values }] }, colors: ["#e74a3b"] };
+				},
+			},
+			dup_txns: {
+				title: "Suspected Duplicate Transactions",
+				rows: () => suspected_dups || [],
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Count", value: rows.length, color: "#f6c23e" },
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)) },
+				],
+				chart: null,
+			},
+			total_workers: {
+				title: "Worker Mapping Log",
+				rows: () => worker_list || [],
+				cols: [
+					{ label: "Gig Worker",   render: w => `<a href="/app/gig-worker/${w.gig_worker}" style="color:#4e73df;">${w.gig_worker || "-"}</a>` },
+					{ label: "Service",      render: w => w.service || "-" },
+					{ label: "Event",        render: w => w.event_type || "-" },
+					{ label: "Worker Status", render: w => status_badge(w.worker_status) },
+					{ label: "Logged At",    render: w => (w.log_datetime || "").substring(0, 16) },
+				],
+				summary: rows => [{ label: "Total Records", value: rows.length }],
+				chart: rows => {
+					const sc = {};
+					rows.forEach(w => { const s = w.worker_status || "Unknown"; sc[s] = (sc[s] || 0) + 1; });
+					const labels = Object.keys(sc);
+					if (!labels.length) return null;
+					return { type: "donut", data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] }, colors: ["#1cc88a", "#6c757d", "#4e73df", "#f6c23e", "#e74a3b"] };
+				},
+			},
+			onboarded_workers: {
+				title: "Onboarded Workers",
+				rows: () => (worker_list || []).filter(w => ["Onboarded", "Active"].includes(w.worker_status)),
+				cols: [
+					{ label: "Gig Worker",   render: w => `<a href="/app/gig-worker/${w.gig_worker}" style="color:#4e73df;">${w.gig_worker || "-"}</a>` },
+					{ label: "Service",      render: w => w.service || "-" },
+					{ label: "Event",        render: w => w.event_type || "-" },
+					{ label: "Worker Status", render: w => status_badge(w.worker_status) },
+					{ label: "Logged At",    render: w => (w.log_datetime || "").substring(0, 16) },
+				],
+				summary: rows => [{ label: "Count", value: rows.length, color: "#1cc88a" }],
+				chart: null,
+			},
+			welfare_settled: {
+				title: "Welfare Fees Settled",
+				rows: () => [],
+				cols: [],
+				summary: () => [{ label: "View full list", value: "→ Welfare Fee Payment" }],
+				chart: null,
+			},
+			welfare_pending: {
+				title: "Pending Welfare Fee Payments",
+				rows: () => pending_wfp || [],
+				cols: [
+					{ label: "Payment ID",   render: p => `<a href="/app/welfare-fee-payment/${p.name}" style="color:#4e73df;">${p.name}</a>` },
+					{ label: "Transaction",  render: p => p.transaction || "-" },
+					{ label: "Fee Amount",   render: p => fmt_currency(p.fee_amount) },
+					{ label: "Due Date",     render: p => p.payment_date || "-" },
+					{ label: "Status",       render: p => status_badge(p.payment_status) },
+				],
+				summary: rows => [
+					{ label: "Count", value: rows.length, color: "#e74a3b" },
+					{ label: "Total Pending", value: fmt_currency(rows.reduce((s, p) => s + (p.fee_amount || 0), 0)), color: "#e74a3b" },
+				],
+				chart: rows => {
+					if (!rows.length) return null;
+					const map = {};
+					rows.forEach(p => { const d = (p.payment_date || "").substring(0, 7) || "?"; map[d] = (map[d] || 0) + (p.fee_amount || 0); });
+					const labels = Object.keys(map).sort();
+					return { type: "bar", data: { labels, datasets: [{ name: "Pending Fees (₹)", values: labels.map(k => map[k]) }] }, colors: ["#e74a3b"] };
+				},
+			},
+		};
+
+		function render_dd_summary(items) {
+			const $el = $("#agg-dd-summary");
+			if (!items || !items.length) { $el.hide(); return; }
+			$el.show().html(items.map(item =>
+				`<div class="agg-dd-stat">
+					<div class="agg-dd-stat-label">${item.label}</div>
+					<div class="agg-dd-stat-value" style="color:${item.color || "#333"};">${item.value}</div>
+				</div>`
+			).join(""));
+		}
+
+		function render_dd_chart(cfg) {
+			const $wrap = $("#agg-dd-chart-wrap");
+			$wrap.hide();
+			$("#agg-dd-chart").empty();
+			if (!cfg || !cfg.data || !cfg.data.labels || !cfg.data.labels.length) return;
+			if (!frappe || !frappe.Chart) return;
+			$wrap.show();
+			try {
+				const opts = { type: cfg.type || "bar", data: cfg.data, height: 240, colors: cfg.colors || ["#4e73df"] };
+				if (cfg.type === "line") {
+					opts.axisOptions = { xIsSeries: true, shortenYAxisNumbers: true };
+					opts.lineOptions  = { regionFill: 1, dotSize: 3 };
+				} else if (cfg.type === "bar") {
+					opts.axisOptions = { xIsSeries: false, shortenYAxisNumbers: true };
+					opts.barOptions  = { spaceRatio: 0.3 };
+				}
+				new frappe.Chart("#agg-dd-chart", opts);
+			} catch (_) {
+				$wrap.hide();
+			}
+		}
+
+		function open_drilldown(type) {
+			const cfg = configs[type];
+			if (!cfg) return;
+			const rows = cfg.rows();
+
+			if ($.fn.DataTable && $.fn.DataTable.isDataTable("#agg-dd-dt-table")) {
+				$("#agg-dd-dt-table").DataTable().destroy();
+				$("#agg-dd-dt-table").empty();
+			}
+
+			$("#agg-dd-title").text(cfg.title);
+			$("#agg-dd-count").text(`${rows.length} record${rows.length !== 1 ? "s" : ""}`);
+
+			render_dd_summary(cfg.summary ? cfg.summary(rows) : null);
+			render_dd_chart(rows.length && cfg.chart ? cfg.chart(rows) : null);
+
+			if (cfg.cols && cfg.cols.length) {
+				const thead = `<thead><tr>${cfg.cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>`;
+				const tbody_html = rows.length
+					? rows.map(row => `<tr>${cfg.cols.map(c => `<td>${c.render(row)}</td>`).join("")}</tr>`).join("")
+					: `<tr><td colspan="${cfg.cols.length}" style="text-align:center;color:#aaa;padding:24px;">No records found</td></tr>`;
+				$("#agg-dd-dt-table").html(`${thead}<tbody>${tbody_html}</tbody>`);
+
+				if (rows.length && $.fn.DataTable) {
+					$("#agg-dd-dt-table").DataTable({
+						pageLength: 15, lengthMenu: [10, 15, 25, 50, 100], order: [],
+						language: { search: "Filter:", lengthMenu: "Show _MENU_ entries", info: "Showing _START_ to _END_ of _TOTAL_ records", emptyTable: "No records found" },
+						dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
+					});
+				}
+			} else {
+				$("#agg-dd-dt-table").html(`<tbody><tr><td style="text-align:center;padding:24px;color:#888;">No detailed records available for this view.</td></tr></tbody>`);
+			}
+
+			$("#agg-dd-overlay").addClass("active");
+			$("#agg-dd-body").scrollTop(0);
+		}
+
+		function close_drilldown() {
+			if ($.fn.DataTable && $.fn.DataTable.isDataTable("#agg-dd-dt-table")) {
+				$("#agg-dd-dt-table").DataTable().destroy();
+				$("#agg-dd-dt-table").empty();
+			}
+			$("#agg-dd-overlay").removeClass("active");
+		}
+
+		$(document).off("click.agg_drilldown").off("keydown.agg_drilldown");
+		$("#agg-dashboard").off("click.agg_drilldown");
+
+		$("#agg-dashboard").on("click.agg_drilldown", ".agg-drillable[data-drilldown]", function () {
+			open_drilldown($(this).data("drilldown"));
+		});
+
+		$("#agg-dd-close").on("click", close_drilldown);
+		$("#agg-dd-overlay").on("click", function (e) {
+			if ($(e.target).is("#agg-dd-overlay")) close_drilldown();
+		});
+		$(document).on("keydown.agg_drilldown", function (e) {
+			if (e.key === "Escape" && $("#agg-dd-overlay").hasClass("active")) close_drilldown();
+		});
+	}
+
+	// ── PDF download ─────────────────────────────────────────────────────────
+
 	function download_pdf() {
 		if (!_agg_data) return;
 
@@ -126,8 +443,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				const pages = doc.internal.getNumberOfPages();
 				for (let i = 1; i <= pages; i++) {
 					doc.setPage(i);
-					doc.setDrawColor(...BORDER);
-					doc.setLineWidth(0.5);
+					doc.setDrawColor(...BORDER); doc.setLineWidth(0.5);
 					doc.line(ML, PH - 46, PW - MR, PH - 46);
 					doc.setFontSize(7.5); doc.setFont(undefined, "normal");
 					doc.setTextColor(...MUTED);
@@ -140,8 +456,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				const pages = doc.internal.getNumberOfPages();
 				for (let i = 1; i <= pages; i++) {
 					doc.setPage(i);
-					doc.setDrawColor(...BORDER);
-					doc.setLineWidth(1);
+					doc.setDrawColor(...BORDER); doc.setLineWidth(1);
 					doc.rect(20, 20, PW - 40, PH - 40, "S");
 				}
 			}
@@ -149,15 +464,12 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			let y = 0;
 			function section_heading(title) {
 				y += 10;
-				doc.setFontSize(10); doc.setFont(undefined, "bold");
-				doc.setTextColor(...DARK);
+				doc.setFontSize(10); doc.setFont(undefined, "bold"); doc.setTextColor(...DARK);
 				doc.text(title.toUpperCase(), ML, y);
 				y += 4;
-				doc.setDrawColor(...BLACK);
-				doc.setLineWidth(1);
+				doc.setDrawColor(...BLACK); doc.setLineWidth(1);
 				doc.line(ML, y, ML + CW, y);
-				y += 8;
-				doc.setFont(undefined, "normal");
+				y += 8; doc.setFont(undefined, "normal");
 			}
 
 			function stats_table(rows_data) {
@@ -176,14 +488,11 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 						const isEven = ri % 2 === 0;
 						doc.setFillColor(...(isEven ? WHITE : GREY_LT));
 						doc.rect(ox, ry, colW, rowH, "F");
-						doc.setDrawColor(...BORDER);
-						doc.setLineWidth(0.3);
+						doc.setDrawColor(...BORDER); doc.setLineWidth(0.3);
 						doc.rect(ox, ry, colW, rowH, "S");
-						doc.setFontSize(8); doc.setFont(undefined, "normal");
-						doc.setTextColor(...MUTED);
+						doc.setFontSize(8); doc.setFont(undefined, "normal"); doc.setTextColor(...MUTED);
 						doc.text(item.label, ox + 6, ry + 12, { maxWidth: labelW - 8 });
-						doc.setFont(undefined, "bold");
-						doc.setTextColor(...DARK);
+						doc.setFont(undefined, "bold"); doc.setTextColor(...DARK);
 						doc.text(String(item.value), ox + labelW + valW - 6, ry + 12, { align: "right", maxWidth: valW - 4 });
 					});
 				});
@@ -194,76 +503,52 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 			function pdf_table(head, body) {
 				doc.autoTable({
-					startY: y,
-					head: [head],
-					body,
+					startY: y, head: [head], body,
 					theme: "grid",
-					headStyles: {
-						fillColor: GREY_HD, textColor: WHITE,
-						fontSize: 7.5, fontStyle: "bold", cellPadding: { top: 4, bottom: 4, left: 4, right: 4 },
-					},
-					bodyStyles: {
-						fontSize: 7.5, textColor: DARK,
-						cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
-					},
+					headStyles: { fillColor: GREY_HD, textColor: WHITE, fontSize: 7.5, fontStyle: "bold", cellPadding: { top: 4, bottom: 4, left: 4, right: 4 } },
+					bodyStyles: { fontSize: 7.5, textColor: DARK, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } },
 					alternateRowStyles: { fillColor: GREY_LT },
-					tableLineColor: BORDER,
-					tableLineWidth: 0.3,
+					tableLineColor: BORDER, tableLineWidth: 0.3,
 					margin: { left: ML, right: MR, bottom: 60 },
 				});
 				y = doc.lastAutoTable.finalY + 14;
 			}
 
-			// Title block
 			y = 60;
-			doc.setDrawColor(...BLACK);
-			doc.setLineWidth(1.5);
+			doc.setDrawColor(...BLACK); doc.setLineWidth(1.5);
 			doc.line(ML, y, ML + CW, y);
 			y += 14;
-
-			doc.setFontSize(15); doc.setFont(undefined, "bold");
-			doc.setTextColor(...DARK);
+			doc.setFontSize(15); doc.setFont(undefined, "bold"); doc.setTextColor(...DARK);
 			doc.text("Aggregator Dashboard Report", ML, y);
-			doc.setFont(undefined, "normal");
-			y += 16;
-
+			doc.setFont(undefined, "normal"); y += 16;
 			doc.setFontSize(8.5); doc.setTextColor(...MUTED);
-			doc.text("Gig Workers Welfare Portal", ML, y);
-			y += 13;
-
+			doc.text("Gig Workers Welfare Portal", ML, y); y += 13;
 			doc.setFontSize(8); doc.setTextColor(...DARK);
 			doc.text("Aggregator:", ML, y);
 			doc.setFont(undefined, "bold");
 			doc.text(`${d.aggregator.aggregator_name || "-"}  (${d.aggregator_id})`, ML + 60, y);
-			doc.setFont(undefined, "normal");
-			y += 14;
+			doc.setFont(undefined, "normal"); y += 14;
+			doc.setDrawColor(...BLACK); doc.setLineWidth(0.5);
+			doc.line(ML, y, ML + CW, y); y += 20;
 
-			doc.setDrawColor(...BLACK);
-			doc.setLineWidth(0.5);
-			doc.line(ML, y, ML + CW, y);
-			y += 20;
-
-			// Transaction stats
 			section_heading("Transactions");
 			stats_table([
-				{ label: "Total Transactions",       value: d.stats.total_transactions },
-				{ label: "Completed",                value: d.stats.completed_transactions },
-				{ label: "Pending",                  value: d.stats.pending_transactions },
-				{ label: "Total Amount (INR)",        value: fmt_currency_plain(d.stats.total_amount) },
-				{ label: "Total Welfare (INR)",       value: fmt_currency_plain(d.stats.total_welfare) },
-				{ label: "Base Payout Total (INR)",   value: fmt_currency_plain(d.stats.total_base_payout) },
+				{ label: "Total Transactions",      value: d.stats.total_transactions },
+				{ label: "Completed",               value: d.stats.completed_transactions },
+				{ label: "Pending",                 value: d.stats.pending_transactions },
+				{ label: "Total Amount (INR)",       value: fmt_currency_plain(d.stats.total_amount) },
+				{ label: "Total Welfare (INR)",      value: fmt_currency_plain(d.stats.total_welfare) },
+				{ label: "Base Payout Total (INR)",  value: fmt_currency_plain(d.stats.total_base_payout) },
 			]);
 
-			// Worker & welfare stats
 			section_heading("Workers & Welfare");
 			stats_table([
-				{ label: "Total Workers",             value: d.workers.total },
-				{ label: "Onboarded Workers",         value: d.workers.active },
+				{ label: "Total Workers",              value: d.workers.total },
+				{ label: "Onboarded Workers",          value: d.workers.active },
 				{ label: "Welfare Fees Settled (INR)", value: fmt_currency_plain(d.welfare_payments.total_paid) },
 				{ label: "Welfare Fees Pending (INR)", value: fmt_currency_plain(d.welfare_payments.pending_amount) },
 			]);
 
-			// Transactions table
 			section_heading("Transaction Details");
 			pdf_table(
 				["Txn ID", "Date", "Gig Worker", "Service", "Amount (INR)", "Base Payout (INR)", "Welfare (INR)", "Status"],
@@ -274,7 +559,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				])
 			);
 
-			// Worker mapping log table
 			section_heading("Worker Mapping Log");
 			pdf_table(
 				["Log ID", "Gig Worker", "Service", "Event", "Worker Status", "Logged At"],
@@ -285,7 +569,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				])
 			);
 
-			// Pending welfare fee payments table
 			section_heading("Pending Welfare Fee Payments");
 			pdf_table(
 				["Payment ID", "Transaction", "Fee Amount (INR)", "Due Date", "Status"],
@@ -362,7 +645,9 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		const { aggregator, aggregator_id, stats, workers, welfare_payments,
 			recent_transactions, worker_list, pending_wfp,
 			service_categories, active_filters, suspected_dups,
-			services } = data;
+			services, monthly_trend, status_breakdown } = data;
+
+		const has_charts = (monthly_trend && monthly_trend.length) || (status_breakdown && status_breakdown.length);
 
 		const html = `
 		<style>
@@ -374,6 +659,21 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			}
 			.agg-stat-card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
 			.agg-stat-card .value { font-size: 26px; font-weight: 700; color: #333; margin-top: 6px; }
+			.agg-stat-card.agg-drillable {
+				cursor: pointer;
+				transition: transform .15s, box-shadow .15s;
+				position: relative;
+			}
+			.agg-stat-card.agg-drillable:hover {
+				transform: translateY(-3px);
+				box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+			}
+			.agg-stat-card.agg-drillable::after {
+				content: "↗";
+				position: absolute; top: 10px; right: 12px;
+				font-size: 13px; color: #ddd; transition: color .15s;
+			}
+			.agg-stat-card.agg-drillable:hover::after { color: var(--card-color, #4e73df); }
 			.agg-section { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 24px; }
 			.agg-section h5 { font-weight: 700; margin-bottom: 14px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 8px; }
 			.agg-profile { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
@@ -386,6 +686,53 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			table.dataTable thead th { background: #f8f9fa; color: #555; font-weight: 600; }
 			table.dataTable tbody tr:hover td { background: #fafafa; }
 			table.dataTable { font-size: 13px; }
+
+			/* ── Drill-down modal ── */
+			#agg-dd-overlay {
+				display: none; position: fixed; inset: 0;
+				background: rgba(0,0,0,0.5); z-index: 10000;
+				align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+			}
+			#agg-dd-overlay.active { display: flex; }
+			#agg-dd-modal {
+				background: #f8f9fc; border-radius: 14px;
+				width: 95vw; max-width: 1100px; max-height: 90vh;
+				display: flex; flex-direction: column;
+				box-shadow: 0 28px 70px rgba(0,0,0,0.28); overflow: hidden;
+			}
+			#agg-dd-header {
+				padding: 18px 24px 14px; background: #fff;
+				border-bottom: 1px solid #eee;
+				display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+			}
+			#agg-dd-title { font-size: 16px; font-weight: 700; color: #333; margin: 0; }
+			#agg-dd-count { font-size: 12px; color: #aaa; margin-top: 3px; }
+			#agg-dd-close {
+				background: none; border: none; font-size: 20px; color: #bbb;
+				cursor: pointer; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: all .12s;
+			}
+			#agg-dd-close:hover { color: #333; background: #f5f5f5; }
+			#agg-dd-body { padding: 16px 20px 20px; overflow-y: auto; flex: 1; }
+			#agg-dd-summary { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+			.agg-dd-stat {
+				background: #fff; border-radius: 10px; padding: 12px 20px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07); min-width: 110px;
+			}
+			.agg-dd-stat-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+			.agg-dd-stat-value { font-size: 20px; font-weight: 700; }
+			#agg-dd-chart-wrap {
+				background: #fff; border-radius: 10px; padding: 16px 20px 8px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07); margin-bottom: 16px;
+			}
+			#agg-dd-chart-wrap h6 { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 8px; }
+			#agg-dd-table-wrap {
+				background: #fff; border-radius: 10px; padding: 16px 20px;
+				box-shadow: 0 1px 6px rgba(0,0,0,0.07); overflow-x: auto;
+			}
+			#agg-dd-table-wrap h6 { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 12px; }
+			#agg-dd-body table.dataTable { font-size: 13px; width: 100% !important; }
+			#agg-dd-body .dt-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+			#agg-dd-body .dt-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 		</style>
 
 		<div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
@@ -504,23 +851,73 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			<span style="font-size:12px;color:#888;margin-left:4px;">Stats and tables below show data for this service only</span>
 		</div>` : ""}
 
+		<!-- Analytics Charts -->
+		${has_charts ? `
+		<div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
+			${(monthly_trend && monthly_trend.length) ? `
+			<div class="agg-section" style="flex:2;min-width:280px;padding-bottom:8px;">
+				<h5>
+					<i class="fa fa-bar-chart" style="color:#4e73df;margin-right:6px;"></i>
+					Monthly Transaction Trend
+					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Last 12 months</span>
+				</h5>
+				<div id="agg-trend-chart"></div>
+				<p id="agg-trend-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
+				<div style="display:flex;gap:16px;font-size:12px;color:#666;margin-top:6px;">
+					<span><span style="display:inline-block;width:10px;height:10px;background:#4e73df;border-radius:2px;margin-right:4px;"></span>Completed</span>
+					<span><span style="display:inline-block;width:10px;height:10px;background:#c7d5f8;border-radius:2px;margin-right:4px;"></span>Total</span>
+				</div>
+			</div>` : ""}
+			${(status_breakdown && status_breakdown.length) ? `
+			<div class="agg-section" style="flex:1;min-width:240px;padding-bottom:8px;">
+				<h5>
+					<i class="fa fa-pie-chart" style="color:#36b9cc;margin-right:6px;"></i>
+					Payment Status
+					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Current filter</span>
+				</h5>
+				<div id="agg-status-chart"></div>
+				<p id="agg-status-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
+			</div>` : ""}
+		</div>
+		` : ""}
+
+		<!-- Stat cards with drill-down -->
 		<div class="agg-card-row">
-			<div class="agg-stat-card" style="--card-color:#4e73df;"><div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div></div>
-			<div class="agg-stat-card" style="--card-color:#1cc88a;"><div class="label">Payment Complete</div><div class="value">${stats.completed_transactions}</div></div>
-			<div class="agg-stat-card" style="--card-color:#f6c23e;"><div class="label">Payment Pending</div><div class="value">${stats.pending_transactions}</div></div>
-			<div class="agg-stat-card" style="--card-color:#6c757d;"><div class="label">Payment Cancelled</div><div class="value">${stats.cancelled_transactions}</div></div>
-			<div class="agg-stat-card" style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
-				onclick="if(${stats.suspected_duplicates || 0}){var el=document.getElementById('agg-dup-section');if(el)el.scrollIntoView({behavior:'smooth'});}">
+			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="total_txns">
+				<div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="completed_txns">
+				<div class="label">Payment Complete</div><div class="value">${stats.completed_transactions}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#f6c23e;" data-drilldown="pending_txns">
+				<div class="label">Payment Pending</div><div class="value">${stats.pending_transactions}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#6c757d;" data-drilldown="cancelled_txns">
+				<div class="label">Payment Cancelled</div><div class="value">${stats.cancelled_transactions}</div>
+			</div>
+			<div class="agg-stat-card ${stats.suspected_duplicates ? 'agg-drillable' : ''}"
+				style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
+				${stats.suspected_duplicates ? 'data-drilldown="dup_txns"' : ''}>
 				<div class="label">Suspected Duplicates</div>
 				<div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div>
 			</div>
 		</div>
 
 		<div class="agg-card-row">
-			<div class="agg-stat-card" style="--card-color:#4e73df;"><div class="label">Total Workers</div><div class="value">${workers.total}</div></div>
-			<div class="agg-stat-card" style="--card-color:#1cc88a;"><div class="label">Onboarded Workers</div><div class="value">${workers.active}</div></div>
-			<div class="agg-stat-card" style="--card-color:#28a745;"><div class="label">Welfare Fees Settled</div><div class="value" style="font-size:20px;">${fmt_currency(welfare_payments.total_paid)}</div></div>
-			<div class="agg-stat-card" style="--card-color:#e74a3b;"><div class="label">Welfare Fees Pending</div><div class="value" style="font-size:20px;color:#e74a3b;">${fmt_currency(welfare_payments.pending_amount)}</div></div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="total_workers">
+				<div class="label">Total Workers</div><div class="value">${workers.total}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="onboarded_workers">
+				<div class="label">Onboarded Workers</div><div class="value">${workers.active}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#28a745;" data-drilldown="welfare_settled">
+				<div class="label">Welfare Fees Settled</div>
+				<div class="value" style="font-size:20px;">${fmt_currency(welfare_payments.total_paid)}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#e74a3b;" data-drilldown="welfare_pending">
+				<div class="label">Welfare Fees Pending</div>
+				<div class="value" style="font-size:20px;color:#e74a3b;">${fmt_currency(welfare_payments.pending_amount)}</div>
+			</div>
 		</div>
 
 		<!-- Transactions Table -->
@@ -548,7 +945,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				</tbody>
 			</table>
 		</div>
-
 
 		<!-- Pending Welfare Fee Payments Table -->
 		<div class="agg-section">
@@ -606,6 +1002,30 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			</table>
 		</div>
 		` : ""}
+
+		<!-- Drill-down modal overlay -->
+		<div id="agg-dd-overlay">
+			<div id="agg-dd-modal">
+				<div id="agg-dd-header">
+					<div>
+						<div id="agg-dd-title"></div>
+						<div id="agg-dd-count"></div>
+					</div>
+					<button id="agg-dd-close" title="Close (Esc)">&#10005;</button>
+				</div>
+				<div id="agg-dd-body">
+					<div id="agg-dd-summary" style="display:none;"></div>
+					<div id="agg-dd-chart-wrap" style="display:none;">
+						<h6>Chart</h6>
+						<div id="agg-dd-chart"></div>
+					</div>
+					<div id="agg-dd-table-wrap">
+						<h6>Detail Records</h6>
+						<table id="agg-dd-dt-table" class="display" style="width:100%"></table>
+					</div>
+				</div>
+			</div>
+		</div>
 		`;
 
 		$("#agg-dashboard").html(html);
@@ -617,13 +1037,18 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			init_datatable("#agg-dup-table");
 		}
 
+		// Initialize standalone charts
+		init_agg_charts(data);
+
+		// Bind drill-down modal events
+		bind_agg_drilldown(data);
+
 		$("#agg-btn-dl-pdf").on("click", download_pdf);
 
 		// Service tab switching
 		$(document).off("click.svctab").on("click.svctab", ".svc-tab-btn", function () {
 			const idx = $(this).data("idx");
 			const svc = $(this).data("svc");
-			// "All Services" tab: grey style, others blue
 			$(".svc-tab-btn[data-idx='-1']").css({ background: "#fff", color: "#555" });
 			$(".svc-tab-btn:not([data-idx='-1'])").css({ background: "#fff", color: "#4e73df" });
 			if (idx === -1) { $(this).css({ background: "#555", color: "#fff" }); }
