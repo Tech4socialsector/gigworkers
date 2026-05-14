@@ -301,16 +301,28 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
 
     monthly_trend_adm = frappe.db.sql(f"""
         SELECT
-            LEFT(date, 7)                                                     AS month,
-            COUNT(*)                                                           AS total_count,
-            SUM(CASE WHEN status = 'Payment complete'  THEN 1 ELSE 0 END)   AS completed_count,
-            COALESCE(SUM(amount), 0)                                          AS total_amount,
-            COALESCE(SUM(welfare_amount), 0)                                  AS total_welfare
+            LEFT(date, 7)                                                       AS month,
+            COUNT(*)                                                             AS total_count,
+            SUM(CASE WHEN status = 'Payment complete'  THEN 1 ELSE 0 END)     AS completed_count,
+            SUM(CASE WHEN status = 'Payment pending'   THEN 1 ELSE 0 END)     AS pending_count,
+            SUM(CASE WHEN status = 'Payment Cancelled' THEN 1 ELSE 0 END)     AS cancelled_count,
+            COALESCE(SUM(amount), 0)                                            AS total_amount,
+            COALESCE(SUM(welfare_amount), 0)                                    AS total_welfare
         FROM `tabGig Transaction`
         {mt_adm_where}
         GROUP BY month
         ORDER BY month
     """, mt_adm_params, as_dict=True)
+
+    # Status breakdown for donut chart (respects active filters)
+    sb_where = ("WHERE " + " AND ".join(txn_conditions)) if txn_conditions else ""
+    status_breakdown_adm = frappe.db.sql(f"""
+        SELECT status, COUNT(*) AS cnt
+        FROM `tabGig Transaction`
+        {sb_where}
+        GROUP BY status
+        ORDER BY cnt DESC
+    """, txn_params, as_dict=True)
 
     return {
         "stats": {
@@ -351,6 +363,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         "aggregator_list": aggregator_list,
         "duplicate_transactions": duplicate_txns,
         "monthly_trend": [dict(r) for r in monthly_trend_adm],
+        "status_breakdown": [dict(r) for r in status_breakdown_adm],
     }
 
 
