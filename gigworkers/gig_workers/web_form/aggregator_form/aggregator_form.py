@@ -8,9 +8,9 @@ def get_context(context):
 
 def validate(doc, method=None):
 	# PAN format: 5 letters, 4 digits, 1 letter
-	if doc.pan:
-		doc.pan = doc.pan.upper()
-		if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', doc.pan):
+	if doc.pan_number:
+		doc.pan_number = doc.pan_number.upper()
+		if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', doc.pan_number):
 			frappe.throw("Invalid PAN Format. A valid PAN should be like ABCDE1234F.")
 
 	# GSTIN format (if provided)
