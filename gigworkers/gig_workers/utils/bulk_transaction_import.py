@@ -301,7 +301,17 @@ def _validate_row(row, idx, valid_workers, valid_aggregators,
 def _parse_date(val):
 	if not val:
 		return None
-	for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%m/%d/%Y"):
+	for fmt in (
+		"%Y-%m-%d",   # 1990-06-15
+		"%d-%m-%Y",   # 15-06-1990
+		"%d/%m/%Y",   # 15/06/1990
+		"%m/%d/%Y",   # 06/15/1990
+		"%m-%d-%Y",   # 06-15-1990
+		"%m-%d-%y",   # 06-15-90  ← 2-digit year
+		"%d-%m-%y",   # 15-06-90
+		"%m/%d/%y",   # 06/15/90
+		"%d/%m/%y",   # 15/06/90
+	):
 		try:
 			return datetime.strptime(str(val).strip(), fmt).strftime("%Y-%m-%d")
 		except ValueError:
