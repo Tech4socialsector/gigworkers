@@ -13,6 +13,12 @@ frappe.listview_settings["Gig Transaction"] = {
 
 	onload(listview) {
 
+		if (frappe.user.has_role("System Manager")) {
+			listview.page.add_button(__("Bulk Import"), function () {
+				frappe.set_route("bulk-gig-transaction-import");
+			}, { icon: "upload" });
+		}
+
 		if (frappe.user_roles.includes("System Manager")) {
 			_dark_btn(listview.page.add_inner_button(__("Set Adjustment Limit"), function () {
 
