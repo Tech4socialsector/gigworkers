@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 gigworkers.patches.backfill_ledger_gig_transaction
 gigworkers.patches.create_default_gig_transaction_settings
+gigworkers.patches.add_aggregator_data_import_permission
