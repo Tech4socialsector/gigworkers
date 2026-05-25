@@ -15,9 +15,23 @@ from frappe.utils import now_datetime, getdate, today
 BATCH_SIZE = 500
 CACHE_KEY  = "gt_bulk_import"
 
-REQUIRED_FIELDS = {"gig_worker", "aggregator", "service", "amount", "base_payout", "date"}
-VALID_TRUST     = {"High", "Low"}
+# Fields the import computes automatically — exclude from CSV required check
+# even if the doctype marks them reqd.
+_GT_IMPORT_COMPUTED = {"status", "service_category", "transaction_date",
+                       "incentives", "deduction", "status_of_order"}
+
+VALID_TRUST        = {"High", "Low"}
 VALID_STATUS_ORDER = {"", "Order delivered", "Order cancelled"}
+
+
+def _get_required_fields(default_aggregator=None):
+    """Read mandatory fields from the Gig Transaction doctype meta at runtime."""
+    meta = frappe.get_meta("Gig Transaction")
+    fields = {f.fieldname for f in meta.fields if f.reqd} - _GT_IMPORT_COMPUTED
+    # aggregator is required unless a default is provided
+    if default_aggregator:
+        fields.discard("aggregator")
+    return fields
 
 
 # ---------------------------------------------------------------------------
@@ -249,11 +263,8 @@ def _validate_row(row, idx, valid_workers, valid_aggregators,
 				valid_services, default_aggregator, default_trust_level):
 	errors = []
 
-	for field in REQUIRED_FIELDS:
+	for field in _get_required_fields(default_aggregator):
 		val = row.get(field, "").strip()
-		# aggregator may come from default
-		if field == "aggregator" and not val and default_aggregator:
-			continue
 		if not val:
 			errors.append(f"Row {idx}: missing required field '{field}'.")
 
