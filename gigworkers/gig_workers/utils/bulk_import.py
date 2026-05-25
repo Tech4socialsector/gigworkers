@@ -54,8 +54,9 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 	skipped   = 0
 	all_errors = []
 
-	now_ts = now_datetime()
-	batch  = []
+	now_ts    = now_datetime()
+	batch     = []
+	user_batch = []   # [(gw_id, phone, email, worker_name)]
 
 	for idx, row in enumerate(rows, start=1):
 		# Check cancel signal at each batch boundary
@@ -64,7 +65,8 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 				if batch:
 					_flush_batch(batch)
 					inserted += len(batch)
-					batch = []
+					_create_users_batch(user_batch, now_ts, user)
+					batch = []; user_batch = []
 					frappe.db.commit()
 				_update_progress(import_id, status="Cancelled",
 								processed=processed, inserted=inserted,
@@ -109,12 +111,13 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 				all_errors.append(f"Row {idx}: aadhaar '{aadhaar}' already exists — skipped.")
 				skipped += 1; processed += 1; continue
 
-		name = make_autoname("GW.###", "Gig Worker")
-		agg  = row.get("created_by_aggregator") or created_by_aggregator or None
+		name        = make_autoname("GW.###", "Gig Worker")
+		agg         = row.get("created_by_aggregator") or created_by_aggregator or None
+		worker_name = row.get("worker_name", "").strip()
 
 		batch.append((
 			name, now_ts, now_ts, user, user, 0,
-			row.get("worker_name", "").strip(),
+			worker_name,
 			row.get("gender", "").strip(),
 			aadhaar, pan, phone,
 			_parse_date(row.get("dob")),
@@ -127,6 +130,7 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			row.get("name_of_service", "").strip()         or None,
 			agg, "Active",
 		))
+		user_batch.append((name, phone, email, worker_name))
 
 		if skip_duplicates:
 			if email:   existing_emails.add(email)
@@ -138,7 +142,8 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 		if len(batch) >= BATCH_SIZE:
 			_flush_batch(batch)
 			inserted += len(batch)
-			batch = []
+			_create_users_batch(user_batch, now_ts, user)
+			batch = []; user_batch = []
 			_update_progress(import_id, processed=processed, inserted=inserted,
 							skipped=skipped, errors=all_errors[-50:])
 			frappe.db.commit()
@@ -147,6 +152,7 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 	if batch:
 		_flush_batch(batch)
 		inserted += len(batch)
+		_create_users_batch(user_batch, now_ts, user)
 		frappe.db.commit()
 
 	_update_progress(import_id, status="Completed", total=total,
@@ -209,6 +215,88 @@ def _flush_batch(batch):
 		"created_by_aggregator", "status",
 	]
 	frappe.db.bulk_insert("Gig Worker", fields=fields, values=batch, ignore_duplicates=True)
+
+
+def _create_users_batch(user_data, now_ts, owner):
+    """
+    user_data: list of (gw_id, phone, email, worker_name)
+    Creates User + Has Role records in bulk, then sets phone as password.
+    No welcome email is sent.
+    """
+    if not user_data:
+        return
+
+    from frappe.utils.password import update_password  # local import — frappe runtime only
+
+    # Resolve login emails and skip already-existing users
+    existing_users = {
+        r[0] for r in frappe.db.sql(
+            "SELECT email FROM `tabUser` WHERE email IN %(emails)s",
+            {"emails": [
+                (e.strip().lower() if e else f"{gw.lower()}@gigworker.local")
+                for gw, _phone, e, _name in user_data
+            ]},
+            as_list=True,
+        )
+    } if user_data else set()
+
+    user_rows = []
+    role_rows = []
+    to_set_password = []   # [(login_email, phone)]
+
+    for gw_id, phone, email, worker_name in user_data:
+        login_email = email.strip().lower() if email else f"{gw_id.lower()}@gigworker.local"
+        if login_email in existing_users:
+            continue
+        existing_users.add(login_email)  # prevent duplicates within this batch
+        first_name = worker_name or gw_id
+        user_rows.append((
+            login_email,        # name (PK)
+            now_ts, now_ts,     # creation, modified
+            owner, owner,       # modified_by, owner
+            0,                  # docstatus
+            login_email,        # email
+            gw_id,              # username  (e.g. GW001)
+            first_name,         # first_name
+            1,                  # enabled
+            "Website User",     # user_type
+            0,                  # send_welcome_email
+        ))
+        role_rows.append((
+            frappe.generate_hash(length=10),  # name (child PK)
+            login_email,        # parent
+            "User",             # parenttype
+            "roles",            # parentfield
+            "Gig Worker",       # role
+        ))
+        to_set_password.append((login_email, phone))
+
+    if user_rows:
+        frappe.db.bulk_insert(
+            "User",
+            fields=["name", "creation", "modified", "modified_by", "owner", "docstatus",
+                    "email", "username", "first_name", "enabled", "user_type",
+                    "send_welcome_email"],
+            values=user_rows,
+            ignore_duplicates=True,
+        )
+
+    if role_rows:
+        frappe.db.bulk_insert(
+            "Has Role",
+            fields=["name", "parent", "parenttype", "parentfield", "role"],
+            values=role_rows,
+            ignore_duplicates=True,
+        )
+
+    frappe.db.commit()
+
+    for login_email, phone in to_set_password:
+        if phone:
+            try:
+                update_password(login_email, phone)
+            except Exception:
+                pass  # non-fatal — user exists, password can be reset later
 
 
 def _parse_file(file_url):

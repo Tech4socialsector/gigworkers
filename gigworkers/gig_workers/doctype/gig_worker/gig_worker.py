@@ -396,64 +396,49 @@ class GigWorker(Document):
 			return None
 
 	def create_user_with_role(self):
-		if not self.email or not self.phone:
+		"""
+		Create a Frappe user for this Gig Worker.
+		  - Username  : GW ID (e.g. GW001)  — used to log in
+		  - Password  : mobile number (phone)
+		  - Email     : optional; if absent a synthetic one is generated
+		  - No registration email is sent
+		"""
+		if not self.phone:
 			return
 
-		if not frappe.db.exists("User", self.email):
+		# Use real email when available; fall back to a synthetic internal address
+		login_email = (
+			self.email.strip().lower()
+			if self.email
+			else f"{self.name.lower()}@gigworker.local"
+		)
+		gw_username = self.name  # e.g. GW001
+
+		if not frappe.db.exists("User", login_email):
 			user = frappe.get_doc({
 				"doctype": "User",
-				"email": self.email,
-				"first_name": self.worker_name,
+				"email": login_email,
+				"username": gw_username,
+				"first_name": self.worker_name or self.name,
 				"send_welcome_email": 0,
 				"roles": [{"role": "Gig Worker"}],
 			})
 			user.flags.ignore_password_policy = True
+			user.flags.ignore_validate = True   # prevent validate_username from blanking our GW ID
 			user.insert(ignore_permissions=True)
+			# validate_username is skipped above, so set username explicitly after insert
+			frappe.db.set_value("User", login_email, "username", gw_username, update_modified=False)
 		else:
-			user = frappe.get_doc("User", self.email)
+			user = frappe.get_doc("User", login_email)
 			existing_roles = [r.role for r in user.roles]
 			if "Gig Worker" not in existing_roles:
 				user.append("roles", {"role": "Gig Worker"})
+				user.flags.ignore_validate = True
 				user.save(ignore_permissions=True)
+			# Always ensure the GW ID is set as username (overwrite Frappe-generated slug)
+			frappe.db.set_value("User", login_email, "username", gw_username, update_modified=False)
 
-		# Link user back to this Gig Worker record
-		self.db_set("user", self.email, update_modified=False)
-
-		update_password(self.email, self.phone)
-
-		login_url = frappe.utils.get_url("/login")
-
-		attachments = []
-		pdf = self._generate_registration_certificate_pdf()
-		if pdf:
-			attachments.append({
-				"fname": f"Registration_Certificate_{self.name}.pdf",
-				"fcontent": pdf,
-			})
-
-		try:
-			frappe.sendmail(
-				recipients=[self.email],
-				subject=f"[{self.name}] Registration Successful – Karnataka Gig Workers Welfare Board",
-				message=f"""
-				<p>Dear <b>{self.worker_name}</b>,</p>
-				<p>You have been successfully registered as a Gig Worker under the
-				<b>Karnataka Platform Based Gig Workers Social Security and Welfare Board</b>.</p>
-				<table style="border-collapse:collapse;margin:12px 0;font-size:13px;">
-				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Worker ID</b></td><td><b style="color:#8B0000;">{self.name}</b></td></tr>
-				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Login URL</b></td><td><a href="{login_url}">{login_url}</a></td></tr>
-				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Username</b></td><td>{self.email}</td></tr>
-				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Password</b></td><td>Your registered mobile number</td></tr>
-				</table>
-				<p>Your official <b>Registration Certificate</b> is attached to this email. Please log in and change your password immediately.</p>
-				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
-				""",
-				attachments=attachments,
-			)
-		except Exception as e:
-			frappe.log_error(
-				message=f"Registration email failed for {self.name}: {e}",
-				title="Gig Worker Registration Email Error",
-			)
+		self.db_set("user", login_email, update_modified=False)
+		update_password(login_email, self.phone)
 
 

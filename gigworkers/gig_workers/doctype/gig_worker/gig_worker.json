@@ -132,7 +132,6 @@
    "fieldtype": "Data",
    "label": "Email",
    "options": "Email",
-   "reqd": 1,
    "unique": 1
   },
   {
@@ -211,7 +210,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-20 09:43:52.147281",
+ "modified": "2026-05-25 15:47:26.520958",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Worker",
