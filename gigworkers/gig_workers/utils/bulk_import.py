@@ -16,7 +16,15 @@ from frappe.utils import now_datetime, getdate, date_diff, today
 BATCH_SIZE = 500
 CACHE_KEY = "gw_bulk_import"
 
-REQUIRED_FIELDS = {"worker_name", "phone", "gender", "aadhaar_number"}
+# Fields the import sets automatically — exclude from CSV required check
+# even if the doctype marks them reqd.
+_GW_IMPORT_COMPUTED = {"status"}
+
+
+def _get_required_fields():
+    """Read mandatory fields from the Gig Worker doctype meta at runtime."""
+    meta = frappe.get_meta("Gig Worker")
+    return {f.fieldname for f in meta.fields if f.reqd} - _GW_IMPORT_COMPUTED
 
 
 # ---------------------------------------------------------------------------
@@ -337,7 +345,7 @@ def _clean_row(row):
 
 def _validate_row(row, idx):
 	errors = []
-	for field in REQUIRED_FIELDS:
+	for field in _get_required_fields():
 		if not row.get(field, "").strip():
 			errors.append(f"Row {idx}: missing required field '{field}'.")
 	if errors:
