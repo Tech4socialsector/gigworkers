@@ -135,6 +135,12 @@ class GigWorker(Document):
 	# --------------------------------------------------------
 
 	def after_insert(self):
+		# Records inserted via bulk import have already been written directly to the DB;
+		# this hook runs only for single-document saves, so no guard needed here.
+		# However, if explicitly flagged (e.g. from a script), skip heavy operations.
+		if getattr(self.flags, "from_import", False):
+			return
+
 		from gigworkers.gig_workers.doctype.worker_mapping_log.worker_mapping_log import create_mapping_log
 
 		if self.created_by_aggregator:

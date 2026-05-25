@@ -18,6 +18,13 @@ frappe.listview_settings["Gig Worker"] = {
 		// 2. Remove the primary button already added by setup_page_head()
 		listview.page.clear_primary_action();
 
+		// 3. Bulk Import button — navigates to the custom import page
+		if (frappe.user.has_role("System Manager")) {
+			listview.page.add_button(__("Bulk Import"), function () {
+				frappe.set_route("bulk-gig-worker-import");
+			}, { icon: "upload" });
+		}
+
 		// 3. Nuclear-option CSS: hides the buttons no matter when
 		//    Frappe re-renders them. Scoped to this page's DOM only.
 		if (!document.getElementById("_gw_hide_add_btn")) {

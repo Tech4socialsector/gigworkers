@@ -1,0 +1,316 @@
+"""
+Bulk Gig Worker Import — background job that processes CSV/XLSX files
+and inserts records in batches of 500 using frappe.db.bulk_insert,
+bypassing slow per-document hooks (email, PDF, user creation).
+"""
+
+import csv
+import re
+from datetime import datetime
+
+import frappe
+from frappe.model.naming import make_autoname
+from frappe.utils import now_datetime, getdate, date_diff, today
+
+
+BATCH_SIZE = 500
+CACHE_KEY = "gw_bulk_import"
+
+REQUIRED_FIELDS = {"worker_name", "phone", "email", "dob", "gender", "aadhaar_number"}
+
+
+# ---------------------------------------------------------------------------
+# Entry point (called by frappe.enqueue)
+# ---------------------------------------------------------------------------
+
+def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email=1,
+								created_by_aggregator=None, user="Administrator"):
+	frappe.set_user(user)
+	_update_progress(import_id, status="Running")
+
+	file_name = frappe.db.get_value("File", {"file_url": file_url}, "file_name") or file_url.split("/")[-1]
+
+	try:
+		rows = _parse_file(file_url)
+	except Exception as e:
+		errors = [f"File parse error: {e}"]
+		_update_progress(import_id, status="Failed", errors=errors)
+		_save_import_log(
+			import_id=import_id, file_url=file_url, file_name=file_name,
+			status="Failed", total=0, inserted=0, skipped=0, error_count=1,
+			created_by_aggregator=created_by_aggregator, user=user, errors=errors,
+		)
+		return
+
+	total = len(rows)
+	_update_progress(import_id, total=total)
+
+	existing_emails  = _get_existing_set("email")          if skip_duplicates else set()
+	existing_phones  = _get_existing_set("phone")          if skip_duplicates else set()
+	existing_aadhaar = _get_existing_set("aadhaar_number") if skip_duplicates else set()
+
+	processed = 0
+	inserted  = 0
+	skipped   = 0
+	all_errors = []
+
+	now_ts = now_datetime()
+	batch  = []
+
+	for idx, row in enumerate(rows, start=1):
+		# Check cancel signal at each batch boundary
+		if idx % BATCH_SIZE == 0:
+			if _is_cancelled(import_id):
+				if batch:
+					_flush_batch(batch)
+					inserted += len(batch)
+					batch = []
+					frappe.db.commit()
+				_update_progress(import_id, status="Cancelled",
+								processed=processed, inserted=inserted,
+								skipped=skipped, errors=all_errors[-200:])
+				_save_import_log(
+					import_id=import_id, file_url=file_url, file_name=file_name,
+					status="Cancelled", total=total, inserted=inserted,
+					skipped=skipped, error_count=len(all_errors),
+					created_by_aggregator=created_by_aggregator, user=user, errors=all_errors,
+				)
+				frappe.publish_realtime(
+					"gw_bulk_import_done",
+					{"import_id": import_id, "total": total,
+					 "inserted": inserted, "skipped": skipped, "status": "Cancelled"},
+					user=user,
+				)
+				return
+
+		validation_errors = _validate_row(row, idx)
+		if validation_errors:
+			all_errors.extend(validation_errors)
+			skipped += 1
+			processed += 1
+			continue
+
+		# Normalise fields
+		email   = row.get("email", "").strip().lower()
+		phone   = re.sub(r"\s+", "", row.get("phone", ""))
+		aadhaar = row.get("aadhaar_number", "").replace(" ", "")
+		pan     = row.get("pan_number", "").strip().upper() if row.get("pan_number") else None
+		eshram  = row.get("eshram_id", "").strip().upper()  if row.get("eshram_id")  else None
+
+		# Duplicate check (DB + within-batch)
+		if skip_duplicates:
+			if email and email in existing_emails:
+				all_errors.append(f"Row {idx}: email '{email}' already exists — skipped.")
+				skipped += 1; processed += 1; continue
+			if phone and phone in existing_phones:
+				all_errors.append(f"Row {idx}: phone '{phone}' already exists — skipped.")
+				skipped += 1; processed += 1; continue
+			if aadhaar and aadhaar in existing_aadhaar:
+				all_errors.append(f"Row {idx}: aadhaar '{aadhaar}' already exists — skipped.")
+				skipped += 1; processed += 1; continue
+
+		name = make_autoname("GW.###", "Gig Worker")
+		agg  = row.get("created_by_aggregator") or created_by_aggregator or None
+
+		batch.append((
+			name, now_ts, now_ts, user, user, 0,
+			row.get("worker_name", "").strip(),
+			row.get("gender", "").strip(),
+			aadhaar, pan, phone,
+			_parse_date(row.get("dob")),
+			eshram, email,
+			row.get("drivers_license", "").strip()         or None,
+			row.get("location_of_work", "").strip()        or None,
+			row.get("operating_bank_account", "").strip()  or None,
+			row.get("uan", "").strip()                     or None,
+			row.get("name_of_aggregator", "").strip()      or None,
+			row.get("name_of_service", "").strip()         or None,
+			agg, "Active",
+		))
+
+		if skip_duplicates:
+			if email:   existing_emails.add(email)
+			if phone:   existing_phones.add(phone)
+			if aadhaar: existing_aadhaar.add(aadhaar)
+
+		processed += 1
+
+		if len(batch) >= BATCH_SIZE:
+			_flush_batch(batch)
+			inserted += len(batch)
+			batch = []
+			_update_progress(import_id, processed=processed, inserted=inserted,
+							skipped=skipped, errors=all_errors[-50:])
+			frappe.db.commit()
+
+	# Flush remaining rows
+	if batch:
+		_flush_batch(batch)
+		inserted += len(batch)
+		frappe.db.commit()
+
+	_update_progress(import_id, status="Completed", total=total,
+					processed=processed, inserted=inserted,
+					skipped=skipped, errors=all_errors[-200:])
+
+	_save_import_log(
+		import_id=import_id, file_url=file_url, file_name=file_name,
+		status="Completed", total=total, inserted=inserted,
+		skipped=skipped, error_count=len(all_errors),
+		created_by_aggregator=created_by_aggregator, user=user, errors=all_errors,
+	)
+
+	frappe.publish_realtime(
+		"gw_bulk_import_done",
+		{"import_id": import_id, "total": total,
+		 "inserted": inserted, "skipped": skipped, "status": "Completed"},
+		user=user,
+	)
+
+
+# ---------------------------------------------------------------------------
+# Import log persistence
+# ---------------------------------------------------------------------------
+
+def _save_import_log(import_id, file_url, file_name, status, total, inserted,
+						skipped, error_count, created_by_aggregator, user, errors):
+	try:
+		doc = frappe.get_doc({
+			"doctype": "Gig Worker Import Log",
+			"import_id": import_id,
+			"import_date": now_datetime(),
+			"file_name": file_name,
+			"file_url": file_url,
+			"status": status,
+			"total_rows": total,
+			"inserted": inserted,
+			"skipped": skipped,
+			"error_count": error_count,
+			"created_by_aggregator": created_by_aggregator,
+			"imported_by": user,
+			"error_log": "\n".join(errors) if errors else "",
+		})
+		doc.insert(ignore_permissions=True)
+		frappe.db.commit()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Gig Worker Import Log: save failed")
+
+
+# ---------------------------------------------------------------------------
+# DB helpers
+# ---------------------------------------------------------------------------
+
+def _flush_batch(batch):
+	fields = [
+		"name", "creation", "modified", "modified_by", "owner", "docstatus",
+		"worker_name", "gender", "aadhaar_number", "pan_number", "phone", "dob",
+		"eshram_id", "email", "drivers_license", "location_of_work",
+		"operating_bank_account", "uan", "name_of_aggregator", "name_of_service",
+		"created_by_aggregator", "status",
+	]
+	frappe.db.bulk_insert("Gig Worker", fields=fields, values=batch, ignore_duplicates=True)
+
+
+def _parse_file(file_url):
+	file_doc  = frappe.get_doc("File", {"file_url": file_url})
+	file_path = file_doc.get_full_path()
+	if file_path.endswith(".xlsx") or file_path.endswith(".xls"):
+		return _parse_excel(file_path)
+	return _parse_csv(file_path)
+
+
+def _parse_csv(file_path):
+	with open(file_path, "r", encoding="utf-8-sig") as f:
+		reader = csv.DictReader(f)
+		return [_clean_row(row) for row in reader if any(row.values())]
+
+
+def _parse_excel(file_path):
+	try:
+		import openpyxl
+	except ImportError:
+		frappe.throw("openpyxl is required for XLSX import. Use CSV format instead.")
+	wb  = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+	ws  = wb.active
+	rows = list(ws.iter_rows(values_only=True))
+	if not rows:
+		return []
+	headers = [str(h).strip() if h else "" for h in rows[0]]
+	return [_clean_row(dict(zip(headers, r))) for r in rows[1:] if any(r)]
+
+
+def _clean_row(row):
+	return {k.strip(): (str(v).strip() if v is not None else "") for k, v in row.items()}
+
+
+# ---------------------------------------------------------------------------
+# Validation helpers
+# ---------------------------------------------------------------------------
+
+def _validate_row(row, idx):
+	errors = []
+	for field in REQUIRED_FIELDS:
+		if not row.get(field, "").strip():
+			errors.append(f"Row {idx}: missing required field '{field}'.")
+	if errors:
+		return errors
+
+	email = row.get("email", "").strip()
+	if email and not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
+		errors.append(f"Row {idx}: invalid email '{email}'.")
+
+	phone = re.sub(r"\s+", "", row.get("phone", ""))
+	if phone and not re.fullmatch(r"[6-9]\d{9}", phone):
+		errors.append(f"Row {idx}: invalid phone '{phone}'.")
+
+	aadhaar = row.get("aadhaar_number", "").replace(" ", "")
+	if aadhaar and not re.fullmatch(r"[0-9]{12}", aadhaar):
+		errors.append(f"Row {idx}: invalid aadhaar '{aadhaar}'.")
+
+	pan = row.get("pan_number", "").strip().upper()
+	if pan and not re.fullmatch(r"[A-Z]{5}[0-9]{4}[A-Z]", pan):
+		errors.append(f"Row {idx}: invalid PAN '{pan}'.")
+
+	eshram = row.get("eshram_id", "").strip().upper()
+	if eshram and not re.fullmatch(r"UW-[0-9]{12}", eshram):
+		errors.append(f"Row {idx}: invalid eShram ID '{eshram}'.")
+
+	dob = row.get("dob", "").strip()
+	if dob:
+		parsed = _parse_date(dob)
+		if not parsed:
+			errors.append(f"Row {idx}: invalid date of birth '{dob}'. Use YYYY-MM-DD.")
+		elif date_diff(getdate(today()), getdate(parsed)) < 18 * 365:
+			errors.append(f"Row {idx}: worker must be at least 18 years old.")
+
+	return errors
+
+
+def _parse_date(val):
+	if not val:
+		return None
+	for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%m/%d/%Y"):
+		try:
+			return datetime.strptime(str(val).strip(), fmt).strftime("%Y-%m-%d")
+		except ValueError:
+			continue
+	return None
+
+
+def _get_existing_set(field):
+	rows = frappe.db.sql(
+		f"SELECT `{field}` FROM `tabGig Worker` WHERE `{field}` IS NOT NULL", as_list=True
+	)
+	return {r[0].strip().lower() if isinstance(r[0], str) else r[0] for r in rows if r[0]}
+
+
+def _update_progress(import_id, **kwargs):
+	raw  = frappe.cache().hget(CACHE_KEY, import_id) or "{}"
+	data = frappe.parse_json(raw)
+	data.update(kwargs)
+	frappe.cache().hset(CACHE_KEY, import_id, frappe.as_json(data))
+
+
+def _is_cancelled(import_id):
+	raw = frappe.cache().hget(CACHE_KEY, import_id) or "{}"
+	return frappe.parse_json(raw).get("cancel_requested", False)
