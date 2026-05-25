@@ -189,11 +189,13 @@
   {
    "fieldname": "screenshot_of_working_with_aggregator",
    "fieldtype": "Attach",
+   "hidden": 1,
    "label": "Screenshot of working with aggregator"
   },
   {
    "fieldname": "screenshot_of_any_payment_received_from_aggregator",
    "fieldtype": "Attach",
+   "hidden": 1,
    "label": "Screenshot of any payment received from aggregator"
   },
   {
@@ -210,7 +212,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-25 15:47:26.520958",
+ "modified": "2026-05-25 17:02:20.721626",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Worker",
