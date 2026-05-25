@@ -11,7 +11,6 @@ permission_query_conditions = {
     "Aggregator": "gigworkers.permissions.user_based_query",
     "Worker Service Mapping": "gigworkers.permissions.user_based_query",
     "Welfare Fund Account": "gigworkers.permissions.user_based_query",
-    "Worker Mapping Log": "gigworkers.permissions.user_based_query",
     "Welfare Fee Invoice": "gigworkers.permissions.user_based_query",
 }
 
@@ -19,7 +18,6 @@ has_permission = {
     "Gig Worker": "gigworkers.permissions.user_has_permission",
     "Gig Transaction": "gigworkers.permissions.user_has_permission",
     "Aggregator": "gigworkers.permissions.user_has_permission",
-    "Worker Service Mapping": "gigworkers.permissions.user_has_permission",
     "Welfare Fund Account": "gigworkers.permissions.user_has_permission",
     "Worker Mapping Log": "gigworkers.permissions.user_has_permission",
     "Welfare Fee Invoice": "gigworkers.permissions.user_has_permission",

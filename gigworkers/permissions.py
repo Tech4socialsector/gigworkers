@@ -26,33 +26,19 @@ def user_based_query(user=None, doctype=None):
     # ----------------------------------------------------------------
     if "Aggregator" in roles:
         if doctype == "Aggregator":
-            # Only their own record
             return f"`tabAggregator`.`email` = {frappe.db.escape(user)}"
 
-        elif doctype == "Gig Worker":
-            # Only workers assigned to their aggregator
-            aggregator = _get_aggregator_name(user)
-            if not aggregator:
-                return "1=0"
+        aggregator = _get_aggregator_name(user)
+        if not aggregator:
+            return "1=0"
+
+        if doctype == "Gig Worker":
             return f"`tabGig Worker`.`created_by_aggregator` = {frappe.db.escape(aggregator)}"
 
         elif doctype == "Gig Transaction":
-            # Only transactions that belong to their aggregator
-            aggregator = _get_aggregator_name(user)
-            if not aggregator:
-                return "1=0"
             return f"`tabGig Transaction`.`aggregator` = {frappe.db.escape(aggregator)}"
 
-        elif doctype == "Worker Service Mapping":
-            aggregator = _get_aggregator_name(user)
-            if not aggregator:
-                return "1=0"
-            return f"`tabWorker Service Mapping`.`aggregator` = {frappe.db.escape(aggregator)}"
-
         elif doctype == "Welfare Fund Account":
-            aggregator = _get_aggregator_name(user)
-            if not aggregator:
-                return "1=0"
             return (
                 f"`tabWelfare Fund Account`.`gig_worker` IN ("
                 f"SELECT `name` FROM `tabGig Worker` "
@@ -60,15 +46,9 @@ def user_based_query(user=None, doctype=None):
             )
 
         elif doctype == "Worker Mapping Log":
-            aggregator = _get_aggregator_name(user)
-            if not aggregator:
-                return "1=0"
             return f"`tabWorker Mapping Log`.`aggregator` = {frappe.db.escape(aggregator)}"
 
         elif doctype == "Welfare Fee Invoice":
-            aggregator = _get_aggregator_name(user)
-            if not aggregator:
-                return "1=0"
             return f"`tabWelfare Fee Invoice`.`aggregator` = {frappe.db.escape(aggregator)}"
 
         return "1=0"
@@ -78,32 +58,19 @@ def user_based_query(user=None, doctype=None):
     # ----------------------------------------------------------------
     if "Gig Worker" in roles:
         if doctype == "Gig Worker":
-            # Only their own record
             return f"`tabGig Worker`.`email` = {frappe.db.escape(user)}"
 
-        elif doctype == "Gig Transaction":
-            # Only transactions where they are the worker
-            gig_worker = _get_gig_worker_name(user)
-            if not gig_worker:
-                return "1=0"
+        gig_worker = _get_gig_worker_name(user)
+        if not gig_worker:
+            return "1=0"
+
+        if doctype == "Gig Transaction":
             return f"`tabGig Transaction`.`gig_worker` = {frappe.db.escape(gig_worker)}"
 
-        elif doctype == "Worker Service Mapping":
-            gig_worker = _get_gig_worker_name(user)
-            if not gig_worker:
-                return "1=0"
-            return f"`tabWorker Service Mapping`.`gig_worker` = {frappe.db.escape(gig_worker)}"
-
         elif doctype == "Welfare Fund Account":
-            gig_worker = _get_gig_worker_name(user)
-            if not gig_worker:
-                return "1=0"
             return f"`tabWelfare Fund Account`.`gig_worker` = {frappe.db.escape(gig_worker)}"
 
         elif doctype == "Worker Mapping Log":
-            gig_worker = _get_gig_worker_name(user)
-            if not gig_worker:
-                return "1=0"
             return f"`tabWorker Mapping Log`.`gig_worker` = {frappe.db.escape(gig_worker)}"
 
         elif doctype == "Aggregator":
@@ -137,13 +104,12 @@ def user_has_permission(doc, ptype="read", user=None):
     # Aggregator role
     # ----------------------------------------------------------------
     if "Aggregator" in roles:
-        aggregator = _get_aggregator_name(user)
-
         if doctype == "Aggregator":
             return doc.email == user
 
-        elif doctype == "Gig Worker":
-            # Allow create — created_by_aggregator is not set yet on new docs
+        aggregator = _get_aggregator_name(user)
+
+        if doctype == "Gig Worker":
             if ptype == "create":
                 return True
             return doc.created_by_aggregator == aggregator
@@ -153,18 +119,17 @@ def user_has_permission(doc, ptype="read", user=None):
                 return True
             return doc.aggregator == aggregator
 
-        elif doctype == "Worker Service Mapping":
+        elif doctype == "Welfare Fund Account":
             if ptype == "create":
                 return True
-            return doc.aggregator == aggregator
-
-        elif doctype == "Welfare Fund Account":
             worker_agg = frappe.db.get_value(
                 "Gig Worker", doc.gig_worker, "created_by_aggregator"
             )
             return worker_agg == aggregator
 
         elif doctype == "Worker Mapping Log":
+            if ptype == "create":
+                return True
             return doc.aggregator == aggregator
 
         elif doctype == "Welfare Fee Invoice":
@@ -184,9 +149,6 @@ def user_has_permission(doc, ptype="read", user=None):
             return doc.email == user
 
         elif doctype == "Gig Transaction":
-            return doc.gig_worker == gig_worker
-
-        elif doctype == "Worker Service Mapping":
             return doc.gig_worker == gig_worker
 
         elif doctype == "Welfare Fund Account":
