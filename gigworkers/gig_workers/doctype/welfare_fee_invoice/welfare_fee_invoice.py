@@ -92,6 +92,7 @@ class WelfareFeeInvoice(Document):
 		try:
 			frappe.sendmail(
 				recipients=[self.email],
+				sender="nishanthclintona@gmail.com",
 				subject=f"Payment Confirmation - Welfare Fee Invoice {self.name}",
 				message=f"""
 				<p>Dear {self.aggregator_name},</p>
@@ -450,6 +451,7 @@ def _send_invoice_notification(invoice):
 	try:
 		frappe.sendmail(
 			recipients=[invoice.email],
+			sender="nishanthclintona@gmail.com",
 			subject=f"New Welfare Fee Invoice - {invoice.quarter} {invoice.year}",
 			message=f"""
 			<p>Dear {invoice.aggregator_name},</p>

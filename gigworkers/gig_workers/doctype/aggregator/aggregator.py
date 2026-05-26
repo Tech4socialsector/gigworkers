@@ -144,27 +144,29 @@ class Aggregator(Document):
 		user.api_secret = api_secret
 		user.save(ignore_permissions=True)
 
-		try:
-			frappe.sendmail(
-				recipients=[self.email],
-				subject="Your API Credentials – Gig Workers Portal",
-				message=f"""
-				<p>Dear {self.aggregator_name},</p>
-				<p>Your aggregator account is now <b>approved</b>. Use the credentials below for programmatic API access to the portal:</p>
-				<table style="border-collapse:collapse;margin-top:12px;font-family:monospace;">
-				  <tr><td style="padding:4px 16px 4px 0"><b>API Key</b></td><td>{api_key}</td></tr>
-				  <tr><td style="padding:4px 16px 4px 0"><b>API Secret</b></td><td>{api_secret}</td></tr>
-				</table>
-				<p>Pass these as <code>Authorization: token api_key:api_secret</code> in your request headers.</p>
-				<p><b>Keep these credentials secure and do not share them.</b></p>
-				<p>Thank you,<br>Gig Workers Welfare Team</p>
-				""",
-			)
-		except Exception as e:
-			frappe.log_error(
-				message=f"API key email failed for aggregator {self.name}: {e}",
-				title="Aggregator API Key Email Error",
-			)
+		# try:
+		# 	frappe.sendmail(
+		# 		recipients=[self.email],
+		# 		sender="nishanthclintona@gmail.com",
+		# 		delay=False,
+		# 		subject="Your API Credentials – Gig Workers Portal",
+		# 		message=f"""
+		# 		<p>Dear {self.aggregator_name},</p>
+		# 		<p>Your aggregator account is now <b>approved</b>. Use the credentials below for programmatic API access to the portal:</p>
+		# 		<table style="border-collapse:collapse;margin-top:12px;font-family:monospace;">
+		# 		  <tr><td style="padding:4px 16px 4px 0"><b>API Key</b></td><td>{api_key}</td></tr>
+		# 		  <tr><td style="padding:4px 16px 4px 0"><b>API Secret</b></td><td>{api_secret}</td></tr>
+		# 		</table>
+		# 		<p>Pass these as <code>Authorization: token api_key:api_secret</code> in your request headers.</p>
+		# 		<p><b>Keep these credentials secure and do not share them.</b></p>
+		# 		<p>Thank you,<br>Gig Workers Welfare Team</p>
+		# 		""",
+		# 	)
+		# except Exception as e:
+		# 	frappe.log_error(
+		# 		message=f"API key email failed for aggregator {self.name}: {e}",
+		# 		title="Aggregator API Key Email Error",
+		# 	)
 
 	def _generate_registration_certificate_pdf(self):
 		"""Generate a Karnataka Government-styled registration certificate PDF.
@@ -482,9 +484,11 @@ class Aggregator(Document):
 		try:
 			frappe.sendmail(
 				recipients=[self.email],
+				sender="nishanthclintona@gmail.com",
 				subject=status_messages[status]["subject"],
 				message=status_messages[status]["body"],
 				attachments=attachments,
+				delay=False,
 			)
 		except Exception as e:
 			frappe.log_error(

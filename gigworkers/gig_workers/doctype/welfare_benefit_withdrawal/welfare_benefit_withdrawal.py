@@ -197,7 +197,7 @@ class WelfareBenefitWithdrawal(Document):
 			return
 
 		try:
-			frappe.sendmail(recipients=[worker.email], subject=subject, message=body)
+			frappe.sendmail(recipients=[worker.email], sender="nishanthclintona@gmail.com", subject=subject, message=body)
 		except Exception as e:
 			frappe.log_error(
 				message=f"Withdrawal notification failed for {self.gig_worker}: {e}",

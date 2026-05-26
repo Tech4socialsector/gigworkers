@@ -62,6 +62,7 @@ def send_overdue_reminder(invoice):
 	try:
 		frappe.sendmail(
 			recipients=[invoice.email],
+			sender="nishanthclintona@gmail.com",
 			subject=f"OVERDUE: Welfare Fee Payment - {invoice.name}",
 			message=f"""
 			<p>Dear {invoice.aggregator_name},</p>
