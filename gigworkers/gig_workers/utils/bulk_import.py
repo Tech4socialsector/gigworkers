@@ -56,6 +56,8 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 	existing_emails  = _get_existing_set("email")          if skip_duplicates else set()
 	existing_phones  = _get_existing_set("phone")          if skip_duplicates else set()
 	existing_aadhaar = _get_existing_set("aadhaar_number") if skip_duplicates else set()
+	existing_pan     = _get_existing_set("pan_number")     if skip_duplicates else set()
+	existing_eshram  = _get_existing_set("eshram_id")      if skip_duplicates else set()
 
 	processed = 0
 	inserted  = 0
@@ -118,6 +120,12 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			if aadhaar and aadhaar in existing_aadhaar:
 				all_errors.append(f"Row {idx}: aadhaar '{aadhaar}' already exists — skipped.")
 				skipped += 1; processed += 1; continue
+			if pan and pan.lower() in existing_pan:
+				all_errors.append(f"Row {idx}: PAN '{pan}' already exists — skipped.")
+				skipped += 1; processed += 1; continue
+			if eshram and eshram.lower() in existing_eshram:
+				all_errors.append(f"Row {idx}: eShram ID '{eshram}' already exists — skipped.")
+				skipped += 1; processed += 1; continue
 
 		name        = make_autoname("GW.###", "Gig Worker")
 		agg         = row.get("created_by_aggregator") or created_by_aggregator or None
@@ -134,7 +142,7 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			row.get("location_of_work", "").strip()        or None,
 			row.get("operating_bank_account", "").strip()  or None,
 			row.get("uan", "").strip()                     or None,
-			row.get("name_of_aggregator", "").strip()      or None,
+			row.get("name_of_aggregator", "").strip()      or agg or None,
 			row.get("name_of_service", "").strip()         or None,
 			agg, "Active",
 		))
@@ -144,6 +152,8 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			if email:   existing_emails.add(email)
 			if phone:   existing_phones.add(phone)
 			if aadhaar: existing_aadhaar.add(aadhaar)
+			if pan:     existing_pan.add(pan)
+			if eshram:  existing_eshram.add(eshram)
 
 		processed += 1
 
