@@ -120,7 +120,7 @@ def send_confirmation_email(transaction_name, email, otp_code, confirmed_at):
     <p>Thank you,<br>Gig Workers Team</p>
     """
     try:
-        frappe.sendmail(recipients=[email], subject=subject, message=message)
+        frappe.sendmail(recipients=[email], sender="nishanthclintona@gmail.com", subject=subject, message=message)
     except Exception as e:
         frappe.log_error(
             message=f"Email failed for {transaction_name} -> {email}\n{e}",
@@ -164,6 +164,7 @@ def _notify_admin_duplicate(new_txn, existing_txn):
         if admin_emails:
             frappe.sendmail(
                 recipients=admin_emails,
+                sender="nishanthclintona@gmail.com",
                 subject=f"[Action Required] Suspected Duplicate Transaction: {new_txn}",
                 message=f"""
                 <p>A suspected duplicate transaction has been detected.</p>

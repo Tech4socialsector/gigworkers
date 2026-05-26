@@ -47,6 +47,7 @@ class WelfareFeePayment(Document):
 			try:
 				frappe.sendmail(
 					recipients=[worker.email],
+					sender="nishanthclintona@gmail.com",
 					subject="Welfare Fee Settled to Your Account",
 					message=f"""
 					<p>Dear {worker.worker_name},</p>
