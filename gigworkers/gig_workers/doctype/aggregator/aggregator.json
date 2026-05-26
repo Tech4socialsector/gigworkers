@@ -23,19 +23,20 @@
   "aadhaar_file",
   "status",
   "reason_for_reject",
-  "services_section",
-  "company_type",
-  "cin_number",
-  "website_url",
-  "registered_address",
-  "company_id",
-  "app_url",
   "documents_section",
   "pan_number",
   "pan_file",
   "column_break_jwdi",
   "gstin",
-  "gstin_file"
+  "gstin_file",
+  "services_section",
+  "company_type",
+  "cin_number",
+  "registered_address",
+  "column_break_qwgv",
+  "website_url",
+  "company_id",
+  "app_url"
  ],
  "fields": [
   {
@@ -78,7 +79,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Name of Authorised Person",
+   "label": "Name of the authorized person",
    "reqd": 1
   },
   {
@@ -123,7 +124,7 @@
   {
    "fieldname": "service_category",
    "fieldtype": "Table MultiSelect",
-   "label": "Service Category",
+   "label": "Service / Business Category",
    "options": "Aggregator Service Category"
   },
   {
@@ -201,12 +202,16 @@
    "fieldname": "cin_number",
    "fieldtype": "Data",
    "label": "CIN Number"
+  },
+  {
+   "fieldname": "column_break_qwgv",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-25 20:04:44.471389",
+ "modified": "2026-05-26 11:54:09.723942",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregator",
