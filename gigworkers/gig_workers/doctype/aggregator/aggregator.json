@@ -25,6 +25,7 @@
   "reason_for_reject",
   "services_section",
   "company_type",
+  "cin_number",
   "website_url",
   "registered_address",
   "company_id",
@@ -194,13 +195,19 @@
    "fieldname": "gstin_file",
    "fieldtype": "Attach",
    "label": "GSTIN File"
+  },
+  {
+   "depends_on": "eval: doc.company_type==\"CIN\"",
+   "fieldname": "cin_number",
+   "fieldtype": "Data",
+   "label": "CIN Number"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-29 17:10:12.189520",
- "modified_by": "tech4socialsector@azimpremjifoundation.org",
+ "modified": "2026-05-25 20:04:44.471389",
+ "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregator",
  "naming_rule": "Expression",

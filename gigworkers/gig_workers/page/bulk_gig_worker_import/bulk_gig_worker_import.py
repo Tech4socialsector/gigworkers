@@ -50,7 +50,7 @@ def get_import_template():
 @frappe.whitelist()
 def start_import(file_url, skip_duplicates=1, skip_email=1, created_by_aggregator=None):
 	"""Enqueue a background job to process the uploaded CSV/XLSX file."""
-	frappe.only_for("System Manager")
+	frappe.only_for(["System Manager", "Aggregator"])
 
 	import_id = frappe.generate_hash(length=12)
 
@@ -92,7 +92,7 @@ def get_import_progress(import_id):
 @frappe.whitelist()
 def cancel_import(import_id):
 	"""Signal the background job to stop after the current batch."""
-	frappe.only_for("System Manager")
+	frappe.only_for(["System Manager", "Aggregator"])
 	raw = frappe.cache().hget("gw_bulk_import", import_id)
 	if not raw:
 		frappe.throw(_("Import job not found."))
@@ -103,9 +103,29 @@ def cancel_import(import_id):
 
 
 @frappe.whitelist()
-def get_import_logs():
-	"""Return the 20 most recent import log records for the history table."""
-	frappe.only_for("System Manager")
+def get_log_detail(log_name):
+	"""Return full details of a single import log record."""
+	frappe.only_for(["System Manager", "Aggregator"])
+	doc = frappe.get_doc("Gig Worker Import Log", log_name)
+	return {
+		"name": doc.name,
+		"import_id": doc.import_id,
+		"status": doc.status,
+		"import_date": doc.import_date,
+		"file_name": doc.file_name,
+		"imported_by": doc.imported_by,
+		"total_rows": doc.total_rows,
+		"inserted": doc.inserted,
+		"skipped": doc.skipped,
+		"error_count": doc.error_count,
+		"error_log": doc.error_log or "",
+	}
+
+
+@frappe.whitelist()
+def get_import_logs(limit=10, offset=0):
+	"""Return paginated import log records for the history table."""
+	frappe.only_for(["System Manager", "Aggregator"])
 	logs = frappe.get_all(
 		"Gig Worker Import Log",
 		fields=[
@@ -114,6 +134,8 @@ def get_import_logs():
 			"error_count", "imported_by",
 		],
 		order_by="import_date desc",
-		limit=5,
+		limit=int(limit),
+		start=int(offset),
 	)
-	return logs
+	total = frappe.db.count("Gig Worker Import Log")
+	return {"logs": logs, "total": total}

@@ -154,6 +154,15 @@
    "report": 1,
    "role": "System Manager",
    "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Aggregator",
+   "write": 0
   }
  ],
  "read_only": 1,
