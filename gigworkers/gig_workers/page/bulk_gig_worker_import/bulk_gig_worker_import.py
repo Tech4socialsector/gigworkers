@@ -48,9 +48,16 @@ def get_import_template():
 
 
 @frappe.whitelist()
-def start_import(file_url, skip_duplicates=1, skip_email=1, created_by_aggregator=None):
+def start_import(file_url, created_by_aggregator=None):
 	"""Enqueue a background job to process the uploaded CSV/XLSX file."""
 	frappe.only_for(["System Manager", "Aggregator"])
+
+	# For Aggregator users, always resolve their own aggregator record —
+	# never trust UI input, so their workers are always visible to them.
+	if "System Manager" not in frappe.get_roles():
+		own_agg = frappe.db.get_value("Aggregator", {"email": frappe.session.user}, "name")
+		if own_agg:
+			created_by_aggregator = own_agg
 
 	import_id = frappe.generate_hash(length=12)
 
@@ -71,8 +78,8 @@ def start_import(file_url, skip_duplicates=1, skip_email=1, created_by_aggregato
 		timeout=18000,
 		import_id=import_id,
 		file_url=file_url,
-		skip_duplicates=int(skip_duplicates),
-		skip_email=int(skip_email),
+		skip_duplicates=1,
+		skip_email=1,
 		created_by_aggregator=created_by_aggregator,
 		user=frappe.session.user,
 	)

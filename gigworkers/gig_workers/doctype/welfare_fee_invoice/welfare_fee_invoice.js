@@ -50,6 +50,15 @@ frappe.ui.form.on("Welfare Fee Invoice", {
 		// Auto-set quarter dates when quarter/year changes
 		set_quarter_dates(frm);
 
+		// Auto-populate aggregator for Aggregator users on new docs
+		if (frm.is_new() && !frm.doc.aggregator && frappe.user.has_role("Aggregator")) {
+			frappe.db.get_value("Aggregator", { email: frappe.session.user }, "name")
+				.then(r => {
+					const agg = r && r.message && r.message.name;
+					if (agg) frm.set_value("aggregator", agg);
+				});
+		}
+
 		// Add custom buttons based on status
 		frm.clear_custom_buttons();
 
@@ -143,16 +152,17 @@ frappe.ui.form.on("Welfare Fee Invoice", {
 					});
 
 					frm.refresh_field("welfare_fee_items");
+
+					// Set totals directly from the returned data
+					frm.set_value("total_transactions", r.message.count);
+					frm.set_value("total_due_amount", r.message.total_amount);
+					frm.set_value("balance_due", r.message.total_amount - (frm.doc.amount_paid || 0));
 					frm.dirty();
 
-					// Show success message
 					frappe.show_alert({
 						message: __(`Fetched ${r.message.count} pending welfare fees totaling ₹${r.message.total_amount.toFixed(2)}`),
 						indicator: "green"
 					}, 10);
-
-					// Auto-calculate totals
-					frm.trigger("validate");
 				}
 			}
 		});
