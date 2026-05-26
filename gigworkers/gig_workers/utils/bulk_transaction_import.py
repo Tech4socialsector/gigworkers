@@ -5,7 +5,6 @@ using frappe.db.bulk_insert, bypassing per-document hooks
 """
 
 import csv
-import re
 from datetime import datetime
 
 import frappe
@@ -20,7 +19,6 @@ CACHE_KEY  = "gt_bulk_import"
 _GT_IMPORT_COMPUTED = {"status", "service_category", "transaction_date",
                        "incentives", "deduction", "status_of_order"}
 
-VALID_TRUST        = {"High", "Low"}
 VALID_STATUS_ORDER = {"", "Order delivered", "Order cancelled"}
 
 
@@ -301,10 +299,6 @@ def _validate_row(row, idx, valid_workers, valid_aggregators,
 		errors.append(f"Row {idx}: invalid date '{date_str}'. Use YYYY-MM-DD.")
 	elif getdate(parsed) > getdate(today()):
 		errors.append(f"Row {idx}: date cannot be in the future.")
-
-	trust = (row.get("trust_level") or default_trust_level or "High").strip()
-	if trust not in VALID_TRUST:
-		errors.append(f"Row {idx}: trust_level must be 'High' or 'Low'.")
 
 	return errors
 

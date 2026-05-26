@@ -68,26 +68,6 @@ class GigWorkerBulkImport {
 					</div>
 				</div>
 
-				<!-- Options -->
-				<div class="row mb-3">
-					<div class="col-sm-6">
-						<div class="checkbox">
-							<label>
-								<input type="checkbox" id="chk-skip-duplicates" checked>
-								&nbsp;Skip duplicate email / phone / aadhaar
-							</label>
-						</div>
-					</div>
-					<div class="col-sm-6">
-						<div class="checkbox">
-							<label>
-								<input type="checkbox" id="chk-skip-email" checked>
-								&nbsp;Skip registration email (faster)
-							</label>
-						</div>
-					</div>
-				</div>
-
 				<!-- Aggregator override -->
 				<div class="form-group mb-4">
 					<label class="control-label">Default Aggregator <small class="text-muted">(optional — overrides CSV column)</small></label>
@@ -344,8 +324,6 @@ class GigWorkerBulkImport {
 			return;
 		}
 
-		const skip_duplicates = this.page.main.find("#chk-skip-duplicates").is(":checked") ? 1 : 0;
-		const skip_email = this.page.main.find("#chk-skip-email").is(":checked") ? 1 : 0;
 		const aggregator = this.page.main.find("#inp-aggregator").val().trim() || null;
 
 		this.page.main.find("#btn-start-import").prop("disabled", true).html(
@@ -356,8 +334,6 @@ class GigWorkerBulkImport {
 			method: "gigworkers.gig_workers.page.bulk_gig_worker_import.bulk_gig_worker_import.start_import",
 			args: {
 				file_url: this.file_url,
-				skip_duplicates,
-				skip_email,
 				created_by_aggregator: aggregator,
 			},
 			callback: (r) => {
