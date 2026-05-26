@@ -13,7 +13,7 @@ frappe.listview_settings["Gig Transaction"] = {
 
 	onload(listview) {
 
-		if (frappe.user.has_role("System Manager")) {
+		if ((frappe.user.has_role("System Manager") || frappe.user.has_role("Aggregator")) && !frappe.user.has_role("Gig Worker")) {
 			listview.page.add_button(__("Bulk Import"), function () {
 				frappe.set_route("bulk-gig-transaction-import");
 			}, { icon: "upload" });

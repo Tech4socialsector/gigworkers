@@ -157,6 +157,18 @@
    "role": "System Manager",
    "share": 0,
    "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Aggregator",
+   "share": 0,
+   "write": 0
   }
  ],
  "read_only": 1,

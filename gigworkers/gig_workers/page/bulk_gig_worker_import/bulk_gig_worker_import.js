@@ -14,6 +14,8 @@ class GigWorkerBulkImport {
 		this.import_id = null;
 		this.poll_timer = null;
 		this.file_url = null;
+		this._log_offset = 0;
+		this._log_limit = 10;
 		this._render();
 	}
 
@@ -151,34 +153,38 @@ class GigWorkerBulkImport {
 			<!-- Import History -->
 			<div style="margin-top:32px;">
 				<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-					<h6 style="margin:0;">Import History <small class="text-muted">(last 5)</small></h6>
-					<div style="display:flex; gap:8px;">
-						<button class="btn btn-default btn-xs" id="btn-refresh-logs">
-							<i class="fa fa-refresh"></i>&nbsp; Refresh
-						</button>
-						<button class="btn btn-primary btn-xs" id="btn-view-full-log">
-							<i class="fa fa-list"></i>&nbsp; View Full Log
-						</button>
-					</div>
+					<h6 style="margin:0;">Import History</h6>
+					<button class="btn btn-default btn-xs" id="btn-refresh-logs">
+						<i class="fa fa-refresh"></i>&nbsp; Refresh
+					</button>
 				</div>
-				<table class="table table-bordered table-hover" style="font-size:13px; margin-bottom:0;">
-					<thead style="background:#f5f5f5;">
-						<tr>
-							<th>Log ID</th>
-							<th>Date &amp; Time</th>
-							<th>File</th>
-							<th>Status</th>
-							<th style="text-align:right;">Total</th>
-							<th style="text-align:right; color:#27ae60;">Inserted</th>
-							<th style="text-align:right; color:#e67e22;">Skipped</th>
-							<th style="text-align:right; color:#e74c3c;">Errors</th>
-							<th>Imported By</th>
-						</tr>
-					</thead>
-					<tbody id="gw-log-tbody">
-						<tr><td colspan="9" class="text-center text-muted" style="padding:16px;">Loading…</td></tr>
-					</tbody>
-				</table>
+				<div style="overflow-x:auto;">
+					<table class="table table-bordered table-hover" style="font-size:13px; margin-bottom:0;">
+						<thead style="background:#343a40; color:#fff;">
+							<tr>
+								<th style="white-space:nowrap;">Log ID</th>
+								<th style="white-space:nowrap;">Date &amp; Time</th>
+								<th style="white-space:nowrap;">File</th>
+								<th style="white-space:nowrap;">Status</th>
+								<th style="text-align:right; white-space:nowrap;">Total</th>
+								<th style="text-align:right; white-space:nowrap; color:#82e0aa;">Inserted</th>
+								<th style="text-align:right; white-space:nowrap; color:#f0b27a;">Skipped</th>
+								<th style="text-align:right; white-space:nowrap; color:#f1948a;">Errors</th>
+								<th style="white-space:nowrap;">Imported By</th>
+								<th style="white-space:nowrap;"></th>
+							</tr>
+						</thead>
+						<tbody id="gw-log-tbody">
+							<tr><td colspan="10" class="text-center text-muted" style="padding:16px;">Loading…</td></tr>
+						</tbody>
+					</table>
+				</div>
+				<div style="text-align:center; margin-top:10px;">
+					<button class="btn btn-default btn-sm" id="btn-load-more-logs" style="display:none;">
+						<i class="fa fa-chevron-down"></i>&nbsp; Load More
+					</button>
+					<small id="gw-log-count" class="text-muted"></small>
+				</div>
 			</div>
 
 		</div>
@@ -193,12 +199,13 @@ class GigWorkerBulkImport {
 		this.page.main.find("#btn-download-template").on("click", () => this._download_template());
 
 		// Refresh log table
-		this.page.main.find("#btn-refresh-logs").on("click", () => this._load_import_logs());
-
-		// View full log — navigate to the DocType list view
-		this.page.main.find("#btn-view-full-log").on("click", () => {
-			frappe.set_route("List", "Gig Worker Import Log");
+		this.page.main.find("#btn-refresh-logs").on("click", () => {
+			this._log_offset = 0;
+			this._load_import_logs(true);
 		});
+
+		// Load more
+		this.page.main.find("#btn-load-more-logs").on("click", () => this._load_import_logs(false));
 
 		// File area drag/drop (clicking is handled natively by the overlaid input)
 		const area = this.page.main.find("#gw-file-area");
@@ -466,42 +473,149 @@ class GigWorkerBulkImport {
 		return Number(n || 0).toLocaleString();
 	}
 
-	_load_import_logs() {
+	_load_import_logs(reset = true) {
 		const tbody = this.page.main.find("#gw-log-tbody");
-		tbody.html('<tr><td colspan="9" class="text-center text-muted" style="padding:16px;">Loading…</td></tr>');
+		const loadMoreBtn = this.page.main.find("#btn-load-more-logs");
+		const countEl = this.page.main.find("#gw-log-count");
+
+		if (reset) {
+			this._log_offset = 0;
+			tbody.html('<tr><td colspan="10" class="text-center text-muted" style="padding:16px;">Loading…</td></tr>');
+			loadMoreBtn.hide();
+			countEl.text("");
+		}
 
 		frappe.call({
 			method: "gigworkers.gig_workers.page.bulk_gig_worker_import.bulk_gig_worker_import.get_import_logs",
+			args: { limit: this._log_limit, offset: this._log_offset },
 			callback: (r) => {
-				const logs = r.message || [];
-				if (!logs.length) {
-					tbody.html('<tr><td colspan="9" class="text-center text-muted" style="padding:16px;">No import history yet.</td></tr>');
+				const data = r.message || {};
+				const logs = data.logs || [];
+				const total = data.total || 0;
+
+				if (reset && !logs.length) {
+					tbody.html('<tr><td colspan="10" class="text-center text-muted" style="padding:20px;">No import history yet.</td></tr>');
+					countEl.text("");
+					loadMoreBtn.hide();
 					return;
 				}
 
 				const statusColor = { Completed: "#27ae60", Failed: "#e74c3c", Cancelled: "#e67e22" };
 				const rows = logs.map((log) => {
 					const color = statusColor[log.status] || "#888";
-					const badge = `<span style="color:${color}; font-weight:600;">● ${log.status || "—"}</span>`;
-					const dt = log.import_date
-						? frappe.datetime.str_to_user(log.import_date)
-						: "—";
-					const link = `<a href="/app/gig-worker-import-log/${log.name}" target="_blank">${log.name}</a>`;
-					const errStyle = log.error_count > 0 ? "color:#e74c3c; font-weight:600;" : "";
+					const dot = `<span style="color:${color};">●</span>`;
+					const badge = `${dot} <span style="font-weight:600;">${log.status || "—"}</span>`;
+					const dt = log.import_date ? frappe.datetime.str_to_user(log.import_date) : "—";
+					const errStyle = (log.error_count || 0) > 0 ? "color:#e74c3c; font-weight:600;" : "";
+					const insertedStyle = (log.inserted || 0) > 0 ? "color:#27ae60; font-weight:600;" : "";
 					return `<tr>
-						<td>${link}</td>
-						<td>${dt}</td>
-						<td style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+						<td style="font-family:monospace; font-size:12px;">${log.name || "—"}</td>
+						<td style="white-space:nowrap;">${dt}</td>
+						<td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
 							title="${log.file_name || ""}">${log.file_name || "—"}</td>
 						<td>${badge}</td>
 						<td style="text-align:right;">${this._fmt(log.total_rows)}</td>
-						<td style="text-align:right; color:#27ae60; font-weight:600;">${this._fmt(log.inserted)}</td>
+						<td style="text-align:right; ${insertedStyle}">${this._fmt(log.inserted)}</td>
 						<td style="text-align:right; color:#e67e22;">${this._fmt(log.skipped)}</td>
 						<td style="text-align:right; ${errStyle}">${this._fmt(log.error_count)}</td>
-						<td>${log.imported_by || "—"}</td>
+						<td style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+							title="${log.imported_by || ""}">${log.imported_by || "—"}</td>
+						<td style="text-align:center;">
+							<button class="btn btn-xs btn-default btn-view-detail"
+								data-name="${log.name}"
+								style="padding:2px 8px; font-size:11px; white-space:nowrap;">
+								<i class="fa fa-eye"></i> Details
+							</button>
+						</td>
 					</tr>`;
 				});
-				tbody.html(rows.join(""));
+
+				if (reset) {
+					tbody.html(rows.join(""));
+				} else {
+					tbody.append(rows.join(""));
+				}
+
+				// Wire up detail buttons (delegated so it works after append too)
+				tbody.find(".btn-view-detail").off("click").on("click", (e) => {
+					this._show_log_detail($(e.currentTarget).data("name"));
+				});
+
+				this._log_offset += logs.length;
+				const shown = this._log_offset;
+
+				if (shown < total) {
+					loadMoreBtn.show();
+					countEl.text(`Showing ${shown} of ${total}`);
+				} else {
+					loadMoreBtn.hide();
+					countEl.text(total > 0 ? `All ${total} record(s) shown` : "");
+				}
+			},
+		});
+	}
+
+	_show_log_detail(log_name) {
+		frappe.call({
+			method: "gigworkers.gig_workers.page.bulk_gig_worker_import.bulk_gig_worker_import.get_log_detail",
+			args: { log_name },
+			freeze: true,
+			freeze_message: __("Loading details…"),
+			callback: (r) => {
+				if (!r.message) return;
+				const d = r.message;
+				const fmt = (n) => Number(n || 0).toLocaleString();
+				const statusColor = { Completed: "#27ae60", Failed: "#e74c3c", Cancelled: "#e67e22" };
+				const sc = statusColor[d.status] || "#888";
+
+				const summary_html = `
+					<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; margin-bottom:16px;">
+						<div><span class="text-muted" style="font-size:12px;">Log ID</span><br>
+							<b style="font-family:monospace;">${d.name}</b></div>
+						<div><span class="text-muted" style="font-size:12px;">Status</span><br>
+							<b style="color:${sc};">● ${d.status || "—"}</b></div>
+						<div><span class="text-muted" style="font-size:12px;">Import Date</span><br>
+							<b>${d.import_date ? frappe.datetime.str_to_user(d.import_date) : "—"}</b></div>
+						<div><span class="text-muted" style="font-size:12px;">Imported By</span><br>
+							<b>${d.imported_by || "—"}</b></div>
+						<div><span class="text-muted" style="font-size:12px;">File</span><br>
+							<b style="word-break:break-all;">${d.file_name || "—"}</b></div>
+						<div><span class="text-muted" style="font-size:12px;">Import ID</span><br>
+							<b style="font-family:monospace; font-size:12px;">${d.import_id || "—"}</b></div>
+					</div>
+					<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px;">
+						<div style="background:#f8f9fa; border-radius:6px; padding:10px; text-align:center;">
+							<div style="font-size:11px; color:#888;">Total Rows</div>
+							<div style="font-size:20px; font-weight:700;">${fmt(d.total_rows)}</div>
+						</div>
+						<div style="background:#eafaf1; border-radius:6px; padding:10px; text-align:center;">
+							<div style="font-size:11px; color:#27ae60;">Inserted</div>
+							<div style="font-size:20px; font-weight:700; color:#27ae60;">${fmt(d.inserted)}</div>
+						</div>
+						<div style="background:#fef9e7; border-radius:6px; padding:10px; text-align:center;">
+							<div style="font-size:11px; color:#e67e22;">Skipped</div>
+							<div style="font-size:20px; font-weight:700; color:#e67e22;">${fmt(d.skipped)}</div>
+						</div>
+						<div style="background:#fdedec; border-radius:6px; padding:10px; text-align:center;">
+							<div style="font-size:11px; color:#e74c3c;">Errors</div>
+							<div style="font-size:20px; font-weight:700; color:#e74c3c;">${fmt(d.error_count)}</div>
+						</div>
+					</div>
+					${d.error_log ? `
+					<div>
+						<label style="font-size:12px; color:#e74c3c; font-weight:600;">Error / Skip Details</label>
+						<textarea class="form-control" rows="10" readonly
+							style="font-size:11px; font-family:monospace; background:#fff8f0;
+							       border-color:#e67e22; resize:vertical;">${frappe.utils.escape_html(d.error_log)}</textarea>
+					</div>` : `<p class="text-muted" style="text-align:center; padding:8px;">No errors recorded.</p>`}
+				`;
+
+				const dlg = new frappe.ui.Dialog({
+					title: __("Import Log — ") + d.name,
+					size: "large",
+					fields: [{ fieldtype: "HTML", options: summary_html }],
+				});
+				dlg.show();
 			},
 		});
 	}
