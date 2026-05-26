@@ -141,7 +141,7 @@
   {
    "fieldname": "amount",
    "fieldtype": "Currency",
-   "label": "Total bill amount",
+   "label": "Final payout amount",
    "options": "INR",
    "reqd": 1
   },
@@ -236,7 +236,7 @@
    "description": "Base payout to worker + Incentive - Deduction",
    "fieldname": "net_payout_to_worker",
    "fieldtype": "Currency",
-   "label": "Net payout to worker",
+   "label": "Final payout to worker",
    "options": "INR"
   },
   {
@@ -258,7 +258,7 @@
   {
    "fieldname": "account_details_section",
    "fieldtype": "Section Break",
-   "label": "Account Details"
+   "label": "Gig Transaction Details"
   },
   {
    "fieldname": "column_break_phea",
@@ -297,8 +297,8 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-29 17:18:21.833131",
- "modified_by": "tech4socialsector@azimpremjifoundation.org",
+ "modified": "2026-05-26 01:46:25.663019",
+ "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
  "naming_rule": "Expression",
