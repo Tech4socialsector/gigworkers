@@ -52,6 +52,13 @@ def start_import(file_url, created_by_aggregator=None):
 	"""Enqueue a background job to process the uploaded CSV/XLSX file."""
 	frappe.only_for(["System Manager", "Aggregator"])
 
+	# For Aggregator users, always resolve their own aggregator record —
+	# never trust UI input, so their workers are always visible to them.
+	if "System Manager" not in frappe.get_roles():
+		own_agg = frappe.db.get_value("Aggregator", {"email": frappe.session.user}, "name")
+		if own_agg:
+			created_by_aggregator = own_agg
+
 	import_id = frappe.generate_hash(length=12)
 
 	frappe.cache().hset("gw_bulk_import", import_id, frappe.as_json({

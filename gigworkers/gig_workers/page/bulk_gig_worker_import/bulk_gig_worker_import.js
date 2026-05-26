@@ -15,7 +15,7 @@ class GigWorkerBulkImport {
 		this.poll_timer = null;
 		this.file_url = null;
 		this._log_offset = 0;
-		this._log_limit = 10;
+		this._log_limit = 5;
 		this._render();
 	}
 
@@ -68,8 +68,8 @@ class GigWorkerBulkImport {
 					</div>
 				</div>
 
-				<!-- Aggregator override -->
-				<div class="form-group mb-4">
+				<!-- Aggregator override — visible only to System Manager -->
+				<div class="form-group mb-4" id="div-aggregator" style="display:none;">
 					<label class="control-label">Default Aggregator <small class="text-muted">(optional — overrides CSV column)</small></label>
 					<input type="text" id="inp-aggregator" class="form-control"
 						placeholder="Aggregator ID, e.g. AGG-001">
@@ -161,7 +161,7 @@ class GigWorkerBulkImport {
 				</div>
 				<div style="text-align:center; margin-top:10px;">
 					<button class="btn btn-default btn-sm" id="btn-load-more-logs" style="display:none;">
-						<i class="fa fa-chevron-down"></i>&nbsp; Load More
+						<i class="fa fa-list"></i>&nbsp; View All Logs
 					</button>
 					<small id="gw-log-count" class="text-muted"></small>
 				</div>
@@ -172,6 +172,11 @@ class GigWorkerBulkImport {
 
 		this._bind_events();
 		this._load_import_logs();
+
+		// Show Default Aggregator field only for System Manager
+		if (frappe.user.has_role("System Manager")) {
+			this.page.main.find("#div-aggregator").show();
+		}
 	}
 
 	_bind_events() {
@@ -185,7 +190,9 @@ class GigWorkerBulkImport {
 		});
 
 		// Load more
-		this.page.main.find("#btn-load-more-logs").on("click", () => this._load_import_logs(false));
+		this.page.main.find("#btn-load-more-logs").on("click", () => {
+			frappe.set_route("List", "Gig Worker Import Log", "List");
+		});
 
 		// File area drag/drop (clicking is handled natively by the overlaid input)
 		const area = this.page.main.find("#gw-file-area");
@@ -527,6 +534,57 @@ class GigWorkerBulkImport {
 					loadMoreBtn.hide();
 					countEl.text(total > 0 ? `All ${total} record(s) shown` : "");
 				}
+			},
+		});
+	}
+
+	_load_all_import_logs() {
+		const tbody = this.page.main.find("#gw-log-tbody");
+		const loadMoreBtn = this.page.main.find("#btn-load-more-logs");
+		const countEl = this.page.main.find("#gw-log-count");
+
+		frappe.call({
+			method: "gigworkers.gig_workers.page.bulk_gig_worker_import.bulk_gig_worker_import.get_import_logs",
+			args: { limit: 9999, offset: 0 },
+			callback: (r) => {
+				const data = r.message || {};
+				const logs = data.logs || [];
+				const total = data.total || 0;
+				const statusColor = { Completed: "#27ae60", Failed: "#e74c3c", Cancelled: "#e67e22" };
+				const rows = logs.map((log) => {
+					const color = statusColor[log.status] || "#888";
+					const dot = `<span style="color:${color};">●</span>`;
+					const badge = `${dot} <span style="font-weight:600;">${log.status || "—"}</span>`;
+					const dt = log.import_date ? frappe.datetime.str_to_user(log.import_date) : "—";
+					const errStyle = (log.error_count || 0) > 0 ? "color:#e74c3c; font-weight:600;" : "";
+					const insertedStyle = (log.inserted || 0) > 0 ? "color:#27ae60; font-weight:600;" : "";
+					return `<tr>
+						<td style="font-family:monospace; font-size:12px;">${log.name || "—"}</td>
+						<td style="white-space:nowrap;">${dt}</td>
+						<td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+							title="${log.file_name || ""}">${log.file_name || "—"}</td>
+						<td>${badge}</td>
+						<td style="text-align:right;">${this._fmt(log.total_rows)}</td>
+						<td style="text-align:right; ${insertedStyle}">${this._fmt(log.inserted)}</td>
+						<td style="text-align:right; color:#e67e22;">${this._fmt(log.skipped)}</td>
+						<td style="text-align:right; ${errStyle}">${this._fmt(log.error_count)}</td>
+						<td style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+							title="${log.imported_by || ""}">${log.imported_by || "—"}</td>
+						<td style="text-align:center;">
+							<button class="btn btn-xs btn-default btn-view-detail"
+								data-name="${log.name}"
+								style="padding:2px 8px; font-size:11px; white-space:nowrap;">
+								<i class="fa fa-eye"></i> Details
+							</button>
+						</td>
+					</tr>`;
+				});
+				tbody.html(rows.join(""));
+				tbody.find(".btn-view-detail").off("click").on("click", (e) => {
+					this._show_log_detail($(e.currentTarget).data("name"));
+				});
+				loadMoreBtn.hide();
+				countEl.text(total > 0 ? `All ${total} record(s) shown` : "");
 			},
 		});
 	}
