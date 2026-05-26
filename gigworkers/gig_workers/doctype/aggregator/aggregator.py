@@ -167,262 +167,241 @@ class Aggregator(Document):
 			)
 
 	def _generate_registration_certificate_pdf(self):
-		"""Generate a Karnataka Government-styled registration certificate PDF."""
+		"""Generate a Karnataka Government-styled registration certificate PDF.
+		No external URLs are used so the PDF works without internet access."""
 		from frappe.utils.pdf import get_pdf
 
-		base_url    = frappe.utils.get_url()
-		login_url   = f"{base_url}/login"
-		issue_date  = datetime.now().strftime("%d-%m-%Y")
-		issue_time  = datetime.now().strftime("%H:%M:%S")
-		estamp_ref  = "KA-GWB-" + hashlib.sha256(self.name.encode()).hexdigest()[:10].upper()
+		issue_date = datetime.now().strftime("%d-%m-%Y")
+		issue_time = datetime.now().strftime("%H:%M:%S")
+		estamp_ref = "KA-GWB-" + hashlib.sha256(self.name.encode()).hexdigest()[:10].upper()
+
+		status_color = {"Submitted": "#e67e22", "Approved": "#27ae60", "Rejected": "#c0392b"}.get(self.status or "", "#e67e22")
 
 		services_rows = ""
-		for svc in (self.service_category or []):
-			# Fetch the actual service category name
-			category_name = "-"
-			if svc.service_category:
-				category_doc = frappe.get_doc("Service Category", svc.service_category)
-				category_name = category_doc.category_name or "-"
-
-			services_rows += f"""
-			<tr>
-				<td>{category_name}</td>
+		for idx, svc in enumerate(self.service_category or [], start=1):
+			category_name = svc.service_category or "-"
+			try:
+				if svc.service_category:
+					category_doc = frappe.get_doc("Service Category", svc.service_category)
+					category_name = category_doc.category_name or svc.service_category
+			except Exception:
+				pass
+			row_bg = "background:#fdf8ec;" if idx % 2 == 0 else ""
+			services_rows += f"""<tr style="{row_bg}">
+				<td style="padding:5px 8px;border:1px solid #ddd;text-align:center;">{idx}</td>
+				<td style="padding:5px 8px;border:1px solid #ddd;">{category_name}</td>
+				<td style="padding:5px 8px;border:1px solid #ddd;">{self.aggregator_name or "-"}</td>
+				<td style="padding:5px 8px;border:1px solid #ddd;">{self.company_type or "-"}</td>
+				<td style="padding:5px 8px;border:1px solid #ddd;">{self.gstin or "-"}</td>
+				<td style="padding:5px 8px;border:1px solid #ddd;color:#27ae60;font-weight:bold;">Active</td>
 			</tr>"""
 
-		html = f"""
-		<!DOCTYPE html>
-		<html>
-		<head>
-		<meta charset="UTF-8">
-		<style>
-			@import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
-			* {{ box-sizing: border-box; margin: 0; padding: 0; }}
-			body {{ font-family: "Times New Roman", Times, serif; background: #fff; color: #1a1a1a; font-size: 13px; }}
-			.page {{ width: 210mm; min-height: 297mm; padding: 12mm 14mm; position: relative; }}
+		if not services_rows:
+			services_rows = '<tr><td colspan="6" style="padding:8px;text-align:center;color:#888;font-style:italic;border:1px solid #ddd;">No service categories registered</td></tr>'
 
-			/* Outer decorative border */
-			.outer-border {{
-				border: 4px double #8B0000;
-				padding: 10px;
-				position: relative;
-				min-height: 273mm;
-			}}
-			.inner-border {{
-				border: 1.5px solid #c0a020;
-				padding: 14px 18px;
-				min-height: 265mm;
-				position: relative;
-			}}
+		aadhaar_display = ("*" * 8 + str(self.aadhaar_number)[-4:]) if self.aadhaar_number else "-"
 
-			/* Watermark */
-			.watermark {{
-				position: fixed;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%) rotate(-35deg);
-				font-size: 80px;
-				color: rgba(200,200,200,0.18);
-				font-weight: bold;
-				white-space: nowrap;
-				pointer-events: none;
-				z-index: 0;
-				letter-spacing: 4px;
-			}}
+		html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: "Times New Roman", Times, serif; background: #fff; color: #1a1a1a; font-size: 12px; }}
+  .page {{ width: 210mm; min-height: 297mm; padding: 10mm 12mm; position: relative; }}
+  .outer-border {{ border: 4px double #8B0000; padding: 8px; position: relative; min-height: 277mm; }}
+  .inner-border {{ border: 1.5px solid #c0a020; padding: 12px 16px; position: relative; overflow: hidden; min-height: 269mm; }}
+  .watermark {{
+    position: absolute; top: 45%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-35deg);
+    font-size: 75px; color: rgba(180,180,180,0.12); font-weight: bold;
+    white-space: nowrap; z-index: 0; letter-spacing: 4px;
+  }}
+  .section-head {{
+    font-size: 11px; font-weight: bold; color: #fff; background: #8B0000;
+    padding: 5px 8px; text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 0;
+  }}
+  .details-table {{ width: 100%; border-collapse: collapse; border: 1px solid #d4b483; }}
+  .details-table td {{ padding: 5px 8px; border: 1px solid #d4b483; font-size: 11px; vertical-align: top; }}
+  .details-table tr:nth-child(even) td {{ background: #fdf8ec; }}
+  .lbl {{ font-weight: bold; color: #555; width: 20%; }}
+  .val {{ color: #1a1a1a; width: 30%; }}
+  .reg-id {{ font-size: 13px; font-weight: bold; color: #8B0000; font-family: monospace; }}
+  .svc-table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
+  .svc-table th {{ background: #4a4a4a; color: #fff; padding: 5px 8px; text-align: left; border: 1px solid #4a4a4a; }}
+  .declaration {{ background: #fff8f0; border-left: 4px solid #8B0000; padding: 8px 10px; font-size: 10.5px; color: #444; line-height: 1.6; margin-top: 8px; }}
+  .footer {{ text-align: center; font-size: 9px; color: #777; border-top: 1px solid #ccc; padding-top: 6px; margin-top: 8px; }}
+</style>
+</head>
+<body>
+<div class="page">
+<div class="outer-border">
+<div class="inner-border">
+  <div class="watermark">GOVT OF KARNATAKA</div>
 
-			/* Header */
-			.gov-header {{ text-align: center; border-bottom: 2px solid #8B0000; padding-bottom: 10px; margin-bottom: 10px; }}
-			.kannada {{ font-size: 20px; font-weight: bold; color: #8B0000; letter-spacing: 1px; }}
-			.eng-title {{ font-size: 16px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }}
-			.dept {{ font-size: 12px; color: #333; margin-top: 3px; }}
-			.board {{ font-size: 13px; font-weight: bold; color: #8B0000; margin-top: 4px; }}
+  <!-- Government Header using plain table -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #8B0000;padding-bottom:8px;margin-bottom:8px;">
+    <tr>
+      <td width="70" valign="middle" align="center">
+        <div style="width:60px;height:60px;border:2px solid #8B0000;border-radius:50%;text-align:center;line-height:1.3;padding-top:10px;font-size:8px;font-weight:bold;color:#8B0000;">
+          ಕರ್ನಾಟಕ<br>ರಾಜ್ಯ<br>ಲಾಂಛನ
+        </div>
+      </td>
+      <td valign="middle" align="center" style="padding:0 10px;">
+        <div style="font-size:18px;font-weight:bold;color:#8B0000;">ಕರ್ನಾಟಕ ಸರ್ಕಾರ</div>
+        <div style="font-size:14px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">Government of Karnataka</div>
+        <div style="font-size:10px;color:#333;margin-top:2px;">Department of Labour, Skill Development, Employment and Livelihood</div>
+        <div style="font-size:11.5px;font-weight:bold;color:#8B0000;margin-top:3px;">Karnataka Platform Based Gig Workers Social Security and Welfare Board</div>
+        <div style="font-size:10px;color:#555;margin-top:2px;">Vikasa Soudha, Bengaluru &#8211; 560 001, Karnataka, India</div>
+      </td>
+      <td width="80" valign="middle" align="center">
+        <div style="border:2px solid #2c5f2e;border-radius:4px;padding:5px 6px;font-size:8px;color:#2c5f2e;font-weight:bold;line-height:1.6;background:#f0fff0;width:70px;text-align:center;">
+          &#10003;<br>VERIFIED<br>DOCUMENT
+        </div>
+      </td>
+    </tr>
+  </table>
 
-			/* Emblem placeholder */
-			.emblem-row {{ display: flex; align-items: center; justify-content: space-between; }}
-			.emblem {{ width: 70px; height: 70px; border: 2px solid #8B0000; border-radius: 50%;
-			           display: flex; align-items: center; justify-content: center;
-			           font-size: 9px; text-align: center; color: #8B0000; font-weight: bold; padding: 6px; }}
+  <!-- e-Stamp using plain table -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="border:1.5px solid #2c5f2e;background:#f0fff0;padding:6px 10px;margin-bottom:8px;">
+    <tr>
+      <td valign="middle">
+        <div style="color:#2c5f2e;font-weight:bold;font-size:10.5px;">e-Stamp Reference</div>
+        <div style="font-family:monospace;font-size:12px;font-weight:bold;letter-spacing:1px;">{estamp_ref}</div>
+      </td>
+      <td valign="middle" align="right">
+        <div style="color:#2c5f2e;font-weight:bold;font-size:10.5px;">Date of Issue</div>
+        <div style="color:#555;font-size:10px;">{issue_date} at {issue_time} IST</div>
+        <div style="color:#555;font-size:10px;">State: Karnataka &nbsp;|&nbsp; Category: Aggregator Registration</div>
+      </td>
+    </tr>
+  </table>
 
-			/* Certificate title */
-			.cert-title {{ text-align: center; margin: 14px 0 10px; }}
-			.cert-title h2 {{ font-size: 17px; text-transform: uppercase; letter-spacing: 2px;
-			                  color: #8B0000; text-decoration: underline; font-weight: bold; }}
-			.cert-subtitle {{ font-size: 12px; margin-top: 4px; color: #444; }}
+  <!-- Certificate Title -->
+  <div style="text-align:center;margin:8px 0 6px;">
+    <div style="font-size:15px;text-transform:uppercase;letter-spacing:2px;color:#8B0000;text-decoration:underline;font-weight:bold;">Certificate of Registration</div>
+    <div style="font-size:10.5px;color:#444;margin-top:3px;font-style:italic;">Issued under the Karnataka Platform Based Gig Workers Social Security and Welfare Act</div>
+  </div>
 
-			/* E-Stamp box */
-			.estamp-box {{
-				border: 2px solid #2c5f2e;
-				background: #f0fff0;
-				padding: 8px 14px;
-				margin-bottom: 14px;
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				font-size: 11px;
-			}}
-			.estamp-label {{ color: #2c5f2e; font-weight: bold; font-size: 12px; }}
-			.estamp-ref {{ font-family: monospace; font-size: 13px; font-weight: bold; color: #1a1a1a; letter-spacing: 1px; }}
-			.estamp-date {{ color: #555; font-size: 11px; }}
+  <!-- Registration Details -->
+  <div class="section-head">Aggregator Registration Details</div>
+  <table class="details-table">
+    <tr>
+      <td class="lbl">Registration ID</td>
+      <td class="val"><span class="reg-id">{self.name}</span></td>
+      <td class="lbl">Registration Status</td>
+      <td class="val"><b style="color:{status_color};">{self.status or "Submitted"}</b></td>
+    </tr>
+    <tr>
+      <td class="lbl">Aggregator / Company Name</td>
+      <td class="val">{self.aggregator_name or "-"}</td>
+      <td class="lbl">Registration Date</td>
+      <td class="val">{issue_date}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Authorised Person</td>
+      <td class="val">{self.name1 or "-"}</td>
+      <td class="lbl">Designation</td>
+      <td class="val">{self.desigination or "-"}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Registered Email</td>
+      <td class="val">{self.email or "-"}</td>
+      <td class="lbl">Mobile Number</td>
+      <td class="val">{self.mobile or "-"}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Gender</td>
+      <td class="val">{self.gender or "-"}</td>
+      <td class="lbl">Date of Birth</td>
+      <td class="val">{self.date_of_birth or "-"}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Aadhaar Number</td>
+      <td class="val">{aadhaar_display}</td>
+      <td class="lbl">Company Type</td>
+      <td class="val">{self.company_type or "-"}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Company ID / CIN</td>
+      <td class="val">{self.company_id or self.cin_number or "-"}</td>
+      <td class="lbl">PAN Number</td>
+      <td class="val">{self.pan_number or "-"}</td>
+    </tr>
+    <tr>
+      <td class="lbl">GSTIN</td>
+      <td class="val">{self.gstin or "-"}</td>
+      <td class="lbl">Website / App URL</td>
+      <td class="val">{self.website_url or self.app_url or "-"}</td>
+    </tr>
+    <tr>
+      <td class="lbl" style="vertical-align:top;">Registered Address</td>
+      <td class="val" colspan="3">{self.registered_address or "-"}</td>
+    </tr>
+  </table>
 
-			/* Details table */
-			.details-table {{ width: 100%; border-collapse: collapse; margin-bottom: 14px; }}
-			.details-table th {{
-				background: #8B0000; color: #fff; padding: 7px 10px;
-				text-align: left; font-size: 12px; letter-spacing: 0.5px;
-			}}
-			.details-table td {{ padding: 6px 10px; border-bottom: 1px solid #e0c080; font-size: 12px; }}
-			.details-table tr:nth-child(even) td {{ background: #fdf8ec; }}
-			.field-label {{ font-weight: bold; color: #555; width: 38%; }}
-			.field-value {{ color: #1a1a1a; }}
-			.reg-id {{ font-size: 15px; font-weight: bold; color: #8B0000; font-family: monospace; }}
+  <!-- Service Categories -->
+  <div class="section-head">Categories of Business / Aggregation Activities (As Per GST Filings)</div>
+  <table class="svc-table">
+    <thead>
+      <tr>
+        <th style="width:5%;text-align:center;">#</th>
+        <th style="width:20%;">Service Name</th>
+        <th style="width:23%;">Brand / App Name</th>
+        <th style="width:15%;">Company Type</th>
+        <th style="width:20%;">GSTIN</th>
+        <th style="width:17%;">Status</th>
+      </tr>
+    </thead>
+    <tbody>{services_rows}</tbody>
+  </table>
 
-			/* Services table */
-			.section-head {{ font-size: 13px; font-weight: bold; color: #8B0000; border-bottom: 1px solid #8B0000;
-			                 padding-bottom: 4px; margin: 14px 0 8px; text-transform: uppercase; letter-spacing: 1px; }}
-			.svc-table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 14px; }}
-			.svc-table th {{ background: #4a4a4a; color: #fff; padding: 6px 8px; text-align: left; }}
-			.svc-table td {{ padding: 5px 8px; border-bottom: 1px solid #ddd; }}
-			.svc-table tr:nth-child(even) td {{ background: #f9f9f9; }}
+  <!-- Declaration -->
+  <div class="declaration">
+    This is to certify that <b>{self.aggregator_name}</b> (Registration ID: <b>{self.name}</b>) has been duly
+    registered as an Aggregator under the <i>Karnataka Platform Based Gig Workers Social Security and Welfare Act</i>.
+    This certificate is system-generated and digitally authenticated by the Karnataka Gig Workers Welfare Board.
+    Any tampering with this document is a punishable offence under applicable law.
+    This certificate remains valid subject to continued compliance with the Act and Board regulations.
+  </div>
 
-			/* Login box */
-			.login-box {{
-				background: #f0f4ff;
-				border: 1.5px solid #2c3e8c;
-				padding: 10px 14px;
-				margin-bottom: 14px;
-				font-size: 12px;
-			}}
-			.login-box a {{ color: #2c3e8c; font-weight: bold; }}
+  <!-- Signature Row using plain table -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+    <tr>
+      <td width="50%" align="center" style="font-size:10.5px;">
+        <div style="border-top:1px solid #333;width:150px;margin:34px auto 4px;"></div>
+        <div>Authorised Signatory</div>
+        <div style="color:#555;">{self.name1 or "Authorised Person"}</div>
+      </td>
+      <td width="50%" align="center" style="font-size:10.5px;">
+        <div style="border-top:1px solid #333;width:150px;margin:34px auto 4px;"></div>
+        <div>Registering Authority</div>
+        <div style="color:#555;">Karnataka Gig Workers Welfare Board</div>
+      </td>
+    </tr>
+  </table>
 
-			/* Declaration */
-			.declaration {{
-				background: #fff8f0;
-				border-left: 4px solid #8B0000;
-				padding: 8px 12px;
-				font-size: 11px;
-				color: #444;
-				margin-bottom: 14px;
-				line-height: 1.6;
-			}}
+  <!-- Footer -->
+  <div class="footer">
+    e-Stamp Ref: {estamp_ref} &nbsp;|&nbsp; Generated: {issue_date} {issue_time} IST &nbsp;|&nbsp;
+    Karnataka Gig Workers Welfare Board, Vikasa Soudha, Bengaluru &#8211; 560 001
+    <br>Helpline: 1800-XXX-XXXX &nbsp;|&nbsp; Email: support@kgwwb.karnataka.gov.in
+  </div>
 
-			/* Signature row */
-			.sig-row {{ display: flex; justify-content: space-between; margin-top: 20px; font-size: 11px; }}
-			.sig-block {{ text-align: center; }}
-			.sig-line {{ border-top: 1px solid #333; width: 160px; margin: 40px auto 4px; }}
-
-			/* Footer */
-			.footer {{ text-align: center; font-size: 10px; color: #888; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 10px; }}
-		</style>
-		</head>
-		<body>
-		<div class="page">
-		  <div class="watermark">GOVT OF KARNATAKA</div>
-		  <div class="outer-border">
-		  <div class="inner-border">
-
-		    <!-- Government Header -->
-		    <div class="gov-header">
-		      <div class="emblem-row">
-		        <div class="emblem">ಕರ್ನಾಟಕ<br>ರಾಜ್ಯ<br>ಲಾಂಛನ</div>
-		        <div style="flex:1; padding: 0 16px;">
-		          <div class="kannada">ಕರ್ನಾಟಕ ಸರ್ಕಾರ</div>
-		          <div class="eng-title">Government of Karnataka</div>
-		          <div class="dept">Department of Labour, Skill Development, Employment and Livelihood</div>
-		          <div class="board">Karnataka Platform Based Gig Workers Social Security and Welfare Board</div>
-		          <div class="dept" style="margin-top:2px;">Vikasa Soudha, Bengaluru – 560 001, Karnataka, India</div>
-		        </div>
-		        <div class="emblem">VERIFIED<br>DOCUMENT<br>✓</div>
-		      </div>
-		    </div>
-
-		    <!-- E-Stamp -->
-		    <div class="estamp-box">
-		      <div>
-		        <div class="estamp-label">🔖 e-Stamp Reference</div>
-		        <div class="estamp-ref">{estamp_ref}</div>
-		      </div>
-		      <div style="text-align:right;">
-		        <div class="estamp-label">Date of Issue</div>
-		        <div class="estamp-date">{issue_date} at {issue_time} IST</div>
-		        <div class="estamp-date" style="margin-top:3px;">State: Karnataka &nbsp;|&nbsp; Category: Aggregator Registration</div>
-		      </div>
-		    </div>
-
-		    <!-- Certificate Title -->
-		    <div class="cert-title">
-		      <h2>Certificate of Registration</h2>
-		      <div class="cert-subtitle">Issued under the Karnataka Platform Based Gig Workers Social Security and Welfare Act</div>
-		    </div>
-
-		    <!-- Registration Details -->
-		    <div class="section-head">Aggregator Registration Details</div>
-		    <table class="details-table">
-		      <tr><td class="field-label">Registration ID</td>
-		          <td class="field-value"><span class="reg-id">{self.name}</span></td></tr>
-		      <tr><td class="field-label">Aggregator / Company Name</td>
-		          <td class="field-value">{self.aggregator_name or "-"}</td></tr>
-		      <tr><td class="field-label">Authorised Person</td>
-		          <td class="field-value">{self.name1 or "-"}</td></tr>
-		      <tr><td class="field-label">Designation</td>
-		          <td class="field-value">{self.desigination or "-"}</td></tr>
-		      <tr><td class="field-label">Registered Email</td>
-		          <td class="field-value">{self.email or "-"}</td></tr>
-		      <tr><td class="field-label">Mobile Number</td>
-		          <td class="field-value">{self.mobile or "-"}</td></tr>
-		      <tr><td class="field-label">Gender</td>
-		          <td class="field-value">{self.gender or "-"}</td></tr>
-		      <tr><td class="field-label">Date of Birth</td>
-		          <td class="field-value">{self.date_of_birth or "-"}</td></tr>
-		      <tr><td class="field-label">Aadhaar Number</td>
-		          <td class="field-value">{("*" * 8 + str(self.aadhaar_number)[-4:]) if self.aadhaar_number else "-"}</td></tr>
-		      <tr><td class="field-label">Registration Status</td>
-		          <td class="field-value"><b style="color:#e67e22;">{self.status or "Submitted"}</b></td></tr>
-		      <tr><td class="field-label">Registration Date</td>
-		          <td class="field-value">{issue_date}</td></tr>
-		    </table>
-
-		    <!-- Services -->
-		    <div class="section-head">Service Categories</div>
-		    <table class="svc-table">
-		      <thead>
-		        <tr>
-		          <th>Service Category</th>
-		        </tr>
-		      </thead>
-		      <tbody>
-		        {services_rows if services_rows else '<tr><td style="text-align:center;color:#888;">No service categories registered yet</td></tr>'}
-		      </tbody>
-		    </table>
-
-		    <!-- Declaration -->
-		    <div class="declaration">
-		      This is to certify that <b>{self.aggregator_name}</b> (Registration ID: <b>{self.name}</b>) has been
-		      registered as an Aggregator under the <i>Karnataka Platform Based Gig Workers Social Security and Welfare Act</i>.
-		      This certificate is system-generated and is digitally authenticated by the Karnataka Gig Workers Welfare Board.
-		      Any tampering with this document is a punishable offence under applicable law.
-		      This certificate is valid subject to continued compliance with the Act and Board regulations.
-		    </div>
-
-		    <!-- Footer -->
-		    <div class="footer">
-		      e-Stamp Ref: {estamp_ref} &nbsp;|&nbsp; Generated: {issue_date} {issue_time} IST &nbsp;|&nbsp;
-		      Karnataka Gig Workers Welfare Board, Vikasa Soudha, Bengaluru – 560 001
-		      <br>Helpline: 1800-XXX-XXXX &nbsp;|&nbsp; Email: support@kgwwb.karnataka.gov.in
-		    </div>
-
-		  </div>
-		  </div>
-		</div>
-		</body>
-		</html>
-		"""
+</div>
+</div>
+</div>
+</body>
+</html>"""
 
 		try:
 			return get_pdf(html, {
 				"orientation": "Portrait",
-				"margin-top": "0",
-				"margin-bottom": "0",
-				"margin-left": "0",
-				"margin-right": "0"
+				"margin-top": "5",
+				"margin-bottom": "5",
+				"margin-left": "5",
+				"margin-right": "5",
+				"page-size": "A4",
 			})
 		except Exception as e:
 			frappe.log_error(f"PDF generation failed for {self.name}: {e}", "Aggregator Certificate PDF Error")
@@ -528,12 +507,10 @@ class Aggregator(Document):
 			user.flags.ignore_password_policy = True
 			user.insert(ignore_permissions=True)
 		else:
-			# User exists, ensure Aggregator role is assigned
 			user = frappe.get_doc("User", self.email)
 			existing_roles = [r.role for r in user.roles]
 			if "Aggregator" not in existing_roles:
 				user.append("roles", {"role": "Aggregator"})
 				user.save(ignore_permissions=True)
-			user = frappe.get_doc("User", self.email)
 
 		update_password(self.email, self.mobile)

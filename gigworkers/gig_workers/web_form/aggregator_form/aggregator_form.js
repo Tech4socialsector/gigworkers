@@ -1,3 +1,22 @@
+// Fix: awesomplete dropdown in child tables positions itself at the top of the page
+// because it's positioned relative to a scrolled container. Reposition it on open.
+$(document).on("awesomplete-open", ".grid-row input", function () {
+	var input = this;
+	var ul = $(input).siblings("ul.awesomplete-list, ul[role='listbox']")[0]
+		|| $(input).closest(".awesomplete").find("ul")[0];
+	if (!ul) return;
+	var rect = input.getBoundingClientRect();
+	$(ul).css({
+		position: "fixed",
+		top: rect.bottom + "px",
+		left: rect.left + "px",
+		width: rect.width + "px",
+		"z-index": 9999,
+		"max-height": "200px",
+		"overflow-y": "auto"
+	});
+});
+
 frappe.ready(function () {
 	frappe.web_form.validate = () => {
 		// Email Validation
