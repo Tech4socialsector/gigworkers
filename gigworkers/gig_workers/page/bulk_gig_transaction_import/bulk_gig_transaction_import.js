@@ -14,7 +14,7 @@ class GigTransactionBulkImport {
 		this.poll_timer = null;
 		this.file_url   = null;
 		this._log_offset = 0;
-		this._log_limit  = 10;
+		this._log_limit  = 5;
 		this._render();
 	}
 
@@ -59,17 +59,6 @@ class GigTransactionBulkImport {
 								Click or drag &amp; drop a CSV / XLSX file here
 							</p>
 							<small id="gt-upload-status"></small>
-						</div>
-					</div>
-				</div>
-
-				<div class="row mb-3">
-					<div class="col-sm-6">
-						<div class="checkbox">
-							<label>
-								<input type="checkbox" id="chk-skip-duplicates" checked>
-								&nbsp;Skip duplicate external_transaction_id / duplicate_key
-							</label>
 						</div>
 					</div>
 				</div>
@@ -124,43 +113,43 @@ class GigTransactionBulkImport {
 					</div>
 				</div>
 
-				<!-- Import History -->
-				<div style="margin-top:32px;">
-					<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-						<h6 style="margin:0;">Import History</h6>
-						<button class="btn btn-default btn-xs" id="btn-refresh-logs">
-							<i class="fa fa-refresh"></i>&nbsp; Refresh
-						</button>
-					</div>
-					<div style="overflow-x:auto;">
-						<table class="table table-bordered table-hover" style="font-size:13px; margin-bottom:0;">
-							<thead style="background:#343a40; color:#fff;">
-								<tr>
-									<th style="white-space:nowrap;">Log ID</th>
-									<th style="white-space:nowrap;">Date &amp; Time</th>
-									<th style="white-space:nowrap;">File</th>
-									<th style="white-space:nowrap;">Status</th>
-									<th style="text-align:right; white-space:nowrap;">Total</th>
-									<th style="text-align:right; white-space:nowrap; color:#82e0aa;">Inserted</th>
-									<th style="text-align:right; white-space:nowrap; color:#f0b27a;">Skipped</th>
-									<th style="text-align:right; white-space:nowrap; color:#f1948a;">Errors</th>
-									<th style="white-space:nowrap;">Imported By</th>
-									<th style="white-space:nowrap;"></th>
-								</tr>
-							</thead>
-							<tbody id="gt-log-tbody">
-								<tr><td colspan="10" class="text-center text-muted" style="padding:16px;">Loading…</td></tr>
-							</tbody>
-						</table>
-					</div>
-					<div style="text-align:center; margin-top:10px;">
-						<button class="btn btn-default btn-sm" id="btn-load-more-logs" style="display:none;">
-							<i class="fa fa-chevron-down"></i>&nbsp; Load More
-						</button>
-						<small id="gt-log-count" class="text-muted"></small>
-					</div>
-				</div>
+			</div>
 
+			<!-- Import History — full width -->
+			<div style="margin-top:32px; padding:0 16px;">
+				<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+					<h6 style="margin:0;">Import History</h6>
+					<button class="btn btn-default btn-xs" id="btn-refresh-logs">
+						<i class="fa fa-refresh"></i>&nbsp; Refresh
+					</button>
+				</div>
+				<div style="overflow-x:auto;">
+					<table class="table table-bordered table-hover" style="font-size:13px; margin-bottom:0;">
+						<thead style="background:#343a40; color:#fff;">
+							<tr>
+								<th style="white-space:nowrap;">Log ID</th>
+								<th style="white-space:nowrap;">Date &amp; Time</th>
+								<th style="white-space:nowrap;">File</th>
+								<th style="white-space:nowrap;">Status</th>
+								<th style="text-align:right; white-space:nowrap;">Total</th>
+								<th style="text-align:right; white-space:nowrap; color:#82e0aa;">Inserted</th>
+								<th style="text-align:right; white-space:nowrap; color:#f0b27a;">Skipped</th>
+								<th style="text-align:right; white-space:nowrap; color:#f1948a;">Errors</th>
+								<th style="white-space:nowrap;">Imported By</th>
+								<th style="white-space:nowrap;"></th>
+							</tr>
+						</thead>
+						<tbody id="gt-log-tbody">
+							<tr><td colspan="10" class="text-center text-muted" style="padding:16px;">Loading…</td></tr>
+						</tbody>
+					</table>
+				</div>
+				<div style="text-align:center; margin-top:10px;">
+					<button class="btn btn-default btn-sm" id="btn-load-more-logs" style="display:none;">
+						<i class="fa fa-list"></i>&nbsp; View All Logs
+					</button>
+					<small id="gt-log-count" class="text-muted"></small>
+				</div>
 			</div>
 		`);
 
@@ -174,7 +163,9 @@ class GigTransactionBulkImport {
 			this._log_offset = 0;
 			this._load_import_logs(true);
 		});
-		this.page.main.find("#btn-load-more-logs").on("click", () => this._load_import_logs(false));
+		this.page.main.find("#btn-load-more-logs").on("click", () => {
+			frappe.set_route("List", "Gig Transaction Import Log", "List");
+		});
 		this.page.main.find("#btn-start-import").on("click",  () => this._start_import());
 		this.page.main.find("#btn-cancel-import").on("click", () => this._cancel_import());
 
@@ -277,16 +268,14 @@ class GigTransactionBulkImport {
 			return;
 		}
 
-		const skip_duplicates = this.page.main.find("#chk-skip-duplicates").is(":checked") ? 1 : 0;
-		const aggregator      = this.page.main.find("#inp-aggregator").val().trim() || null;
+		const aggregator = this.page.main.find("#inp-aggregator").val().trim() || null;
 
 		this.page.main.find("#btn-start-import").prop("disabled", true)
 			.html('<i class="fa fa-spinner fa-spin"></i>&nbsp; Starting…');
 
 		frappe.call({
 			method: "gigworkers.gig_workers.page.bulk_gig_transaction_import.bulk_gig_transaction_import.start_import",
-			args: { file_url: this.file_url, skip_duplicates,
-					default_aggregator: aggregator, default_trust_level: "High" },
+			args: { file_url: this.file_url, default_aggregator: aggregator },
 			callback: (r) => {
 				if (r.message && r.message.import_id) {
 					this.import_id = r.message.import_id;

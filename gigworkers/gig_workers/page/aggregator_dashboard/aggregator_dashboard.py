@@ -93,19 +93,21 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
     """, sql_params, as_dict=True)[0].cnt
 
     # --- Worker stats ---
-    total_workers_result = frappe.db.sql("""
-        SELECT COUNT(DISTINCT gig_worker) AS cnt
-        FROM `tabWorker Mapping Log`
-        WHERE aggregator = %s
-    """, aggregator_name, as_dict=True)
-    total_workers = total_workers_result[0].cnt if total_workers_result else 0
-
-    active_workers_result = frappe.db.sql("""
+    # Total unique workers who have transacted (respects active date/service filters)
+    total_workers_result = frappe.db.sql(f"""
         SELECT COUNT(DISTINCT gig_worker) AS cnt
         FROM `tabGig Transaction`
-        WHERE aggregator = %s AND status = 'Payment complete'
+        {sql_cond}
+    """, sql_params, as_dict=True)
+    total_workers = total_workers_result[0].cnt if total_workers_result else 0
+
+    # Workers with Onboarded/Active status in mapping log
+    onboarded_workers_result = frappe.db.sql("""
+        SELECT COUNT(DISTINCT gig_worker) AS cnt
+        FROM `tabWorker Mapping Log`
+        WHERE aggregator = %s AND worker_status IN ('Onboarded', 'Active')
     """, aggregator_name, as_dict=True)
-    active_workers = active_workers_result[0].cnt if active_workers_result else 0
+    onboarded_workers = onboarded_workers_result[0].cnt if onboarded_workers_result else 0
 
     # --- Welfare fee payment stats (filtered by date) ---
     wfp_sql_cond  = "WHERE aggregator = %(agg)s"
@@ -156,14 +158,13 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
     if to_date:
         worker_list_sql_cond += " AND log_datetime <= %(to_date)s"
         worker_list_params["to_date"] = to_date + " 23:59:59"
-        
+
     worker_list = frappe.db.sql(f"""
         SELECT name, gig_worker, service, event_type, worker_status, log_datetime
         FROM `tabWorker Mapping Log`
         {worker_list_sql_cond}
         ORDER BY log_datetime DESC
     """, worker_list_params, as_dict=True)
-
 
     # --- Suspected duplicate transactions (read-only view for aggregator) ---
     suspected_dups = frappe.get_all(
@@ -181,15 +182,39 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         fields=["name", "quarter", "year", "from_date", "to_date", "due_date",
                 "total_due_amount", "amount_paid", "balance_due", "invoice_status"],
         order_by="year desc, quarter desc",
-        limit=4  # Last 4 quarters
+        limit=4
     )
 
-    # Calculate quarterly invoice summary
     invoice_summary = {
-        "total_outstanding": sum(inv.balance_due for inv in quarterly_invoices if inv.invoice_status not in ["Fully Paid"]),
-        "total_overdue": sum(inv.balance_due for inv in quarterly_invoices if inv.invoice_status == "Overdue"),
+        "total_outstanding": sum(inv.balance_due or 0 for inv in quarterly_invoices if inv.invoice_status not in ["Fully Paid"]),
+        "total_overdue": sum(inv.balance_due or 0 for inv in quarterly_invoices if inv.invoice_status == "Overdue"),
         "pending_invoices": len([inv for inv in quarterly_invoices if inv.invoice_status in ["Pending", "Partially Paid", "Overdue"]])
     }
+
+    # --- Service category breakdown (filtered) ---
+    svc_cat_breakdown = frappe.db.sql(f"""
+        SELECT service_category, COUNT(*) AS cnt,
+               COALESCE(SUM(amount), 0) AS total_amount,
+               COALESCE(SUM(welfare_amount), 0) AS total_welfare
+        FROM `tabGig Transaction`
+        {sql_cond} AND service_category IS NOT NULL AND service_category != ''
+        GROUP BY service_category
+        ORDER BY cnt DESC
+        LIMIT 10
+    """, sql_params, as_dict=True)
+
+    # --- Top 5 workers by transaction count (filtered) ---
+    top_workers = frappe.db.sql(f"""
+        SELECT gig_worker, COUNT(*) AS txn_count,
+               COALESCE(SUM(amount), 0) AS total_amount,
+               COALESCE(SUM(welfare_amount), 0) AS total_welfare,
+               COALESCE(SUM(CASE WHEN status = 'Payment complete' THEN 1 ELSE 0 END), 0) AS completed_count
+        FROM `tabGig Transaction`
+        {sql_cond} AND gig_worker IS NOT NULL AND gig_worker != ''
+        GROUP BY gig_worker
+        ORDER BY txn_count DESC
+        LIMIT 5
+    """, sql_params, as_dict=True)
 
     # ── Monthly transaction trend (last 12 months) ──────────────────────────
     import datetime as _dt
@@ -255,8 +280,8 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
             "total_welfare":          float(txn_stats.total_welfare or 0),
         },
         "workers": {
-            "total":  total_workers or 0,
-            "active": active_workers or 0,
+            "total":     total_workers or 0,
+            "active":    onboarded_workers or 0,
         },
         "welfare_payments": {
             "total_paid":     float(wfp_stats.total_paid or 0),
@@ -264,11 +289,13 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
             "pending_amount": float(pending_welfare or 0),
         },
         "quarterly_invoices": quarterly_invoices,
-        "invoice_summary": invoice_summary,
+        "invoice_summary":    invoice_summary,
         "recent_transactions": recent_txns,
         "pending_wfp":         pending_wfp,
         "worker_list":         worker_list,
         "suspected_dups":      suspected_dups,
         "monthly_trend":       [dict(r) for r in monthly_trend],
         "status_breakdown":    [dict(r) for r in status_breakdown],
+        "svc_cat_breakdown":   [dict(r) for r in svc_cat_breakdown],
+        "top_workers":         [dict(r) for r in top_workers],
     }

@@ -6,15 +6,13 @@ from frappe import _
 def get_import_template():
 	headers = [
 		"gig_worker", "aggregator", "service",
-		"amount", "base_payout", "date",
-		"trust_level", "external_transaction_id",
-		"incentives", "deduction", "role", "status_of_order",
+		"amount", "base_payout", "deduction", "incentives",
+		"date", "status_of_order",
 	]
 	sample = [
-		"GW001", "AGG-001", "SVC-001",
-		"500.00", "450.00", "2026-05-25",
-		"High", "EXT-TXN-001",
-		"50.00", "0.00", "Driver", "Order delivered",
+		"GW001", "AG001", "SE001",
+		"500.00", "450.00", "0.00", "0.00",
+		"2026-05-25", "Order delivered",
 	]
 	csv_content = ",".join(headers) + "\n" + ",".join(sample) + "\n"
 
@@ -25,7 +23,7 @@ def get_import_template():
 
 
 @frappe.whitelist()
-def start_import(file_url, skip_duplicates=1, default_aggregator=None, default_trust_level="High"):
+def start_import(file_url, default_aggregator=None):
 	frappe.only_for(["System Manager", "Aggregator"])
 
 	import_id = frappe.generate_hash(length=12)
@@ -44,9 +42,8 @@ def start_import(file_url, skip_duplicates=1, default_aggregator=None, default_t
 		timeout=18000,
 		import_id=import_id,
 		file_url=file_url,
-		skip_duplicates=int(skip_duplicates),
+		skip_duplicates=0,
 		default_aggregator=default_aggregator,
-		default_trust_level=default_trust_level,
 		user=frappe.session.user,
 	)
 

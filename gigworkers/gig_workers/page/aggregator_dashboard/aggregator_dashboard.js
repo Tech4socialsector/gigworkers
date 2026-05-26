@@ -80,20 +80,30 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		});
 	}
 
-	function status_badge(status) {
-		const colors = {
-			'Payment complete': "#28a745", 'Payment pending': "#007bff", Pending: "#ffc107",
-			Onboarded: "#28a745", Inactive: "#6c757d", Approved: "#28a745",
-			Rejected: "#dc3545", Active: "#1cc88a", Offboarded: "#6c757d", 'Payment Cancelled': "#dc3545", 'Suspected duplicate': "#ffc107"
-		};
-		const color = colors[status] || "#6c757d";
-		return `<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${status || "-"}</span>`;
-	}
-
 	function fmt_currency_plain(val) {
 		return parseFloat(val || 0).toLocaleString("en-IN", {
 			minimumFractionDigits: 2, maximumFractionDigits: 2,
 		});
+	}
+
+	function fmt_currency_compact(val) {
+		const n = parseFloat(val || 0);
+		if (n >= 10000000) return "₹" + (n / 10000000).toFixed(2) + "Cr";
+		if (n >= 100000)   return "₹" + (n / 100000).toFixed(2) + "L";
+		if (n >= 1000)     return "₹" + (n / 1000).toFixed(1) + "K";
+		return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+	}
+
+	function status_badge(status) {
+		const colors = {
+			'Payment complete': "#28a745", 'Payment pending': "#007bff", Pending: "#ffc107",
+			Onboarded: "#28a745", Inactive: "#6c757d", Approved: "#28a745",
+			Rejected: "#dc3545", Active: "#1cc88a", Offboarded: "#6c757d",
+			'Payment Cancelled': "#dc3545", 'Suspected duplicate': "#ffc107",
+			Overdue: "#dc3545", 'Fully Paid': "#28a745", 'Partially Paid': "#17a2b8",
+		};
+		const color = colors[status] || "#6c757d";
+		return `<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${status || "-"}</span>`;
 	}
 
 	function today_str() {
@@ -108,10 +118,12 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		Pending: '#f6c23e', Active: '#1cc88a',
 	};
 
-	function init_agg_charts(data) {
-		const { monthly_trend, status_breakdown } = data;
+	const CAT_COLORS = ['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69','#2e59d9','#17a673','#2c9faf'];
 
-		// Monthly Trend Chart
+	function init_agg_charts(data) {
+		const { monthly_trend, status_breakdown, svc_cat_breakdown } = data;
+
+		// Monthly Trend Chart (Transaction Count)
 		if (monthly_trend && monthly_trend.length && frappe && frappe.Chart) {
 			try {
 				$("#agg-trend-empty").hide();
@@ -124,7 +136,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 							{ name: "Completed", values: monthly_trend.map(r => r.completed_count) },
 						],
 					},
-					height: 220,
+					height: 200,
 					colors: ["#c7d5f8", "#4e73df"],
 					barOptions: { spaceRatio: 0.35 },
 					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
@@ -138,6 +150,55 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			);
 		}
 
+		// Monthly Welfare Amount Chart
+		if (monthly_trend && monthly_trend.length && frappe && frappe.Chart) {
+			try {
+				$("#agg-welfare-trend-empty").hide();
+				new frappe.Chart("#agg-welfare-trend-chart", {
+					type: "line",
+					data: {
+						labels: monthly_trend.map(r => r.month),
+						datasets: [
+							{ name: "Total Amount (₹)", values: monthly_trend.map(r => parseFloat(r.total_amount || 0)) },
+							{ name: "Welfare (₹)", values: monthly_trend.map(r => parseFloat(r.total_welfare || 0)) },
+						],
+					},
+					height: 200,
+					colors: ["#36b9cc", "#1cc88a"],
+					lineOptions: { regionFill: 0, dotSize: 4 },
+					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
+				});
+			} catch (e) {
+				$("#agg-welfare-trend-empty").show().text("Chart unavailable");
+			}
+		} else {
+			$("#agg-welfare-trend-empty").show().text("No data available");
+		}
+
+		// Service Category Distribution Chart
+		if (svc_cat_breakdown && svc_cat_breakdown.length && frappe && frappe.Chart) {
+			try {
+				$("#agg-svc-cat-empty").hide();
+				new frappe.Chart("#agg-svc-cat-chart", {
+					type: "bar",
+					data: {
+						labels: svc_cat_breakdown.map(r => r.service_category),
+						datasets: [{ name: "Transactions", values: svc_cat_breakdown.map(r => r.cnt) }],
+					},
+					height: 200,
+					colors: ["#36b9cc"],
+					barOptions: { spaceRatio: 0.3 },
+					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
+				});
+			} catch (e) {
+				$("#agg-svc-cat-empty").show().text("Chart unavailable");
+			}
+		} else {
+			$("#agg-svc-cat-empty").show().text(
+				svc_cat_breakdown && svc_cat_breakdown.length ? "Chart library unavailable" : "No category data yet"
+			);
+		}
+
 		// Status Distribution Donut
 		if (status_breakdown && status_breakdown.length && frappe && frappe.Chart) {
 			try {
@@ -148,7 +209,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 						labels: status_breakdown.map(r => r.status),
 						datasets: [{ values: status_breakdown.map(r => r.cnt) }],
 					},
-					height: 220,
+					height: 200,
 					colors: status_breakdown.map(r => STATUS_COLORS[r.status] || "#858796"),
 				});
 			} catch (e) {
@@ -164,7 +225,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	// ── Drill-down modal ─────────────────────────────────────────────────────
 
 	function bind_agg_drilldown(data) {
-		const { recent_transactions, worker_list, pending_wfp, suspected_dups } = data;
+		const { recent_transactions, worker_list, pending_wfp, suspected_dups, top_workers } = data;
 
 		const txn_cols = [
 			{ label: "Transaction ID", render: t => `<a href="/app/gig-transaction/${t.name}" style="color:#4e73df;">${t.name}</a>` },
@@ -256,6 +317,55 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				],
 				chart: null,
 			},
+			total_amount: {
+				title: "All Transactions — Amount Details",
+				rows: () => recent_transactions,
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)), color: "#36b9cc" },
+					{ label: "Base Payout", value: fmt_currency(rows.reduce((s, t) => s + (t.base_payout || 0), 0)) },
+					{ label: "Total Welfare", value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)) },
+				],
+				chart: rows => {
+					const map = {};
+					rows.forEach(t => { const m = (t.date || "").substring(0, 7) || "?"; map[m] = (map[m] || 0) + (t.amount || 0); });
+					const labels = Object.keys(map).sort();
+					if (!labels.length) return null;
+					return { type: "line", data: { labels, datasets: [{ name: "Amount (₹)", values: labels.map(k => map[k]) }] }, colors: ["#36b9cc"] };
+				},
+			},
+			base_payout: {
+				title: "Base Payout Breakdown",
+				rows: () => recent_transactions,
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Total Base Payout", value: fmt_currency(rows.reduce((s, t) => s + (t.base_payout || 0), 0)), color: "#4e73df" },
+					{ label: "Avg per Transaction", value: fmt_currency(rows.length ? rows.reduce((s, t) => s + (t.base_payout || 0), 0) / rows.length : 0) },
+				],
+				chart: rows => {
+					const map = {};
+					rows.forEach(t => { const m = (t.date || "").substring(0, 7) || "?"; map[m] = (map[m] || 0) + (t.base_payout || 0); });
+					const labels = Object.keys(map).sort();
+					if (!labels.length) return null;
+					return { type: "bar", data: { labels, datasets: [{ name: "Base Payout (₹)", values: labels.map(k => map[k]) }] }, colors: ["#4e73df"] };
+				},
+			},
+			total_welfare_collected: {
+				title: "Welfare Collected from Transactions",
+				rows: () => recent_transactions.filter(t => (t.welfare_amount || 0) > 0),
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Total Welfare", value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)), color: "#1cc88a" },
+					{ label: "Transactions with Welfare", value: rows.length, color: "#1cc88a" },
+				],
+				chart: rows => {
+					const map = {};
+					rows.forEach(t => { const m = (t.date || "").substring(0, 7) || "?"; map[m] = (map[m] || 0) + (t.welfare_amount || 0); });
+					const labels = Object.keys(map).sort();
+					if (!labels.length) return null;
+					return { type: "bar", data: { labels, datasets: [{ name: "Welfare (₹)", values: labels.map(k => map[k]) }] }, colors: ["#1cc88a"] };
+				},
+			},
 			total_workers: {
 				title: "Worker Mapping Log",
 				rows: () => worker_list || [],
@@ -287,6 +397,23 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				],
 				summary: rows => [{ label: "Count", value: rows.length, color: "#1cc88a" }],
 				chart: null,
+			},
+			workers_transacted: {
+				title: "Workers Who Have Transacted",
+				rows: () => recent_transactions,
+				cols: txn_cols,
+				summary: rows => [
+					{ label: "Unique Workers", value: new Set(rows.map(t => t.gig_worker).filter(Boolean)).size, color: "#4e73df" },
+					{ label: "Total Transactions", value: rows.length },
+				],
+				chart: rows => {
+					const sc = {};
+					rows.forEach(t => { const w = t.gig_worker || "Unknown"; sc[w] = (sc[w] || 0) + 1; });
+					const top = Object.entries(sc).sort((a, b) => b[1] - a[1]).slice(0, 8);
+					const labels = top.map(e => e[0]);
+					if (!labels.length) return null;
+					return { type: "bar", data: { labels, datasets: [{ name: "Transactions", values: top.map(e => e[1]) }] }, colors: ["#4e73df"] };
+				},
 			},
 			welfare_settled: {
 				title: "Welfare Fees Settled",
@@ -537,13 +664,13 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				{ label: "Completed",               value: d.stats.completed_transactions },
 				{ label: "Pending",                 value: d.stats.pending_transactions },
 				{ label: "Total Amount (INR)",       value: fmt_currency_plain(d.stats.total_amount) },
+				{ label: "Total Base Payout (INR)",  value: fmt_currency_plain(d.stats.total_base_payout) },
 				{ label: "Total Welfare (INR)",      value: fmt_currency_plain(d.stats.total_welfare) },
-				{ label: "Base Payout Total (INR)",  value: fmt_currency_plain(d.stats.total_base_payout) },
 			]);
 
 			section_heading("Workers & Welfare");
 			stats_table([
-				{ label: "Total Workers",              value: d.workers.total },
+				{ label: "Workers Transacted",         value: d.workers.total },
 				{ label: "Onboarded Workers",          value: d.workers.active },
 				{ label: "Welfare Fees Settled (INR)", value: fmt_currency_plain(d.welfare_payments.total_paid) },
 				{ label: "Welfare Fees Pending (INR)", value: fmt_currency_plain(d.welfare_payments.pending_amount) },
@@ -641,24 +768,150 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		</div>`;
 	}
 
+	function render_quarterly_invoices(quarterly_invoices, invoice_summary) {
+		if (!quarterly_invoices || !quarterly_invoices.length) return "";
+
+		const inv_status_color = { "Fully Paid": "#1cc88a", "Overdue": "#e74a3b", "Partially Paid": "#17a2b8", "Pending": "#f6c23e" };
+
+		const inv_cards = quarterly_invoices.map(inv => {
+			const color = inv_status_color[inv.invoice_status] || "#6c757d";
+			const is_overdue = inv.invoice_status === "Overdue";
+			return `
+			<div style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:16px 18px;
+				box-shadow:0 2px 8px rgba(0,0,0,0.08);border-top:4px solid ${color};position:relative;">
+				<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">
+					${inv.quarter || ""} ${inv.year || ""}
+				</div>
+				<div style="font-size:11px;color:#888;margin-bottom:4px;">
+					${inv.from_date || ""} – ${inv.to_date || ""}
+				</div>
+				<div style="font-size:20px;font-weight:700;color:${is_overdue ? "#e74a3b" : "#333"};margin:8px 0 4px;">
+					${fmt_currency(inv.balance_due)}
+				</div>
+				<div style="font-size:11px;color:#aaa;">Balance Due</div>
+				<div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#888;">
+					<span>Total: <b style="color:#333;">${fmt_currency(inv.total_due_amount)}</b></span>
+					<span>Paid: <b style="color:#1cc88a;">${fmt_currency(inv.amount_paid)}</b></span>
+				</div>
+				<div style="margin-top:8px;">
+					<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;">${inv.invoice_status || "-"}</span>
+					${inv.due_date ? `<span style="font-size:11px;color:#888;margin-left:6px;">Due: ${inv.due_date}</span>` : ""}
+				</div>
+				<a href="/app/welfare-fee-invoice/${inv.name}" style="position:absolute;top:14px;right:14px;font-size:11px;color:#4e73df;">View →</a>
+			</div>`;
+		}).join("");
+
+		const has_outstanding = invoice_summary.total_outstanding > 0;
+		return `
+		<div class="agg-section" style="margin-bottom:24px;">
+			<h5 style="display:flex;align-items:center;justify-content:space-between;">
+				<span><i class="fa fa-file-text" style="color:#f6c23e;margin-right:6px;"></i>Quarterly Welfare Invoices</span>
+				<a href="/app/welfare-fee-invoice" style="font-size:13px;font-weight:500;color:#4e73df;">View All</a>
+			</h5>
+			${has_outstanding ? `
+			<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:16px;">
+				${invoice_summary.total_outstanding > 0 ? `
+				<div style="background:#fff8e1;border:1.5px solid #f6c23e;border-radius:8px;padding:12px 20px;display:flex;align-items:center;gap:10px;">
+					<i class="fa fa-clock-o" style="color:#f6c23e;font-size:18px;"></i>
+					<div><div style="font-size:11px;color:#856404;font-weight:600;">OUTSTANDING</div>
+					<div style="font-size:18px;font-weight:700;color:#856404;">${fmt_currency(invoice_summary.total_outstanding)}</div></div>
+				</div>` : ""}
+				${invoice_summary.total_overdue > 0 ? `
+				<div style="background:#fdf2f2;border:1.5px solid #e74a3b;border-radius:8px;padding:12px 20px;display:flex;align-items:center;gap:10px;">
+					<i class="fa fa-exclamation-circle" style="color:#e74a3b;font-size:18px;"></i>
+					<div><div style="font-size:11px;color:#721c24;font-weight:600;">OVERDUE</div>
+					<div style="font-size:18px;font-weight:700;color:#e74a3b;">${fmt_currency(invoice_summary.total_overdue)}</div></div>
+				</div>` : ""}
+				${invoice_summary.pending_invoices > 0 ? `
+				<div style="background:#f0f9ff;border:1.5px solid #17a2b8;border-radius:8px;padding:12px 20px;display:flex;align-items:center;gap:10px;">
+					<i class="fa fa-list-alt" style="color:#17a2b8;font-size:18px;"></i>
+					<div><div style="font-size:11px;color:#0c5460;font-weight:600;">OPEN INVOICES</div>
+					<div style="font-size:18px;font-weight:700;color:#0c5460;">${invoice_summary.pending_invoices}</div></div>
+				</div>` : ""}
+			</div>` : `
+			<div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#155724;display:flex;align-items:center;gap:8px;">
+				<i class="fa fa-check-circle"></i> All invoices are fully paid. No outstanding dues.
+			</div>`}
+			<div style="display:flex;flex-wrap:wrap;gap:14px;">
+				${inv_cards}
+			</div>
+		</div>`;
+	}
+
+	function render_top_workers(top_workers) {
+		if (!top_workers || !top_workers.length) return "";
+		const rows = top_workers.map((w, i) => `
+			<tr>
+				<td style="font-weight:600;color:#555;">${i + 1}</td>
+				<td><a href="/app/gig-worker/${w.gig_worker}" style="color:#4e73df;">${w.gig_worker || "-"}</a></td>
+				<td style="text-align:center;font-weight:600;">${w.txn_count || 0}</td>
+				<td style="text-align:right;">${fmt_currency(w.total_amount)}</td>
+				<td style="text-align:right;color:#1cc88a;">${fmt_currency(w.total_welfare)}</td>
+				<td style="text-align:center;">${w.completed_count || 0}</td>
+			</tr>`).join("");
+		return `
+		<div class="agg-section" style="margin-bottom:24px;">
+			<h5><i class="fa fa-trophy" style="color:#f6c23e;margin-right:6px;"></i>Top Workers by Transactions</h5>
+			<table style="width:100%;border-collapse:collapse;font-size:13px;">
+				<thead>
+					<tr style="background:#f8f9fa;">
+						<th style="padding:8px 10px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #eee;">#</th>
+						<th style="padding:8px 10px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #eee;">Worker ID</th>
+						<th style="padding:8px 10px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #eee;">Transactions</th>
+						<th style="padding:8px 10px;text-align:right;font-weight:600;color:#555;border-bottom:2px solid #eee;">Total Amount</th>
+						<th style="padding:8px 10px;text-align:right;font-weight:600;color:#555;border-bottom:2px solid #eee;">Welfare</th>
+						<th style="padding:8px 10px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #eee;">Completed</th>
+					</tr>
+				</thead>
+				<tbody>${rows}</tbody>
+			</table>
+		</div>`;
+	}
+
+	function render_svc_cat_table(svc_cat_breakdown) {
+		if (!svc_cat_breakdown || !svc_cat_breakdown.length) return "";
+		const rows = svc_cat_breakdown.map(s => `
+			<tr>
+				<td style="font-weight:600;">${s.service_category || "-"}</td>
+				<td style="text-align:center;font-weight:600;">${s.cnt || 0}</td>
+				<td style="text-align:right;">${fmt_currency(s.total_amount)}</td>
+				<td style="text-align:right;color:#1cc88a;">${fmt_currency(s.total_welfare)}</td>
+			</tr>`).join("");
+		return `
+		<table style="width:100%;border-collapse:collapse;font-size:13px;">
+			<thead>
+				<tr style="background:#f8f9fa;">
+					<th style="padding:8px 10px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #eee;">Category</th>
+					<th style="padding:8px 10px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #eee;">Transactions</th>
+					<th style="padding:8px 10px;text-align:right;font-weight:600;color:#555;border-bottom:2px solid #eee;">Total Amount</th>
+					<th style="padding:8px 10px;text-align:right;font-weight:600;color:#555;border-bottom:2px solid #eee;">Welfare</th>
+				</tr>
+			</thead>
+			<tbody>${rows}</tbody>
+		</table>`;
+	}
+
 	function render_dashboard(data) {
 		const { aggregator, aggregator_id, stats, workers, welfare_payments,
 			recent_transactions, worker_list, pending_wfp,
 			service_categories, active_filters, suspected_dups,
-			services, monthly_trend, status_breakdown } = data;
+			services, monthly_trend, status_breakdown,
+			svc_cat_breakdown, top_workers,
+			quarterly_invoices, invoice_summary } = data;
 
 		const has_charts = (monthly_trend && monthly_trend.length) || (status_breakdown && status_breakdown.length);
 
 		const html = `
 		<style>
-			.agg-card-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+			.agg-card-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
 			.agg-stat-card {
-				flex: 1; min-width: 160px; background: #fff; border-radius: 10px;
-				padding: 20px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+				flex: 1; min-width: 150px; background: #fff; border-radius: 10px;
+				padding: 18px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 				border-left: 4px solid var(--card-color, #4e73df);
 			}
-			.agg-stat-card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+			.agg-stat-card .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
 			.agg-stat-card .value { font-size: 26px; font-weight: 700; color: #333; margin-top: 6px; }
+			.agg-stat-card .sub { font-size: 11px; color: #aaa; margin-top: 3px; }
 			.agg-stat-card.agg-drillable {
 				cursor: pointer;
 				transition: transform .15s, box-shadow .15s;
@@ -676,16 +929,18 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			.agg-stat-card.agg-drillable:hover::after { color: var(--card-color, #4e73df); }
 			.agg-section { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 24px; }
 			.agg-section h5 { font-weight: 700; margin-bottom: 14px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-			.agg-profile { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-			.agg-avatar { width: 52px; height: 52px; border-radius: 50%; background: #e74a3b; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; }
+			.agg-profile { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; background:#fff; border-radius:10px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+			.agg-avatar { width: 52px; height: 52px; border-radius: 50%; background: #e74a3b; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; flex-shrink:0; }
 			.agg-profile-info .name { font-size: 20px; font-weight: 700; color: #333; }
-			.agg-profile-info .meta { font-size: 13px; color: #888; margin-top: 2px; }
+			.agg-profile-info .meta { font-size: 13px; color: #888; margin-top: 4px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 			.highlight { color: #e74a3b; font-weight: 700; }
 			.dt-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 			.dt-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 			table.dataTable thead th { background: #f8f9fa; color: #555; font-weight: 600; }
 			table.dataTable tbody tr:hover td { background: #fafafa; }
 			table.dataTable { font-size: 13px; }
+			.agg-section-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
+			.agg-section-row > .agg-section { margin-bottom: 0; }
 
 			/* ── Drill-down modal ── */
 			#agg-dd-overlay {
@@ -762,14 +1017,17 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		</div>
 		` : ""}
 
+		<!-- Aggregator Profile -->
 		<div class="agg-profile">
 			<div class="agg-avatar">${(aggregator.aggregator_name || "?")[0].toUpperCase()}</div>
-			<div class="agg-profile-info">
+			<div class="agg-profile-info" style="flex:1;">
 				<div class="name">${aggregator.aggregator_name || "-"}</div>
 				<div class="meta">
-					${aggregator_id} &nbsp;|&nbsp; ${aggregator.email || ""} &nbsp;|&nbsp;
+					<span><i class="fa fa-id-badge" style="margin-right:4px;"></i>${aggregator_id}</span>
+					<span><i class="fa fa-envelope" style="margin-right:4px;"></i>${aggregator.email || ""}</span>
+					${aggregator.mobile ? `<span><i class="fa fa-phone" style="margin-right:4px;"></i>${aggregator.mobile}</span>` : ""}
 					${status_badge(aggregator.status)}
-					${(services && services.length) ? `&nbsp;|&nbsp; <span style="color:#4e73df;font-weight:600;">${services.length} Service${services.length > 1 ? "s" : ""} Registered</span>` : ""}
+					${(services && services.length) ? `<span style="color:#4e73df;font-weight:600;"><i class="fa fa-building" style="margin-right:4px;"></i>${services.length} Service${services.length > 1 ? "s" : ""}</span>` : ""}
 				</div>
 			</div>
 		</div>
@@ -851,25 +1109,134 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			<span style="font-size:12px;color:#888;margin-left:4px;">Stats and tables below show data for this service only</span>
 		</div>` : ""}
 
+		<!-- Transaction Count Cards -->
+		<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">
+			<i class="fa fa-exchange" style="margin-right:4px;"></i> Transaction Overview
+		</div>
+		<div class="agg-card-row">
+			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="total_txns">
+				<div class="label">Total Transactions</div>
+				<div class="value">${stats.total_transactions}</div>
+				<div class="sub">All time (filtered)</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="completed_txns">
+				<div class="label">Payment Complete</div>
+				<div class="value">${stats.completed_transactions}</div>
+				<div class="sub">${stats.total_transactions ? Math.round(stats.completed_transactions * 100 / stats.total_transactions) : 0}% of total</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#f6c23e;" data-drilldown="pending_txns">
+				<div class="label">Payment Pending</div>
+				<div class="value">${stats.pending_transactions}</div>
+				<div class="sub">Awaiting processing</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#6c757d;" data-drilldown="cancelled_txns">
+				<div class="label">Payment Cancelled</div>
+				<div class="value">${stats.cancelled_transactions}</div>
+			</div>
+			<div class="agg-stat-card ${stats.suspected_duplicates ? 'agg-drillable' : ''}"
+				style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
+				${stats.suspected_duplicates ? 'data-drilldown="dup_txns"' : ''}>
+				<div class="label">Suspected Duplicates</div>
+				<div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div>
+				<div class="sub">${stats.suspected_duplicates ? 'Click to review' : 'None flagged'}</div>
+			</div>
+		</div>
+
+		<!-- Financial Amount Cards -->
+		<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">
+			<i class="fa fa-inr" style="margin-right:4px;"></i> Financial Summary
+		</div>
+		<div class="agg-card-row">
+			<div class="agg-stat-card agg-drillable" style="--card-color:#36b9cc;" data-drilldown="total_amount">
+				<div class="label">Total Transaction Amount</div>
+				<div class="value" style="font-size:20px;">${fmt_currency_compact(stats.total_amount)}</div>
+				<div class="sub">${fmt_currency(stats.total_amount)}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="base_payout">
+				<div class="label">Total Base Payout</div>
+				<div class="value" style="font-size:20px;">${fmt_currency_compact(stats.total_base_payout)}</div>
+				<div class="sub">${fmt_currency(stats.total_base_payout)}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="total_welfare_collected">
+				<div class="label">Total Welfare Collected</div>
+				<div class="value" style="font-size:20px;">${fmt_currency_compact(stats.total_welfare)}</div>
+				<div class="sub">${fmt_currency(stats.total_welfare)}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#28a745;" data-drilldown="welfare_settled">
+				<div class="label">Welfare Fees Settled</div>
+				<div class="value" style="font-size:20px;color:#28a745;">${fmt_currency_compact(welfare_payments.total_paid)}</div>
+				<div class="sub">${fmt_currency(welfare_payments.total_paid)}</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#e74a3b;" data-drilldown="welfare_pending">
+				<div class="label">Welfare Fees Pending</div>
+				<div class="value" style="font-size:20px;color:#e74a3b;">${fmt_currency_compact(welfare_payments.pending_amount)}</div>
+				<div class="sub">${fmt_currency(welfare_payments.pending_amount)}</div>
+			</div>
+		</div>
+
+		<!-- Worker Cards -->
+		<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">
+			<i class="fa fa-users" style="margin-right:4px;"></i> Worker Summary
+		</div>
+		<div class="agg-card-row" style="margin-bottom:24px;">
+			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="workers_transacted">
+				<div class="label">Workers Transacted</div>
+				<div class="value">${workers.total}</div>
+				<div class="sub">Unique workers with transactions</div>
+			</div>
+			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="onboarded_workers">
+				<div class="label">Onboarded Workers</div>
+				<div class="value">${workers.active}</div>
+				<div class="sub">Active in mapping log</div>
+			</div>
+		</div>
+
 		<!-- Analytics Charts -->
 		${has_charts ? `
-		<div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
+		<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">
+			<i class="fa fa-bar-chart" style="margin-right:4px;"></i> Analytics
+		</div>
+		<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:24px;">
 			${(monthly_trend && monthly_trend.length) ? `
-			<div class="agg-section" style="flex:2;min-width:280px;padding-bottom:8px;">
+			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
 				<h5>
 					<i class="fa fa-bar-chart" style="color:#4e73df;margin-right:6px;"></i>
-					Monthly Transaction Trend
+					Monthly Transactions
 					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Last 12 months</span>
 				</h5>
 				<div id="agg-trend-chart"></div>
 				<p id="agg-trend-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
-				<div style="display:flex;gap:16px;font-size:12px;color:#666;margin-top:6px;">
+				<div style="display:flex;gap:16px;font-size:11px;color:#666;margin-top:6px;">
 					<span><span style="display:inline-block;width:10px;height:10px;background:#4e73df;border-radius:2px;margin-right:4px;"></span>Completed</span>
 					<span><span style="display:inline-block;width:10px;height:10px;background:#c7d5f8;border-radius:2px;margin-right:4px;"></span>Total</span>
 				</div>
 			</div>` : ""}
+			${(monthly_trend && monthly_trend.length) ? `
+			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
+				<h5>
+					<i class="fa fa-line-chart" style="color:#36b9cc;margin-right:6px;"></i>
+					Monthly Amount Trend
+					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Last 12 months</span>
+				</h5>
+				<div id="agg-welfare-trend-chart"></div>
+				<p id="agg-welfare-trend-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
+				<div style="display:flex;gap:16px;font-size:11px;color:#666;margin-top:6px;">
+					<span><span style="display:inline-block;width:10px;height:10px;background:#36b9cc;border-radius:2px;margin-right:4px;"></span>Total Amount</span>
+					<span><span style="display:inline-block;width:10px;height:10px;background:#1cc88a;border-radius:2px;margin-right:4px;"></span>Welfare</span>
+				</div>
+			</div>` : ""}
+			${(svc_cat_breakdown && svc_cat_breakdown.length) ? `
+			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
+				<h5>
+					<i class="fa fa-pie-chart" style="color:#36b9cc;margin-right:6px;"></i>
+					By Service Category
+					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Transaction count</span>
+				</h5>
+				<div id="agg-svc-cat-chart"></div>
+				<p id="agg-svc-cat-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
+			</div>` : ""}
 			${(status_breakdown && status_breakdown.length) ? `
-			<div class="agg-section" style="flex:1;min-width:240px;padding-bottom:8px;">
+			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
 				<h5>
 					<i class="fa fa-pie-chart" style="color:#36b9cc;margin-right:6px;"></i>
 					Payment Status
@@ -881,48 +1248,23 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		</div>
 		` : ""}
 
-		<!-- Stat cards with drill-down -->
-		<div class="agg-card-row">
-			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="total_txns">
-				<div class="label">Total Transactions</div><div class="value">${stats.total_transactions}</div>
-			</div>
-			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="completed_txns">
-				<div class="label">Payment Complete</div><div class="value">${stats.completed_transactions}</div>
-			</div>
-			<div class="agg-stat-card agg-drillable" style="--card-color:#f6c23e;" data-drilldown="pending_txns">
-				<div class="label">Payment Pending</div><div class="value">${stats.pending_transactions}</div>
-			</div>
-			<div class="agg-stat-card agg-drillable" style="--card-color:#6c757d;" data-drilldown="cancelled_txns">
-				<div class="label">Payment Cancelled</div><div class="value">${stats.cancelled_transactions}</div>
-			</div>
-			<div class="agg-stat-card ${stats.suspected_duplicates ? 'agg-drillable' : ''}"
-				style="--card-color:#e74a3b;cursor:${stats.suspected_duplicates ? 'pointer' : 'default'};"
-				${stats.suspected_duplicates ? 'data-drilldown="dup_txns"' : ''}>
-				<div class="label">Suspected Duplicates</div>
-				<div class="value" style="color:${stats.suspected_duplicates ? '#e74a3b' : '#333'};">${stats.suspected_duplicates || 0}</div>
-			</div>
-		</div>
+		<!-- Quarterly Invoices -->
+		${render_quarterly_invoices(quarterly_invoices, invoice_summary)}
 
-		<div class="agg-card-row">
-			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="total_workers">
-				<div class="label">Total Workers</div><div class="value">${workers.total}</div>
-			</div>
-			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="onboarded_workers">
-				<div class="label">Onboarded Workers</div><div class="value">${workers.active}</div>
-			</div>
-			<div class="agg-stat-card agg-drillable" style="--card-color:#28a745;" data-drilldown="welfare_settled">
-				<div class="label">Welfare Fees Settled</div>
-				<div class="value" style="font-size:20px;">${fmt_currency(welfare_payments.total_paid)}</div>
-			</div>
-			<div class="agg-stat-card agg-drillable" style="--card-color:#e74a3b;" data-drilldown="welfare_pending">
-				<div class="label">Welfare Fees Pending</div>
-				<div class="value" style="font-size:20px;color:#e74a3b;">${fmt_currency(welfare_payments.pending_amount)}</div>
-			</div>
-		</div>
+		<!-- Service Category Breakdown Table + Top Workers side by side -->
+		${(svc_cat_breakdown && svc_cat_breakdown.length) || (top_workers && top_workers.length) ? `
+		<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:24px;">
+			${(svc_cat_breakdown && svc_cat_breakdown.length) ? `
+			<div class="agg-section" style="margin-bottom:0;">
+				<h5><i class="fa fa-th-list" style="color:#36b9cc;margin-right:6px;"></i>Service Category Breakdown</h5>
+				${render_svc_cat_table(svc_cat_breakdown)}
+			</div>` : ""}
+			${(top_workers && top_workers.length) ? render_top_workers(top_workers).replace('<div class="agg-section" style="margin-bottom:24px;">', '<div class="agg-section" style="margin-bottom:0;">') : ""}
+		</div>` : ""}
 
 		<!-- Transactions Table -->
 		<div class="agg-section">
-			<h5>Transactions
+			<h5>All Transactions
 				<a href="/app/gig-transaction" style="float:right;font-size:13px;font-weight:500;color:#4e73df;">View All</a>
 			</h5>
 			<table id="agg-txn-table" class="display" style="width:100%">
