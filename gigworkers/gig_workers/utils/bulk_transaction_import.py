@@ -8,6 +8,7 @@ import csv
 from datetime import datetime
 
 import frappe
+from frappe.model.naming import make_autoname
 from frappe.utils import now_datetime, getdate, today
 
 
@@ -68,13 +69,15 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 	processed = inserted = skipped = 0
 	all_errors = []
 	now_ts = now_datetime()
-	batch  = []
+	batch     = []
+	wfp_batch = []
 
 	for idx, row in enumerate(rows, start=1):
 		if idx % BATCH_SIZE == 0:
 			if _is_cancelled(import_id):
 				if batch:
-					_flush_batch(batch); inserted += len(batch); batch = []; frappe.db.commit()
+					_flush_batch(batch); _flush_wfp_batch(wfp_batch, now_ts, user)
+					inserted += len(batch); batch = []; wfp_batch = []; frappe.db.commit()
 				_update_progress(import_id, status="Cancelled",
 								processed=processed, inserted=inserted,
 								skipped=skipped, errors=all_errors[-200:])
@@ -151,6 +154,9 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 			role, status_order,
 		))
 
+		if welfare_amount > 0:
+			wfp_batch.append((name, aggregator, welfare_amount, date))
+
 		if skip_duplicates:
 			if ext_id: existing_ext_ids.add(ext_id)
 			existing_dup_keys.add(dup_key)
@@ -159,14 +165,16 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 
 		if len(batch) >= BATCH_SIZE:
 			_flush_batch(batch)
+			_flush_wfp_batch(wfp_batch, now_ts, user)
 			inserted += len(batch)
-			batch = []
+			batch = []; wfp_batch = []
 			_update_progress(import_id, processed=processed, inserted=inserted,
 							skipped=skipped, errors=all_errors[-50:])
 			frappe.db.commit()
 
 	if batch:
 		_flush_batch(batch)
+		_flush_wfp_batch(wfp_batch, now_ts, user)
 		inserted += len(batch)
 		frappe.db.commit()
 
@@ -204,6 +212,30 @@ def _flush_batch(batch):
 		"role", "status_of_order",
 	]
 	frappe.db.bulk_insert("Gig Transaction", fields=fields, values=batch, ignore_duplicates=True)
+
+
+def _flush_wfp_batch(wfp_batch, now_ts, user):
+	"""Bulk-insert Welfare Fee Payment records for transactions with welfare_amount > 0."""
+	if not wfp_batch:
+		return
+	rows = []
+	for (transaction, aggregator, fee_amount, payment_date) in wfp_batch:
+		wfp_name = make_autoname("WFP.###", "Welfare Fee Payment")
+		rows.append((
+			wfp_name, now_ts, now_ts, user, user, 0,
+			transaction, aggregator, fee_amount,
+			payment_date, "Pending", "Initiated",
+		))
+	frappe.db.bulk_insert(
+		"Welfare Fee Payment",
+		fields=[
+			"name", "creation", "modified", "modified_by", "owner", "docstatus",
+			"transaction", "aggregator", "fee_amount",
+			"payment_date", "payment_status", "settlement_status",
+		],
+		values=rows,
+		ignore_duplicates=True,
+	)
 
 
 def _save_log(import_id, file_url, file_name, status, total, inserted,
