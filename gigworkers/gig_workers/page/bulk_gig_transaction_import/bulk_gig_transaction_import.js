@@ -286,7 +286,7 @@ class GigTransactionBulkImport {
 		frappe.call({
 			method: "gigworkers.gig_workers.page.bulk_gig_transaction_import.bulk_gig_transaction_import.start_import",
 			args: { file_url: this.file_url, skip_duplicates,
-					default_aggregator: aggregator, default_trust_level: "High" },
+					default_aggregator: aggregator },
 			callback: (r) => {
 				if (r.message && r.message.import_id) {
 					this.import_id = r.message.import_id;
