@@ -9,8 +9,6 @@
  "field_order": [
   "service_details_section",
   "aggregator_name",
-  "column_break_efqw",
-  "service_category",
   "personal_details_section",
   "name1",
   "email",
@@ -23,12 +21,6 @@
   "aadhaar_file",
   "status",
   "reason_for_reject",
-  "documents_section",
-  "pan_number",
-  "pan_file",
-  "column_break_jwdi",
-  "gstin",
-  "gstin_file",
   "services_section",
   "company_type",
   "cin_number",
@@ -36,7 +28,14 @@
   "column_break_qwgv",
   "website_url",
   "company_id",
-  "app_url"
+  "app_url",
+  "service_category",
+  "documents_section",
+  "pan_number",
+  "pan_file",
+  "column_break_jwdi",
+  "gstin",
+  "gstin_file"
  ],
  "fields": [
   {
@@ -109,10 +108,6 @@
    "label": "Aadhaar File"
   },
   {
-   "fieldname": "column_break_efqw",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "column_break_njko",
    "fieldtype": "Column Break"
   },
@@ -123,7 +118,7 @@
   },
   {
    "fieldname": "service_category",
-   "fieldtype": "Table MultiSelect",
+   "fieldtype": "Table",
    "label": "Service / Business Category",
    "options": "Aggregator Service Category"
   },
@@ -211,7 +206,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-26 11:54:09.723942",
+ "modified": "2026-05-26 00:02:32.556478",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Aggregator",
