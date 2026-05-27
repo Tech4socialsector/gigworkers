@@ -12,7 +12,8 @@
   "gig_worker",
   "service_category",
   "role",
-  "trust_level",
+  "district",
+  "city",
   "column_break_teni",
   "duplicate_key",
   "aggregator",
@@ -120,13 +121,6 @@
    "fieldtype": "Date",
    "label": "Date",
    "reqd": 1
-  },
-  {
-   "fieldname": "trust_level",
-   "fieldtype": "Select",
-   "hidden": 1,
-   "label": "Trust Level",
-   "options": "\nHigh\nLow"
   },
   {
    "fieldname": "status",
@@ -292,12 +286,22 @@
    "label": "Adjustment Log",
    "options": "Gig Transaction Adjustment Log",
    "read_only": 1
+  },
+  {
+   "fieldname": "district",
+   "fieldtype": "Data",
+   "label": "District"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-26 01:46:25.663019",
+ "modified": "2026-05-26 16:36:51.902788",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Transaction",
