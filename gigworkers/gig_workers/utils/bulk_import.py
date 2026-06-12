@@ -128,7 +128,7 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 				skipped += 1; processed += 1; continue
 
 		name        = make_autoname("GW.###", "Gig Worker")
-		agg         = row.get("created_by_aggregator") or created_by_aggregator or None
+		agg         = created_by_aggregator or row.get("created_by_aggregator") or None
 		worker_name = row.get("worker_name", "").strip()
 
 		batch.append((
