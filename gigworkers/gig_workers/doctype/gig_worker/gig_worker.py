@@ -73,8 +73,9 @@ class GigWorker(Document):
 		if self.aadhaar_number:
 			aadhaar_clean = self.aadhaar_number.replace(" ", "")
 			if not re.fullmatch(r"[0-9]{12}", aadhaar_clean):
+				masked = "XXXX-XXXX-" + aadhaar_clean[-4:] if len(aadhaar_clean) >= 4 else "XXXX-XXXX-XXXX"
 				frappe.throw(
-					f"❌ <b>Aadhaar Number</b> '{self.aadhaar_number}' is not valid.<br>"
+					f"❌ <b>Aadhaar Number</b> '{masked}' is not valid.<br>"
 					"Please enter a valid 12-digit Aadhaar number.",
 					title="Invalid Aadhaar Number",
 				)

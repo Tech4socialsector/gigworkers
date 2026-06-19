@@ -2,6 +2,16 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Aggregator", {
+    refresh(frm) {
+        // Mask aadhaar display — show only last 4 digits
+        if (frm.doc.aadhaar_number) {
+            frm.set_df_property("aadhaar_number", "read_only", 1);
+            frm.fields_dict["aadhaar_number"].$wrapper
+                .find(".control-value")
+                .text("XXXX-XXXX-" + frm.doc.aadhaar_number.slice(-4));
+        }
+    },
+
     validate: function (frm) {
         if (frm.doc.pan) {
             let pan_regex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;

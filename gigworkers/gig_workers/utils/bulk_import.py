@@ -118,7 +118,8 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 				all_errors.append(f"Row {idx}: phone '{phone}' already exists — skipped.")
 				skipped += 1; processed += 1; continue
 			if aadhaar and aadhaar in existing_aadhaar:
-				all_errors.append(f"Row {idx}: aadhaar '{aadhaar}' already exists — skipped.")
+				_masked = "XXXX-XXXX-" + aadhaar[-4:]
+				all_errors.append(f"Row {idx}: aadhaar '{_masked}' already exists — skipped.")
 				skipped += 1; processed += 1; continue
 			if pan and pan.lower() in existing_pan:
 				all_errors.append(f"Row {idx}: PAN '{pan}' already exists — skipped.")
@@ -371,7 +372,8 @@ def _validate_row(row, idx):
 
 	aadhaar = row.get("aadhaar_number", "").replace(" ", "")
 	if aadhaar and not re.fullmatch(r"[0-9]{12}", aadhaar):
-		errors.append(f"Row {idx}: invalid aadhaar '{aadhaar}'.")
+		_masked = "XXXX-XXXX-" + aadhaar[-4:] if len(aadhaar) >= 4 else "XXXX-XXXX-XXXX"
+		errors.append(f"Row {idx}: invalid aadhaar '{_masked}'.")
 
 	pan = row.get("pan_number", "").strip().upper()
 	if pan and not re.fullmatch(r"[A-Z]{5}[0-9]{4}[A-Z]", pan):
