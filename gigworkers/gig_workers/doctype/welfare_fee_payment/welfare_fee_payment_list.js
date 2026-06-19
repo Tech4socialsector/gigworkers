@@ -18,7 +18,7 @@ frappe.listview_settings["Welfare Fee Payment"] = {
 		},
 		action: function (doc) {
 			frappe.db.get_doc("Welfare Fee Payment", doc.name).then(function (record) {
-				const fmt_currency = (val) => frappe.format(val || 0, { fieldtype: "Currency" });
+				const fmt_currency = (val) => "₹" + parseFloat(val || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 				const fmt_date    = (val) => val ? frappe.datetime.str_to_user(val) : "—";
 
 				const badge = (label, color) =>

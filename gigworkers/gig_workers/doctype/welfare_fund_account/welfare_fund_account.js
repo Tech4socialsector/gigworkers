@@ -52,7 +52,7 @@ frappe.ui.form.on("Welfare Fund Account", {
 					}
 
 					const fmt_currency = (v) =>
-						v != null ? parseFloat(v).toFixed(2) : "—";
+						v != null ? "₹" + parseFloat(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 					const fmt_val = (v) => v || "—";
 
 					const cards = r.message
