@@ -296,7 +296,7 @@
   "link_to": null,
   "link_type": null,
   "links": [],
-  "modified": "2026-04-28 04:29:23.709175",
+  "modified": "2026-06-11 19:14:20.872670",
   "module": "Gig Workers",
   "name": "Database Flow",
   "number_cards": [
@@ -365,6 +365,20 @@
     "format": null,
     "icon": null,
     "kanban_board": null,
+    "label": "Aggregator Form",
+    "link_to": null,
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "URL",
+    "url": "/aggregator/new"
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
     "label": "Quarterly Welfare Compliance",
     "link_to": "Quarterly Welfare Compliance Report",
     "report_ref_doctype": "Gig Transaction",
@@ -400,20 +414,6 @@
     "stats_filter": null,
     "type": "Page",
     "url": null
-   },
-   {
-    "color": "Grey",
-    "doc_view": "List",
-    "format": null,
-    "icon": null,
-    "kanban_board": null,
-    "label": "Aggregator Form",
-    "link_to": null,
-    "report_ref_doctype": null,
-    "restrict_to_domain": null,
-    "stats_filter": null,
-    "type": "URL",
-    "url": "/aggregator-form/new"
    },
    {
     "color": "Grey",
