@@ -33,10 +33,12 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 		.aa-stat.active { border-bottom-color: #1e40af; background: #f0f4ff; }
 		.aa-stat.active.s { border-bottom-color: #d97706; background: #fffbeb; }
 		.aa-stat.active.u { border-bottom-color: #0369a1; background: #f0f9ff; }
+		.aa-stat.active.c { border-bottom-color: #b45309; background: #fffbeb; }
 		.aa-stat-num  { font-size: 24px; font-weight: 700; color: #0f172a; line-height: 1; }
 		.aa-stat.active   .aa-stat-num { color: #1e40af; }
 		.aa-stat.active.s .aa-stat-num { color: #d97706; }
 		.aa-stat.active.u .aa-stat-num { color: #0369a1; }
+		.aa-stat.active.c .aa-stat-num { color: #b45309; }
 		.aa-stat-lbl  { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
 
 		/* Toolbar */
@@ -66,7 +68,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 		.aa-btn-default  { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
 		.aa-btn-process  { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
 		.aa-btn-approve  { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-		.aa-btn-reject   { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+		.aa-btn-clarify  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
 
 		/* Table card */
 		.aa-card {
@@ -113,7 +115,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 		.aa-badge.sub { background: #fef3c7; color: #92400e; }
 		.aa-badge.und { background: #dbeafe; color: #1e40af; }
 		.aa-badge.app { background: #dcfce7; color: #166534; }
-		.aa-badge.rej { background: #fee2e2; color: #991b1b; }
+		.aa-badge.pwc { background: #fef3c7; color: #92400e; }
 
 		/* Row action buttons */
 		.aa-ra { display: flex; gap: 5px; justify-content: center; }
@@ -125,7 +127,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 		.aa-ra-btn:hover { opacity: .8; }
 		.aa-ra-btn.p { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
 		.aa-ra-btn.a { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-		.aa-ra-btn.r { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+		.aa-ra-btn.c { background: #fffbeb; color: #92400e; border-color: #fde68a; }
 
 		/* DT controls */
 		.dt-top    { display: flex; align-items: center; gap: 12px; padding: 12px 16px 8px; }
@@ -171,6 +173,10 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 					<div class="aa-stat-num" id="stat-und">—</div>
 					<div class="aa-stat-lbl">Under Process</div>
 				</div>
+				<div class="aa-stat c" data-filter="Pending with Clarification">
+					<div class="aa-stat-num" id="stat-pwc">—</div>
+					<div class="aa-stat-lbl">Pending Clarification</div>
+				</div>
 			</div>
 
 			<div class="aa-toolbar">
@@ -179,7 +185,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 				<button class="aa-btn aa-btn-default" id="aa-refresh">&#x21bb; Refresh</button>
 				<button class="aa-btn aa-btn-process" id="aa-bulk-process" disabled>Mark Under Process</button>
 				<button class="aa-btn aa-btn-approve" id="aa-bulk-approve" disabled>&#10003; Approve Selected</button>
-				<button class="aa-btn aa-btn-reject"  id="aa-bulk-reject"  disabled>&#10007; Reject Selected</button>
+				<button class="aa-btn aa-btn-clarify" id="aa-bulk-clarify" disabled>&#9432; Pending with Clarification</button>
 			</div>
 
 			<div class="aa-card">
@@ -209,7 +215,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 
 	// ── Helpers ────────────────────────────────────────────────────────────────
 	function badge(s) {
-		const m = { Submitted: "sub", "Under Process": "und", Approved: "app", Rejected: "rej" };
+		const m = { Submitted: "sub", "Under Process": "und", Approved: "app", "Pending with Clarification": "pwc" };
 		return `<span class="aa-badge ${m[s] || ""}">${s || "—"}</span>`;
 	}
 
@@ -224,7 +230,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 
 	function sync_bulk_buttons() {
 		const n = get_selected().length;
-		["aa-bulk-process", "aa-bulk-approve", "aa-bulk-reject"].forEach(id => {
+		["aa-bulk-process", "aa-bulk-approve", "aa-bulk-clarify"].forEach(id => {
 			document.getElementById(id).disabled = n === 0;
 		});
 		const el = document.getElementById("aa-sel-info");
@@ -236,6 +242,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 		document.getElementById("stat-all").textContent = rows.length;
 		document.getElementById("stat-sub").textContent = rows.filter(r => r.status === "Submitted").length;
 		document.getElementById("stat-und").textContent = rows.filter(r => r.status === "Under Process").length;
+		document.getElementById("stat-pwc").textContent = rows.filter(r => r.status === "Pending with Clarification").length;
 
 		if (_dt) { try { _dt.destroy(); } catch (_) {} _dt = null; }
 
@@ -252,7 +259,8 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 					<div class="aa-ra">
 						${r.status === "Submitted" ? `<button class="aa-ra-btn p" data-id="${r.name}" data-action="Under Process">Under Process</button>` : ""}
 						<button class="aa-ra-btn a" data-id="${r.name}" data-action="Approved">Approve</button>
-						<button class="aa-ra-btn r" data-id="${r.name}" data-action="Rejected">Reject</button>
+						${r.status !== "Pending with Clarification" ? `<button class="aa-ra-btn c" data-id="${r.name}" data-action="Pending with Clarification">Pending Clarification</button>` : ""}
+						${r.clarification_response ? `<span title="${frappe.utils.escape_html(r.clarification_response)}" style="cursor:help;color:#b45309;font-size:11px;font-weight:600;">&#9432; Response received</span>` : ""}
 					</div>
 				</td>
 			</tr>
@@ -311,21 +319,78 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 	}
 
 	function do_single(id, new_status, btn) {
+		if (new_status === "Pending with Clarification") {
+			show_clarification_dialog(function(comments) {
+				btn.disabled = true;
+				frappe.call({
+					method: "gigworkers.gig_workers.page.aggregator_approval.aggregator_approval.update_aggregator_status",
+					args: { aggregator_id: id, new_status, clarification_comments: comments },
+					callback() {
+						frappe.show_alert({ message: `${id} → Pending with Clarification`, indicator: "orange" });
+						load_data();
+					},
+					error() { btn.disabled = false; },
+				});
+			});
+			return;
+		}
 		btn.disabled = true;
 		frappe.call({
 			method: "gigworkers.gig_workers.page.aggregator_approval.aggregator_approval.update_aggregator_status",
 			args: { aggregator_id: id, new_status },
 			callback() {
-				frappe.show_alert({ message: `${id} → ${new_status}`, indicator: new_status === "Rejected" ? "red" : "green" });
+				frappe.show_alert({ message: `${id} → ${new_status}`, indicator: "green" });
 				load_data();
 			},
 			error() { btn.disabled = false; },
 		});
 	}
 
+	function show_clarification_dialog(on_confirm) {
+		const d = new frappe.ui.Dialog({
+			title: "Pending with Clarification",
+			fields: [
+				{
+					fieldname: "clarification_comments",
+					fieldtype: "Small Text",
+					label: "Clarification Comments",
+					reqd: 1,
+					description: "Describe what information or documents the applicant needs to provide.",
+				},
+			],
+			primary_action_label: "Send to Applicant",
+			primary_action(values) {
+				if (!values.clarification_comments || !values.clarification_comments.trim()) {
+					frappe.msgprint("Clarification comments are required.");
+					return;
+				}
+				d.hide();
+				on_confirm(values.clarification_comments.trim());
+			},
+		});
+		d.show();
+	}
+
 	function do_bulk(new_status) {
 		const ids = get_selected();
 		if (!ids.length) return;
+		if (new_status === "Pending with Clarification") {
+			show_clarification_dialog(function(comments) {
+				frappe.call({
+					method: "gigworkers.gig_workers.page.aggregator_approval.aggregator_approval.bulk_update_status",
+					args: { aggregator_ids: JSON.stringify(ids), new_status, clarification_comments: comments },
+					callback(r) {
+						const res = r.message || {};
+						frappe.show_alert({
+							message: `${res.updated || 0} updated` + (res.errors?.length ? `, ${res.errors.length} failed` : ""),
+							indicator: res.errors?.length ? "orange" : "green",
+						});
+						load_data();
+					},
+				});
+			});
+			return;
+		}
 		frappe.confirm(
 			`Set <b>${ids.length}</b> application(s) to <b>${new_status}</b>?`,
 			() => frappe.call({
@@ -365,7 +430,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 	document.getElementById("aa-refresh").addEventListener("click", load_data);
 	document.getElementById("aa-bulk-process").addEventListener("click", () => do_bulk("Under Process"));
 	document.getElementById("aa-bulk-approve").addEventListener("click", () => do_bulk("Approved"));
-	document.getElementById("aa-bulk-reject").addEventListener("click",  () => do_bulk("Rejected"));
+	document.getElementById("aa-bulk-clarify").addEventListener("click", () => do_bulk("Pending with Clarification"));
 
 	// ── Init ──────────────────────────────────────────────────────────────────
 	function load_datatables(cb) {

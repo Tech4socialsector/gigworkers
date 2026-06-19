@@ -98,7 +98,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		const colors = {
 			'Payment complete': "#28a745", 'Payment pending': "#007bff", Pending: "#ffc107",
 			Onboarded: "#28a745", Inactive: "#6c757d", Approved: "#28a745",
-			Rejected: "#dc3545", Active: "#1cc88a", Offboarded: "#6c757d",
+			'Pending with Clarification': "#f59e0b", Active: "#1cc88a", Offboarded: "#6c757d",
 			'Payment Cancelled': "#dc3545", 'Suspected duplicate': "#ffc107",
 			Overdue: "#dc3545", 'Fully Paid': "#28a745", 'Partially Paid': "#17a2b8",
 		};
@@ -1032,6 +1032,34 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			</div>
 		</div>
 
+		${aggregator.status === "Pending with Clarification" ? `
+		<div id="agg-clarification-panel" style="background:#fffbeb;border:2px solid #f59e0b;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
+			<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+				<span style="font-size:22px;">&#9432;</span>
+				<div>
+					<div style="font-size:15px;font-weight:700;color:#92400e;">Action Required: Clarification Needed</div>
+					<div style="font-size:12px;color:#a16207;margin-top:2px;">Your application is on hold pending your response to the admin's comments below.</div>
+				</div>
+			</div>
+			<div style="background:#fff;border-left:4px solid #f59e0b;padding:12px 16px;border-radius:6px;margin-bottom:16px;">
+				<div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Admin Comments</div>
+				<div style="font-size:13px;color:#374151;white-space:pre-wrap;">${frappe.utils.escape_html(data.aggregator_clarification_comments || "Please log in to the portal to review the clarification request.")}</div>
+			</div>
+			${data.aggregator_clarification_response ? `
+			<div style="background:#f0fdf4;border-left:4px solid #22c55e;padding:12px 16px;border-radius:6px;margin-bottom:16px;">
+				<div style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Your Submitted Response</div>
+				<div style="font-size:13px;color:#374151;white-space:pre-wrap;">${frappe.utils.escape_html(data.aggregator_clarification_response)}</div>
+			</div>` : `
+			<div>
+				<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Your Clarification Response <span style="color:#dc2626;">*</span></label>
+				<textarea id="agg-clarif-response" rows="4" placeholder="Enter your response to the admin's comments…"
+					style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;outline:none;"></textarea>
+				<button id="agg-clarif-submit" style="margin-top:10px;padding:8px 20px;background:#f59e0b;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">
+					Submit Clarification
+				</button>
+			</div>`}
+		</div>` : ""}
+
 		${(services && services.length) ? `
 		<div class="agg-section" style="margin-bottom:24px;">
 			<h5><i class="fa fa-building" style="margin-right:6px;color:#4e73df;"></i>My Registered Services</h5>
@@ -1399,6 +1427,28 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			if (idx !== -1) $(`.svc-detail[data-idx="${idx}"]`).show();
 			_active_platform = svc || "";
 			fetch_dashboard();
+		});
+
+		// Clarification submit
+		$("#agg-clarif-submit").on("click", function () {
+			const response = $("#agg-clarif-response").val().trim();
+			if (!response) {
+				frappe.msgprint("Please enter your clarification response before submitting.");
+				return;
+			}
+			frappe.call({
+				method: "frappe.client.set_value",
+				args: {
+					doctype: "Aggregator",
+					name: data.aggregator_id,
+					fieldname: "clarification_response",
+					value: response,
+				},
+				callback() {
+					frappe.show_alert({ message: "Clarification submitted. Your application is back under review.", indicator: "green" });
+					fetch_dashboard();
+				},
+			});
 		});
 
 		// Filter events

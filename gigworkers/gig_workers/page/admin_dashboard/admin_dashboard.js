@@ -62,7 +62,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		const colors = {
 			'Payment complete': "#28a745", 'Payment pending': "#007bff", Pending: "#ffc107",
 			Onboarded: "#28a745", Inactive: "#6c757d", Approved: "#28a745",
-			Rejected: "#dc3545", Active: "#1cc88a", Offboarded: "#6c757d",
+			'Pending with Clarification': "#f59e0b", Active: "#1cc88a", Offboarded: "#6c757d",
 			Deceased: "#343a40", 'Payment Cancelled': "#dc3545", 'Suspected duplicate': "#ffc107"
 		};
 		return `<span style="background:${colors[status] || "#6c757d"};color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${status || "-"}</span>`;

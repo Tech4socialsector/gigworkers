@@ -58,13 +58,31 @@ class Aggregator(Document):
 		self.notify_admins_for_approval()
 
 	def on_update(self):
-		previous_status = self.get_doc_before_save()
-		if previous_status and previous_status.status != self.status and self.status in ("Under Process", "Approved", "Rejected"):
-			if self.status == "Approved":
+		prev = self.get_doc_before_save()
+		old_status = prev.status if prev else None
+
+		# Admin-triggered status change (via approval page flag or real status change)
+		target_status = self.flags.get("trigger_status_email")
+		if not target_status and old_status is not None and old_status != self.status:
+			target_status = self.status
+
+		if target_status and target_status in ("Under Process", "Pending with Clarification", "Approved"):
+			if target_status in ("Pending with Clarification", "Approved"):
 				self.create_user_with_role()
+			if target_status == "Approved":
 				self._generate_and_send_api_key()
-			self.send_status_email(self.status)
-			self.notify_admins_on_status_change(self.status)
+			self.send_status_email(target_status)
+			self.notify_admins_on_status_change(target_status)
+
+		# Aggregator submits clarification response → move back to Under Process
+		old_clarif = prev.clarification_response if prev else None
+		if (self.status == "Pending with Clarification"
+				and self.clarification_response
+				and old_clarif != self.clarification_response):
+			frappe.db.set_value("Aggregator", self.name, "status", "Under Process")
+			self.status = "Under Process"
+			self.send_status_email("Clarification Submitted")
+			self.notify_admins_on_status_change("Clarification Submitted")
 
 	def notify_admins_for_approval(self):
 		"""Create a Notification Log entry for all System Managers when a new aggregator registers."""
@@ -84,7 +102,7 @@ class Aggregator(Document):
 					f"<p>A new aggregator <b>{self.aggregator_name}</b> ({self.name}) has submitted a registration "
 					f"and is awaiting your approval.</p>"
 					f"<p>Email: {self.email} | Mobile: {self.mobile}</p>"
-					f"<p>Please review and update the status to <b>Approved</b> or <b>Rejected</b>.</p>"
+					f"<p>Please review and update the status to <b>Under Process</b>, <b>Pending with Clarification</b>, or <b>Approved</b>.</p>"
 				),
 				"for_user": user,
 				"from_user": frappe.session.user or "Administrator",
@@ -98,12 +116,13 @@ class Aggregator(Document):
 
 	def notify_admins_on_status_change(self, status):
 		"""Notify System Managers when aggregator status changes so they stay informed."""
-		if status not in ("Under Process", "Approved", "Rejected"):
+		if status not in ("Under Process", "Approved", "Pending with Clarification", "Clarification Submitted"):
 			return
 		status_labels = {
 			"Under Process": "is now Under Process",
 			"Approved": "has been Approved",
-			"Rejected": "has been Rejected",
+			"Pending with Clarification": "is Pending with Clarification",
+			"Clarification Submitted": "has submitted clarification and is ready for re-review",
 		}
 		admin_users = frappe.get_all(
 			"Has Role",
@@ -177,7 +196,12 @@ class Aggregator(Document):
 		issue_time = datetime.now().strftime("%H:%M:%S")
 		estamp_ref = "KA-GWB-" + hashlib.sha256(self.name.encode()).hexdigest()[:10].upper()
 
-		status_color = {"Submitted": "#e67e22", "Approved": "#27ae60", "Rejected": "#c0392b"}.get(self.status or "", "#e67e22")
+		status_color = {
+			"Submitted": "#e67e22",
+			"Under Process": "#2980b9",
+			"Pending with Clarification": "#f39c12",
+			"Approved": "#27ae60",
+		}.get(self.status or "", "#e67e22")
 
 		# Karnataka State Emblem (Ganda Bherunda) as inline SVG — no external dependency
 		logo_html = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" width="65" height="76">
@@ -488,12 +512,31 @@ class Aggregator(Document):
 				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
 				"""
 			},
-			"Rejected": {
-				"subject": f"[{self.name}] Application Rejected – Karnataka Gig Workers Welfare Board",
+			"Pending with Clarification": {
+				"subject": f"[{self.name}] Clarification Required – Karnataka Gig Workers Welfare Board",
 				"body": f"""
 				<p>Dear <b>{self.aggregator_name}</b>,</p>
-				<p>We regret to inform you that your aggregator application (ID: <b>{self.name}</b>) has been <b>rejected</b>.</p>
-				<p>Please contact the admin for more information.</p>
+				<p>Your aggregator application (ID: <b>{self.name}</b>) requires <b>clarification</b> before it can be processed further.</p>
+				<p><b>Admin Comments:</b></p>
+				<blockquote style="border-left:4px solid #f39c12;padding:8px 16px;margin:12px 0;background:#fffbf0;color:#555;">
+					{self.clarification_comments or "Please log in to the portal to view the clarification details."}
+				</blockquote>
+				<p>Please log in to the portal, review the comments, and submit your clarification at the earliest.</p>
+				<table style="border-collapse:collapse;margin:12px 0;font-size:13px;">
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Login URL</b></td><td><a href="{login_url}">{login_url}</a></td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Username</b></td><td>{self.email}</td></tr>
+				  <tr><td style="padding:4px 16px 4px 0;color:#555;"><b>Password</b></td><td>Your registered mobile number</td></tr>
+				</table>
+				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
+				"""
+			},
+			"Clarification Submitted": {
+				"subject": f"[{self.name}] Clarification Submitted – Karnataka Gig Workers Welfare Board",
+				"body": f"""
+				<p>Dear <b>{self.aggregator_name}</b>,</p>
+				<p>Thank you for submitting your clarification for application ID: <b>{self.name}</b>.</p>
+				<p>Your application is now back <b>Under Process</b> and our team will review your response shortly.
+				You will be notified once a decision is made.</p>
 				<p>Thank you,<br><b>Karnataka Gig Workers Welfare Board</b></p>
 				"""
 			},
@@ -514,16 +557,20 @@ class Aggregator(Document):
 		try:
 			frappe.sendmail(
 				recipients=[self.email],
-				sender="nishanthclintona@gmail.com",
 				subject=status_messages[status]["subject"],
 				message=status_messages[status]["body"],
 				attachments=attachments,
-				delay=False,
+				now=True,
 			)
 		except Exception as e:
 			frappe.log_error(
 				message=f"Status email failed for aggregator {self.name}: {e}",
 				title="Aggregator Status Email Error",
+			)
+			frappe.msgprint(
+				f"Warning: Email could not be sent to {self.email}. Please check the Error Log for details.",
+				alert=True,
+				indicator="orange",
 			)
 
 	def create_user_with_role(self):

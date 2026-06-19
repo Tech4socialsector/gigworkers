@@ -20,7 +20,8 @@
   "desigination",
   "aadhaar_file",
   "status",
-  "reason_for_reject",
+  "clarification_comments",
+  "clarification_response",
   "services_section",
   "company_type",
   "cin_number",
@@ -50,7 +51,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "\nSubmitted\nUnder Process\nApproved\nRejected"
+   "options": "\nSubmitted\nUnder Process\nPending with Clarification\nApproved"
   },
   {
    "fieldname": "email",
@@ -123,10 +124,17 @@
    "options": "Aggregator Service Category"
   },
   {
-   "depends_on": "eval:doc.status==\"Rejected\"",
-   "fieldname": "reason_for_reject",
+   "depends_on": "eval:doc.status==\"Pending with Clarification\"",
+   "fieldname": "clarification_comments",
    "fieldtype": "Small Text",
-   "label": "Reason for reject"
+   "label": "Clarification Comments",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.status==\"Pending with Clarification\"",
+   "fieldname": "clarification_response",
+   "fieldtype": "Small Text",
+   "label": "Clarification Response (by Aggregator)"
   },
   {
    "fieldname": "company_type",
