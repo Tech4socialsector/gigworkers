@@ -26,6 +26,11 @@ def get_import_template():
 def start_import(file_url, default_aggregator=None):
 	frappe.only_for(["System Manager", "Aggregator"])
 
+	if "System Manager" not in frappe.get_roles():
+		own_agg = frappe.db.get_value("Aggregator", {"email": frappe.session.user}, "name")
+		if own_agg:
+			default_aggregator = own_agg
+
 	import_id = frappe.generate_hash(length=12)
 
 	frappe.cache().hset("gt_bulk_import", import_id, frappe.as_json({

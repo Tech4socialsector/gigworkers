@@ -98,7 +98,7 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 			skipped += 1; processed += 1; continue
 
 		gig_worker  = row.get("gig_worker", "").strip() or ""
-		aggregator  = row.get("aggregator", "").strip() or default_aggregator or ""
+		aggregator  = default_aggregator or row.get("aggregator", "").strip() or ""
 		service     = row.get("service", "").strip()
 		amount      = _to_float(row.get("amount"))
 		base_payout = _to_float(row.get("base_payout"))
@@ -305,7 +305,7 @@ def _validate_row(row, idx, valid_workers, valid_aggregators,
 	if gig_worker and gig_worker not in valid_workers:
 		errors.append(f"Row {idx}: Gig Worker '{gig_worker}' not found.")
 
-	aggregator = row.get("aggregator", "").strip() or default_aggregator or ""
+	aggregator = default_aggregator or row.get("aggregator", "").strip() or ""
 	if aggregator and aggregator not in valid_aggregators:
 		errors.append(f"Row {idx}: Aggregator '{aggregator}' not found.")
 

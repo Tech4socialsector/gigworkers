@@ -179,6 +179,46 @@ class Aggregator(Document):
 
 		status_color = {"Submitted": "#e67e22", "Approved": "#27ae60", "Rejected": "#c0392b"}.get(self.status or "", "#e67e22")
 
+		# Karnataka State Emblem (Ganda Bherunda) as inline SVG — no external dependency
+		logo_html = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" width="65" height="76">
+  <!-- Outer decorative ring -->
+  <circle cx="60" cy="62" r="56" fill="#fff8f0" stroke="#8B0000" stroke-width="2.5"/>
+  <circle cx="60" cy="62" r="50" fill="none" stroke="#c0a020" stroke-width="1"/>
+  <!-- Ganda Bherunda body (two-headed eagle) -->
+  <!-- Central body -->
+  <ellipse cx="60" cy="65" rx="10" ry="14" fill="#8B0000"/>
+  <!-- Left wing -->
+  <path d="M50,60 C38,50 22,54 18,62 C24,58 36,62 50,68 Z" fill="#8B0000"/>
+  <path d="M50,65 C40,60 28,64 22,70 C30,66 42,68 50,72 Z" fill="#a04000"/>
+  <!-- Right wing -->
+  <path d="M70,60 C82,50 98,54 102,62 C96,58 84,62 70,68 Z" fill="#8B0000"/>
+  <path d="M70,65 C80,60 92,64 98,70 C90,66 78,68 70,72 Z" fill="#a04000"/>
+  <!-- Left neck and head -->
+  <path d="M55,52 C48,44 38,38 36,30 C40,36 46,40 54,46 Z" fill="#8B0000"/>
+  <ellipse cx="34" cy="27" rx="7" ry="5.5" fill="#8B0000" transform="rotate(-30,34,27)"/>
+  <!-- Left beak -->
+  <path d="M28,25 L22,22 L27,28 Z" fill="#c0a020"/>
+  <!-- Left eye -->
+  <circle cx="33" cy="24" r="1.5" fill="#c0a020"/>
+  <!-- Right neck and head -->
+  <path d="M65,52 C72,44 82,38 84,30 C80,36 74,40 66,46 Z" fill="#8B0000"/>
+  <ellipse cx="86" cy="27" rx="7" ry="5.5" fill="#8B0000" transform="rotate(30,86,27)"/>
+  <!-- Right beak -->
+  <path d="M92,25 L98,22 L93,28 Z" fill="#c0a020"/>
+  <!-- Right eye -->
+  <circle cx="87" cy="24" r="1.5" fill="#c0a020"/>
+  <!-- Tail feathers -->
+  <path d="M52,79 C50,88 46,94 44,98 L52,90 L60,96 L68,90 L76,98 C74,94 70,88 68,79 Z" fill="#8B0000"/>
+  <!-- Talons / feet -->
+  <path d="M52,79 C46,82 40,86 38,90" stroke="#8B0000" stroke-width="2" fill="none"/>
+  <path d="M68,79 C74,82 80,86 82,90" stroke="#8B0000" stroke-width="2" fill="none"/>
+  <!-- Crown / shield at centre chest -->
+  <polygon points="60,56 55,68 60,65 65,68" fill="#c0a020"/>
+  <!-- Bottom text band -->
+  <rect x="4" y="110" width="112" height="16" rx="3" fill="#8B0000"/>
+  <text x="60" y="122" font-family="serif" font-size="7.5" fill="#fff" text-anchor="middle" font-weight="bold" letter-spacing="0.5">GOVT OF KARNATAKA</text>
+</svg>"""
+
 		services_rows = ""
 		for idx, svc in enumerate(self.service_category or [], start=1):
 			category_name = svc.service_category or "-"
@@ -200,8 +240,6 @@ class Aggregator(Document):
 
 		if not services_rows:
 			services_rows = '<tr><td colspan="6" style="padding:8px;text-align:center;color:#888;font-style:italic;border:1px solid #ddd;">No service categories registered</td></tr>'
-
-		aadhaar_display = ("*" * 8 + str(self.aadhaar_number)[-4:]) if self.aadhaar_number else "-"
 
 		html = f"""<!DOCTYPE html>
 <html>
@@ -241,13 +279,11 @@ class Aggregator(Document):
 <div class="inner-border">
   <div class="watermark">GOVT OF KARNATAKA</div>
 
-  <!-- Government Header using plain table -->
+  <!-- Government Header -->
   <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #8B0000;padding-bottom:8px;margin-bottom:8px;">
     <tr>
-      <td width="70" valign="middle" align="center">
-        <div style="width:60px;height:60px;border:2px solid #8B0000;border-radius:50%;text-align:center;line-height:1.3;padding-top:10px;font-size:8px;font-weight:bold;color:#8B0000;">
-          ಕರ್ನಾಟಕ<br>ರಾಜ್ಯ<br>ಲಾಂಛನ
-        </div>
+      <td width="75" valign="middle" align="center">
+        {logo_html}
       </td>
       <td valign="middle" align="center" style="padding:0 10px;">
         <div style="font-size:18px;font-weight:bold;color:#8B0000;">ಕರ್ನಾಟಕ ಸರ್ಕಾರ</div>
@@ -264,7 +300,7 @@ class Aggregator(Document):
     </tr>
   </table>
 
-  <!-- e-Stamp using plain table -->
+  <!-- e-Stamp -->
   <table width="100%" cellpadding="0" cellspacing="0" style="border:1.5px solid #2c5f2e;background:#f0fff0;padding:6px 10px;margin-bottom:8px;">
     <tr>
       <td valign="middle">
@@ -313,28 +349,22 @@ class Aggregator(Document):
       <td class="val">{self.mobile or "-"}</td>
     </tr>
     <tr>
-      <td class="lbl">Gender</td>
-      <td class="val">{self.gender or "-"}</td>
-      <td class="lbl">Date of Birth</td>
-      <td class="val">{self.date_of_birth or "-"}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Aadhaar Number</td>
-      <td class="val">{aadhaar_display}</td>
       <td class="lbl">Company Type</td>
       <td class="val">{self.company_type or "-"}</td>
-    </tr>
-    <tr>
       <td class="lbl">Company ID / CIN</td>
       <td class="val">{self.company_id or self.cin_number or "-"}</td>
-      <td class="lbl">PAN Number</td>
-      <td class="val">{self.pan_number or "-"}</td>
     </tr>
     <tr>
+      <td class="lbl">PAN Number</td>
+      <td class="val">{self.pan_number or "-"}</td>
       <td class="lbl">GSTIN</td>
       <td class="val">{self.gstin or "-"}</td>
+    </tr>
+    <tr>
       <td class="lbl">Website / App URL</td>
       <td class="val">{self.website_url or self.app_url or "-"}</td>
+      <td class="lbl">&nbsp;</td>
+      <td class="val">&nbsp;</td>
     </tr>
     <tr>
       <td class="lbl" style="vertical-align:top;">Registered Address</td>
