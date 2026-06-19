@@ -59,15 +59,28 @@ frappe.ui.form.on("Gig Worker", {
 		frm.set_df_property("created_by_aggregator", "hidden", 0);
 		frm.set_df_property("user", "hidden", 0);
 
-		// -- Aadhaar: digits only, max 12 --
-		frm.fields_dict["aadhaar_number"].$input.on("keypress", function (e) {
-			if (e.which < 48 || e.which > 57) e.preventDefault();
-		});
-		frm.fields_dict["aadhaar_number"].$input.on("input", function () {
-			let val = $(this).val().replace(/\D/g, "").substring(0, 12);
-			$(this).val(val);
-			frm.set_value("aadhaar_number", val);
-		});
+		// -- Aadhaar: mask display — show only last 4 digits --
+		if (frm.doc.aadhaar_number) {
+			// Force read-only so Frappe renders .control-value (not <input>)
+			frm.set_df_property("aadhaar_number", "read_only", 1);
+			frm.fields_dict["aadhaar_number"].$wrapper
+				.find(".control-value")
+				.text("XXXX-XXXX-" + frm.doc.aadhaar_number.slice(-4));
+		}
+
+		// -- Aadhaar: digits only, max 12 (guards for new records only) --
+		const $aInput = frm.fields_dict["aadhaar_number"].$input;
+		if ($aInput && $aInput.length) {
+			$aInput.off("keypress.aadhaar input.aadhaar");
+			$aInput.on("keypress.aadhaar", function (e) {
+				if (e.which < 48 || e.which > 57) e.preventDefault();
+			});
+			$aInput.on("input.aadhaar", function () {
+				let val = $(this).val().replace(/\D/g, "").substring(0, 12);
+				$(this).val(val);
+				frm.set_value("aadhaar_number", val);
+			});
+		}
 
 		// -- Phone: digits only, max 10 --
 		frm.fields_dict["phone"].$input.on("keypress", function (e) {

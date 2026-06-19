@@ -11,6 +11,14 @@
 
 frappe.listview_settings["Gig Worker"] = {
 
+	// Mask aadhaar_number if ever shown as a list column
+	formatters: {
+		aadhaar_number(value) {
+			if (!value) return "";
+			return "XXXX-XXXX-" + String(value).slice(-4);
+		},
+	},
+
 	onload(listview) {
 		// 1. Override can_create so Frappe never re-adds the button
 		listview.can_create = false;
