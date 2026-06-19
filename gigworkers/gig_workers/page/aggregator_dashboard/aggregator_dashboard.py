@@ -17,7 +17,7 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
 
     aggregator = frappe.db.get_value(
         "Aggregator", aggregator_name,
-        ["aggregator_name", "status", "email", "mobile"],
+        ["aggregator_name", "status", "email", "mobile", "clarification_comments", "clarification_response"],
         as_dict=True,
     )
 
@@ -259,8 +259,10 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
     """, sql_params, as_dict=True)
 
     return {
-        "aggregator":       aggregator,
-        "aggregator_id":    aggregator_name,
+        "aggregator":                      aggregator,
+        "aggregator_id":                   aggregator_name,
+        "aggregator_clarification_comments":  aggregator.get("clarification_comments") or "",
+        "aggregator_clarification_response":  aggregator.get("clarification_response") or "",
         "services":         services,
         "service_categories": [s.service_category for s in service_cats],
         "active_filters": {
