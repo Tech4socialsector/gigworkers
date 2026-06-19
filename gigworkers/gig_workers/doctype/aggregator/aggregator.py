@@ -203,46 +203,124 @@ class Aggregator(Document):
 			"Approved": "#27ae60",
 		}.get(self.status or "", "#e67e22")
 
-		# Karnataka State Emblem (Ganda Bherunda) as inline SVG — no external dependency
-		logo_html = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" width="65" height="76">
-  <!-- Outer decorative ring -->
-  <circle cx="60" cy="62" r="56" fill="#fff8f0" stroke="#8B0000" stroke-width="2.5"/>
-  <circle cx="60" cy="62" r="50" fill="none" stroke="#c0a020" stroke-width="1"/>
-  <!-- Ganda Bherunda body (two-headed eagle) -->
-  <!-- Central body -->
-  <ellipse cx="60" cy="65" rx="10" ry="14" fill="#8B0000"/>
-  <!-- Left wing -->
-  <path d="M50,60 C38,50 22,54 18,62 C24,58 36,62 50,68 Z" fill="#8B0000"/>
-  <path d="M50,65 C40,60 28,64 22,70 C30,66 42,68 50,72 Z" fill="#a04000"/>
-  <!-- Right wing -->
-  <path d="M70,60 C82,50 98,54 102,62 C96,58 84,62 70,68 Z" fill="#8B0000"/>
-  <path d="M70,65 C80,60 92,64 98,70 C90,66 78,68 70,72 Z" fill="#a04000"/>
-  <!-- Left neck and head -->
-  <path d="M55,52 C48,44 38,38 36,30 C40,36 46,40 54,46 Z" fill="#8B0000"/>
-  <ellipse cx="34" cy="27" rx="7" ry="5.5" fill="#8B0000" transform="rotate(-30,34,27)"/>
-  <!-- Left beak -->
-  <path d="M28,25 L22,22 L27,28 Z" fill="#c0a020"/>
+		# ── Official Karnataka Government Seal embedded as base64 PNG ─────────
+		import os as _os, base64 as _b64
+		_png_path = _os.path.join(frappe.get_app_path("gigworkers"), "public", "images", "seal_karnataka.png")
+		try:
+			with open(_png_path, "rb") as _f:
+				_b64_data = _b64.b64encode(_f.read()).decode()
+			logo_html = f'<img src="data:image/png;base64,{_b64_data}" width="110" height="95" style="display:block;" />'
+		except Exception:
+			logo_html = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 175" width="92" height="101">
+  <!-- Fallback: Outer decorative ring - maroon -->
+  <circle cx="80" cy="82" r="77" fill="#6B1219" stroke="#c9982b" stroke-width="3.5"/>
+  <circle cx="80" cy="82" r="71" fill="none" stroke="#c9982b" stroke-width="1.2"/>
+  <circle cx="80" cy="82" r="68" fill="none" stroke="#c9982b" stroke-width="0.5" stroke-dasharray="3,2"/>
+
+  <!-- ── BODY ── -->
+  <ellipse cx="80" cy="96" rx="13" ry="20" fill="#c9982b"/>
+  <ellipse cx="80" cy="96" rx="9" ry="15" fill="#b8831a" opacity="0.35"/>
+
+  <!-- ── LEFT WING (upper + lower layers) ── -->
+  <path d="M68,86 C52,72 30,66 12,70 C8,74 10,82 20,80 C36,77 54,80 68,90 Z" fill="#c9982b"/>
+  <path d="M68,93 C50,84 30,83 14,90 C11,95 14,102 24,100 C40,96 56,93 68,100 Z" fill="#c9982b" opacity="0.88"/>
+  <!-- Wing-tip primary feathers left -->
+  <path d="M12,70 L5,64 M10,76 L3,72 M10,82 L3,80 M11,88 L4,88 M13,93 L6,95"
+        stroke="#c9982b" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- Secondary feather lines left -->
+  <path d="M20,80 L18,74 M28,78 L26,72 M36,76 L35,70 M44,75 L43,69"
+        stroke="#b8831a" stroke-width="1.5" stroke-linecap="round" opacity="0.7" fill="none"/>
+
+  <!-- ── RIGHT WING ── -->
+  <path d="M92,86 C108,72 130,66 148,70 C152,74 150,82 140,80 C124,77 106,80 92,90 Z" fill="#c9982b"/>
+  <path d="M92,93 C110,84 130,83 146,90 C149,95 146,102 136,100 C120,96 104,93 92,100 Z" fill="#c9982b" opacity="0.88"/>
+  <path d="M148,70 L155,64 M150,76 L157,72 M150,82 L157,80 M149,88 L156,88 M147,93 L154,95"
+        stroke="#c9982b" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M140,80 L142,74 M132,78 L134,72 M124,76 L125,70 M116,75 L117,69"
+        stroke="#b8831a" stroke-width="1.5" stroke-linecap="round" opacity="0.7" fill="none"/>
+
+  <!-- ── LEFT NECK ── -->
+  <path d="M72,78 C64,62 52,46 46,30" stroke="#c9982b" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <path d="M72,78 C64,62 52,46 46,30" stroke="#b8831a" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- ── LEFT HEAD ── -->
+  <ellipse cx="44" cy="25" rx="14" ry="11" fill="#c9982b" transform="rotate(-28,44,25)"/>
+  <ellipse cx="44" cy="25" rx="10" ry="7" fill="#b8831a" transform="rotate(-28,44,25)" opacity="0.35"/>
+  <!-- Left crown feathers -->
+  <path d="M38,15 C36,7 35,2 37,0 C38,4 40,9 41,15" fill="#c9982b"/>
+  <path d="M43,13 C42,5 42,0 44,0 C45,4 45,9 45,14" fill="#c9982b"/>
+  <path d="M48,14 C48,6 49,1 51,0 C51,4 50,9 50,15" fill="#c9982b"/>
+  <path d="M53,16 C54,8 55,3 57,2 C56,6 55,11 54,17" fill="#c9982b"/>
+  <circle cx="37" cy="0" r="2.2" fill="#c9982b"/>
+  <circle cx="44" cy="0" r="2.2" fill="#c9982b"/>
+  <circle cx="51" cy="0" r="2.2" fill="#c9982b"/>
+  <circle cx="57" cy="2" r="2.2" fill="#c9982b"/>
+  <!-- Left upper beak -->
+  <path d="M32,19 L18,12 L31,23 Z" fill="#c9982b"/>
+  <!-- Left lower beak -->
+  <path d="M32,26 L18,30 L31,26 Z" fill="#b8831a"/>
   <!-- Left eye -->
-  <circle cx="33" cy="24" r="1.5" fill="#c0a020"/>
-  <!-- Right neck and head -->
-  <path d="M65,52 C72,44 82,38 84,30 C80,36 74,40 66,46 Z" fill="#8B0000"/>
-  <ellipse cx="86" cy="27" rx="7" ry="5.5" fill="#8B0000" transform="rotate(30,86,27)"/>
-  <!-- Right beak -->
-  <path d="M92,25 L98,22 L93,28 Z" fill="#c0a020"/>
+  <circle cx="41" cy="22" r="4" fill="#200800"/>
+  <circle cx="41" cy="22" r="2.2" fill="#c9982b"/>
+  <circle cx="40" cy="21" r="1" fill="#200800"/>
+  <!-- Left wattle -->
+  <path d="M32,26 C30,31 30,35 32,37" stroke="#c9982b" stroke-width="2" fill="none"/>
+
+  <!-- ── RIGHT NECK ── -->
+  <path d="M88,78 C96,62 108,46 114,30" stroke="#c9982b" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <path d="M88,78 C96,62 108,46 114,30" stroke="#b8831a" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- ── RIGHT HEAD ── -->
+  <ellipse cx="116" cy="25" rx="14" ry="11" fill="#c9982b" transform="rotate(28,116,25)"/>
+  <ellipse cx="116" cy="25" rx="10" ry="7" fill="#b8831a" transform="rotate(28,116,25)" opacity="0.35"/>
+  <!-- Right crown feathers -->
+  <path d="M122,15 C124,7 125,2 123,0 C122,4 120,9 119,15" fill="#c9982b"/>
+  <path d="M117,13 C118,5 118,0 116,0 C115,4 115,9 115,14" fill="#c9982b"/>
+  <path d="M112,14 C112,6 111,1 109,0 C109,4 110,9 110,15" fill="#c9982b"/>
+  <path d="M107,16 C106,8 105,3 103,2 C104,6 105,11 106,17" fill="#c9982b"/>
+  <circle cx="123" cy="0" r="2.2" fill="#c9982b"/>
+  <circle cx="116" cy="0" r="2.2" fill="#c9982b"/>
+  <circle cx="109" cy="0" r="2.2" fill="#c9982b"/>
+  <circle cx="103" cy="2" r="2.2" fill="#c9982b"/>
+  <!-- Right upper beak -->
+  <path d="M128,19 L142,12 L129,23 Z" fill="#c9982b"/>
+  <!-- Right lower beak -->
+  <path d="M128,26 L142,30 L129,26 Z" fill="#b8831a"/>
   <!-- Right eye -->
-  <circle cx="87" cy="24" r="1.5" fill="#c0a020"/>
-  <!-- Tail feathers -->
-  <path d="M52,79 C50,88 46,94 44,98 L52,90 L60,96 L68,90 L76,98 C74,94 70,88 68,79 Z" fill="#8B0000"/>
-  <!-- Talons / feet -->
-  <path d="M52,79 C46,82 40,86 38,90" stroke="#8B0000" stroke-width="2" fill="none"/>
-  <path d="M68,79 C74,82 80,86 82,90" stroke="#8B0000" stroke-width="2" fill="none"/>
-  <!-- Crown / shield at centre chest -->
-  <polygon points="60,56 55,68 60,65 65,68" fill="#c0a020"/>
-  <!-- Bottom text band -->
-  <rect x="4" y="110" width="112" height="16" rx="3" fill="#8B0000"/>
-  <text x="60" y="122" font-family="serif" font-size="7.5" fill="#fff" text-anchor="middle" font-weight="bold" letter-spacing="0.5">GOVT OF KARNATAKA</text>
+  <circle cx="119" cy="22" r="4" fill="#200800"/>
+  <circle cx="119" cy="22" r="2.2" fill="#c9982b"/>
+  <circle cx="120" cy="21" r="1" fill="#200800"/>
+  <!-- Right wattle -->
+  <path d="M128,26 C130,31 130,35 128,37" stroke="#c9982b" stroke-width="2" fill="none"/>
+
+  <!-- ── CHEST SHIELD ── -->
+  <polygon points="80,80 70,94 80,101 90,94" fill="#6B1219" stroke="#c9982b" stroke-width="1.8"/>
+  <polygon points="80,83 73,94 80,99 87,94" fill="none" stroke="#c9982b" stroke-width="0.8"/>
+  <circle cx="80" cy="91" r="3.5" fill="#c9982b"/>
+
+  <!-- ── TAIL FEATHERS ── -->
+  <path d="M72,116 C68,126 64,132 60,138 L64,132 L68,140 L72,132 L76,142 L80,132 L84,142 L88,132 L92,140 L96,132 L100,138 C96,132 92,126 88,116 Z" fill="#c9982b"/>
+  <line x1="80" y1="116" x2="80" y2="142" stroke="#6B1219" stroke-width="1"/>
+  <path d="M66,124 L64,133 M72,120 L70,131 M78,118 L78,130 M86,120 L88,131 M94,124 L96,133"
+        stroke="#b8831a" stroke-width="0.8" opacity="0.6" fill="none"/>
+
+  <!-- ── LEGS AND TALONS ── -->
+  <path d="M74,114 C69,120 64,124 60,129" stroke="#c9982b" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <path d="M60,129 L53,133 M60,129 L55,136 M60,129 L60,137 M60,129 L65,136"
+        stroke="#c9982b" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <path d="M86,114 C91,120 96,124 100,129" stroke="#c9982b" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <path d="M100,129 L107,133 M100,129 L105,136 M100,129 L100,137 M100,129 L95,136"
+        stroke="#c9982b" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+
+  <!-- ── BOTTOM BANNER ── -->
+  <path d="M14,152 Q14,147 80,147 Q146,147 146,152 L146,163 Q146,168 80,168 Q14,168 14,163 Z" fill="#c9982b"/>
+  <path d="M18,154 Q18,150 80,150 Q142,150 142,154 L142,161 Q142,165 80,165 Q18,165 18,161 Z"
+        fill="none" stroke="#6B1219" stroke-width="0.8"/>
+  <text x="80" y="162" font-family="Georgia,serif" font-size="9.5" fill="#6B1219"
+        text-anchor="middle" font-weight="bold" letter-spacing="1">GOVT. OF KARNATAKA</text>
 </svg>"""
 
+		# ── Service categories rows (from web form: All Categories as per GST filings) ─
 		services_rows = ""
 		for idx, svc in enumerate(self.service_category or [], start=1):
 			category_name = svc.service_category or "-"
@@ -254,16 +332,13 @@ class Aggregator(Document):
 				pass
 			row_bg = "background:#fdf8ec;" if idx % 2 == 0 else ""
 			services_rows += f"""<tr style="{row_bg}">
-				<td style="padding:5px 8px;border:1px solid #ddd;text-align:center;">{idx}</td>
-				<td style="padding:5px 8px;border:1px solid #ddd;">{category_name}</td>
-				<td style="padding:5px 8px;border:1px solid #ddd;">{self.aggregator_name or "-"}</td>
-				<td style="padding:5px 8px;border:1px solid #ddd;">{self.company_type or "-"}</td>
-				<td style="padding:5px 8px;border:1px solid #ddd;">{self.gstin or "-"}</td>
-				<td style="padding:5px 8px;border:1px solid #ddd;color:#27ae60;font-weight:bold;">Active</td>
+				<td style="padding:5px 8px;border:1px solid #d4b483;text-align:center;">{idx}</td>
+				<td style="padding:5px 8px;border:1px solid #d4b483;">{category_name}</td>
+				<td style="padding:5px 8px;border:1px solid #d4b483;color:#27ae60;font-weight:600;">Active</td>
 			</tr>"""
 
 		if not services_rows:
-			services_rows = '<tr><td colspan="6" style="padding:8px;text-align:center;color:#888;font-style:italic;border:1px solid #ddd;">No service categories registered</td></tr>'
+			services_rows = '<tr><td colspan="3" style="padding:8px;text-align:center;color:#888;font-style:italic;border:1px solid #d4b483;">No service categories registered</td></tr>'
 
 		html = f"""<!DOCTYPE html>
 <html>
@@ -273,80 +348,82 @@ class Aggregator(Document):
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: "Times New Roman", Times, serif; background: #fff; color: #1a1a1a; font-size: 12px; }}
   .page {{ width: 210mm; min-height: 297mm; padding: 10mm 12mm; position: relative; }}
-  .outer-border {{ border: 4px double #8B0000; padding: 8px; position: relative; min-height: 277mm; }}
-  .inner-border {{ border: 1.5px solid #c0a020; padding: 12px 16px; position: relative; overflow: hidden; min-height: 269mm; }}
+  .outer-border {{ border: 4px double #6B1219; padding: 8px; position: relative; min-height: 277mm; }}
+  .inner-border {{ border: 1.5px solid #c9982b; padding: 12px 16px; position: relative; overflow: hidden; min-height: 269mm; }}
   .watermark {{
     position: absolute; top: 45%; left: 50%;
     transform: translate(-50%, -50%) rotate(-35deg);
-    font-size: 75px; color: rgba(180,180,180,0.12); font-weight: bold;
+    font-size: 72px; color: rgba(107,18,25,0.06); font-weight: bold;
     white-space: nowrap; z-index: 0; letter-spacing: 4px;
   }}
   .section-head {{
-    font-size: 11px; font-weight: bold; color: #fff; background: #8B0000;
-    padding: 5px 8px; text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 0;
+    font-size: 11px; font-weight: bold; color: #fff; background: #6B1219;
+    padding: 5px 10px; text-transform: uppercase; letter-spacing: 0.8px; margin: 10px 0 0;
   }}
-  .details-table {{ width: 100%; border-collapse: collapse; border: 1px solid #d4b483; }}
-  .details-table td {{ padding: 5px 8px; border: 1px solid #d4b483; font-size: 11px; vertical-align: top; }}
+  .details-table {{ width: 100%; border-collapse: collapse; }}
+  .details-table td {{ padding: 6px 8px; border: 1px solid #d4b483; font-size: 11px; vertical-align: top; }}
   .details-table tr:nth-child(even) td {{ background: #fdf8ec; }}
-  .lbl {{ font-weight: bold; color: #555; width: 20%; }}
-  .val {{ color: #1a1a1a; width: 30%; }}
-  .reg-id {{ font-size: 13px; font-weight: bold; color: #8B0000; font-family: monospace; }}
+  .lbl {{ font-weight: bold; color: #5a3a00; background: #fef9ee; width: 22%; }}
+  .val {{ color: #1a1a1a; width: 28%; }}
+  .reg-id {{ font-size: 13px; font-weight: bold; color: #6B1219; font-family: monospace; }}
   .svc-table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
-  .svc-table th {{ background: #4a4a4a; color: #fff; padding: 5px 8px; text-align: left; border: 1px solid #4a4a4a; }}
-  .declaration {{ background: #fff8f0; border-left: 4px solid #8B0000; padding: 8px 10px; font-size: 10.5px; color: #444; line-height: 1.6; margin-top: 8px; }}
-  .footer {{ text-align: center; font-size: 9px; color: #777; border-top: 1px solid #ccc; padding-top: 6px; margin-top: 8px; }}
+  .svc-table th {{ background: #6B1219; color: #fff; padding: 6px 10px; text-align: left; border: 1px solid #6B1219; }}
+  .declaration {{ background: #fff8f0; border-left: 4px solid #6B1219; padding: 8px 12px; font-size: 10.5px; color: #444; line-height: 1.6; margin-top: 10px; }}
+  .footer {{ text-align: center; font-size: 9px; color: #777; border-top: 1px solid #d4b483; padding-top: 6px; margin-top: 10px; }}
 </style>
 </head>
 <body>
 <div class="page">
 <div class="outer-border">
 <div class="inner-border">
-  <div class="watermark">GOVT OF KARNATAKA</div>
+  <div class="watermark">KARNATAKA GOVT</div>
 
-  <!-- Government Header -->
-  <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #8B0000;padding-bottom:8px;margin-bottom:8px;">
+  <!-- ── Government Header ── -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2.5px solid #6B1219;padding-bottom:10px;margin-bottom:10px;">
     <tr>
-      <td width="75" valign="middle" align="center">
+      <td width="100" valign="middle" align="center">
         {logo_html}
       </td>
       <td valign="middle" align="center" style="padding:0 10px;">
-        <div style="font-size:18px;font-weight:bold;color:#8B0000;">ಕರ್ನಾಟಕ ಸರ್ಕಾರ</div>
-        <div style="font-size:14px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">Government of Karnataka</div>
-        <div style="font-size:10px;color:#333;margin-top:2px;">Department of Labour, Skill Development, Employment and Livelihood</div>
-        <div style="font-size:11.5px;font-weight:bold;color:#8B0000;margin-top:3px;">Karnataka Platform Based Gig Workers Social Security and Welfare Board</div>
-        <div style="font-size:10px;color:#555;margin-top:2px;">Vikasa Soudha, Bengaluru &#8211; 560 001, Karnataka, India</div>
+        <div style="font-size:19px;font-weight:bold;color:#6B1219;letter-spacing:1px;">ಕರ್ನಾಟಕ ಸರ್ಕಾರ</div>
+        <div style="font-size:14px;font-weight:bold;text-transform:uppercase;letter-spacing:1.5px;margin-top:3px;color:#1a1a1a;">Government of Karnataka</div>
+        <div style="font-size:11.5px;font-weight:bold;color:#6B1219;margin-top:4px;">Karnataka Platform Based Gig Workers</div>
+        <div style="font-size:11.5px;font-weight:bold;color:#6B1219;">Social Security and Welfare Board</div>
+        <div style="font-size:9.5px;color:#666;margin-top:3px;">Vikasa Soudha, Bengaluru &ndash; 560 001, Karnataka, India</div>
       </td>
       <td width="80" valign="middle" align="center">
-        <div style="border:2px solid #2c5f2e;border-radius:4px;padding:5px 6px;font-size:8px;color:#2c5f2e;font-weight:bold;line-height:1.6;background:#f0fff0;width:70px;text-align:center;">
+        <div style="border:2px solid #2c5f2e;border-radius:5px;padding:6px 7px;font-size:8px;color:#2c5f2e;font-weight:bold;line-height:1.8;background:#f0fff0;width:72px;text-align:center;">
           &#10003;<br>VERIFIED<br>DOCUMENT
         </div>
       </td>
     </tr>
   </table>
 
-  <!-- e-Stamp -->
-  <table width="100%" cellpadding="0" cellspacing="0" style="border:1.5px solid #2c5f2e;background:#f0fff0;padding:6px 10px;margin-bottom:8px;">
+  <!-- ── e-Stamp ── -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="border:1.5px solid #2c5f2e;background:#f0fff0;padding:6px 12px;margin-bottom:10px;">
     <tr>
       <td valign="middle">
-        <div style="color:#2c5f2e;font-weight:bold;font-size:10.5px;">e-Stamp Reference</div>
-        <div style="font-family:monospace;font-size:12px;font-weight:bold;letter-spacing:1px;">{estamp_ref}</div>
+        <div style="color:#2c5f2e;font-weight:bold;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">e-Stamp Reference</div>
+        <div style="font-family:monospace;font-size:12px;font-weight:bold;letter-spacing:1.5px;color:#1a1a1a;">{estamp_ref}</div>
       </td>
       <td valign="middle" align="right">
-        <div style="color:#2c5f2e;font-weight:bold;font-size:10.5px;">Date of Issue</div>
-        <div style="color:#555;font-size:10px;">{issue_date} at {issue_time} IST</div>
-        <div style="color:#555;font-size:10px;">State: Karnataka &nbsp;|&nbsp; Category: Aggregator Registration</div>
+        <div style="color:#2c5f2e;font-weight:bold;font-size:10px;text-transform:uppercase;">Date of Issue</div>
+        <div style="color:#444;font-size:10.5px;font-weight:600;">{issue_date} &nbsp;at&nbsp; {issue_time} IST</div>
+        <div style="color:#666;font-size:9.5px;">State: Karnataka &nbsp;|&nbsp; Category: Aggregator Registration</div>
       </td>
     </tr>
   </table>
 
-  <!-- Certificate Title -->
-  <div style="text-align:center;margin:8px 0 6px;">
-    <div style="font-size:15px;text-transform:uppercase;letter-spacing:2px;color:#8B0000;text-decoration:underline;font-weight:bold;">Certificate of Registration</div>
-    <div style="font-size:10.5px;color:#444;margin-top:3px;font-style:italic;">Issued under the Karnataka Platform Based Gig Workers Social Security and Welfare Act</div>
+  <!-- ── Certificate Title ── -->
+  <div style="text-align:center;margin:8px 0 10px;padding:6px 0;border-top:1px solid #d4b483;border-bottom:1px solid #d4b483;">
+    <div style="font-size:16px;text-transform:uppercase;letter-spacing:3px;color:#6B1219;font-weight:bold;">Certificate of Registration</div>
+    <div style="font-size:10px;color:#555;margin-top:4px;font-style:italic;">
+      Issued under the Karnataka Platform Based Gig Workers Social Security and Welfare Act
+    </div>
   </div>
 
-  <!-- Registration Details -->
-  <div class="section-head">Aggregator Registration Details</div>
+  <!-- ── Section 1: Registration Details (matches web form fields) ── -->
+  <div class="section-head">&#9632;&nbsp; Aggregator Registration Details</div>
   <table class="details-table">
     <tr>
       <td class="lbl">Registration ID</td>
@@ -355,28 +432,22 @@ class Aggregator(Document):
       <td class="val"><b style="color:{status_color};">{self.status or "Submitted"}</b></td>
     </tr>
     <tr>
-      <td class="lbl">Aggregator / Company Name</td>
+      <td class="lbl">Registered Name</td>
       <td class="val">{self.aggregator_name or "-"}</td>
       <td class="lbl">Registration Date</td>
       <td class="val">{issue_date}</td>
     </tr>
     <tr>
-      <td class="lbl">Authorised Person</td>
-      <td class="val">{self.name1 or "-"}</td>
-      <td class="lbl">Designation</td>
-      <td class="val">{self.desigination or "-"}</td>
-    </tr>
-    <tr>
-      <td class="lbl">Registered Email</td>
+      <td class="lbl">Email</td>
       <td class="val">{self.email or "-"}</td>
-      <td class="lbl">Mobile Number</td>
+      <td class="lbl">Mobile</td>
       <td class="val">{self.mobile or "-"}</td>
     </tr>
     <tr>
-      <td class="lbl">Company Type</td>
-      <td class="val">{self.company_type or "-"}</td>
-      <td class="lbl">Company ID / CIN</td>
-      <td class="val">{self.company_id or self.cin_number or "-"}</td>
+      <td class="lbl">Name of Authorised Person</td>
+      <td class="val">{self.name1 or "-"}</td>
+      <td class="lbl">Designation</td>
+      <td class="val">{self.desigination or "-"}</td>
     </tr>
     <tr>
       <td class="lbl">PAN Number</td>
@@ -385,62 +456,61 @@ class Aggregator(Document):
       <td class="val">{self.gstin or "-"}</td>
     </tr>
     <tr>
-      <td class="lbl">Website / App URL</td>
-      <td class="val">{self.website_url or self.app_url or "-"}</td>
-      <td class="lbl">&nbsp;</td>
-      <td class="val">&nbsp;</td>
+      <td class="lbl">Company Type</td>
+      <td class="val">{self.company_type or "-"}</td>
+      <td class="lbl">Company ID / {self.company_type or "CIN"}</td>
+      <td class="val">{self.company_id or self.cin_number or "-"}</td>
     </tr>
     <tr>
       <td class="lbl" style="vertical-align:top;">Registered Address</td>
-      <td class="val" colspan="3">{self.registered_address or "-"}</td>
+      <td colspan="3" class="val">{self.registered_address or "-"}</td>
     </tr>
   </table>
 
-  <!-- Service Categories -->
-  <div class="section-head">Categories of Business / Aggregation Activities (As Per GST Filings)</div>
+  <!-- ── Section 2: All Categories of Business / Service as per GST Filings ── -->
+  <div class="section-head">&#9632;&nbsp; All Categories of Business / Service as per GST Filings</div>
   <table class="svc-table">
     <thead>
       <tr>
-        <th style="width:5%;text-align:center;">#</th>
-        <th style="width:20%;">Service Name</th>
-        <th style="width:23%;">Brand / App Name</th>
-        <th style="width:15%;">Company Type</th>
-        <th style="width:20%;">GSTIN</th>
-        <th style="width:17%;">Status</th>
+        <th style="width:8%;text-align:center;">#</th>
+        <th style="width:74%;">Service / Business Category</th>
+        <th style="width:18%;text-align:center;">Status</th>
       </tr>
     </thead>
     <tbody>{services_rows}</tbody>
   </table>
 
-  <!-- Declaration -->
+  <!-- ── Declaration ── -->
   <div class="declaration">
-    This is to certify that <b>{self.aggregator_name}</b> (Registration ID: <b>{self.name}</b>) has been duly
+    This is to certify that <b>{self.aggregator_name}</b> (Registration ID:&nbsp;<b>{self.name}</b>) has been duly
     registered as an Aggregator under the <i>Karnataka Platform Based Gig Workers Social Security and Welfare Act</i>.
     This certificate is system-generated and digitally authenticated by the Karnataka Gig Workers Welfare Board.
     Any tampering with this document is a punishable offence under applicable law.
     This certificate remains valid subject to continued compliance with the Act and Board regulations.
   </div>
 
-  <!-- Signature Row using plain table -->
-  <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+  <!-- ── Signatures ── -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;">
     <tr>
       <td width="50%" align="center" style="font-size:10.5px;">
-        <div style="border-top:1px solid #333;width:150px;margin:34px auto 4px;"></div>
-        <div>Authorised Signatory</div>
-        <div style="color:#555;">{self.name1 or "Authorised Person"}</div>
+        <div style="border-top:1.5px solid #555;width:160px;margin:38px auto 5px;"></div>
+        <div style="font-weight:bold;">Authorised Signatory</div>
+        <div style="color:#555;margin-top:2px;">{self.name1 or "Authorised Person"}</div>
+        <div style="color:#888;font-size:9.5px;">{self.aggregator_name or ""}</div>
       </td>
       <td width="50%" align="center" style="font-size:10.5px;">
-        <div style="border-top:1px solid #333;width:150px;margin:34px auto 4px;"></div>
-        <div>Registering Authority</div>
-        <div style="color:#555;">Karnataka Gig Workers Welfare Board</div>
+        <div style="border-top:1.5px solid #555;width:160px;margin:38px auto 5px;"></div>
+        <div style="font-weight:bold;">Registering Authority</div>
+        <div style="color:#555;margin-top:2px;">Karnataka Gig Workers Welfare Board</div>
+        <div style="color:#888;font-size:9.5px;">Vikasa Soudha, Bengaluru &ndash; 560 001</div>
       </td>
     </tr>
   </table>
 
-  <!-- Footer -->
+  <!-- ── Footer ── -->
   <div class="footer">
     e-Stamp Ref: {estamp_ref} &nbsp;|&nbsp; Generated: {issue_date} {issue_time} IST &nbsp;|&nbsp;
-    Karnataka Gig Workers Welfare Board, Vikasa Soudha, Bengaluru &#8211; 560 001
+    Karnataka Gig Workers Welfare Board, Vikasa Soudha, Bengaluru &ndash; 560 001
     <br>Helpline: 1800-XXX-XXXX &nbsp;|&nbsp; Email: support@kgwwb.karnataka.gov.in
   </div>
 
