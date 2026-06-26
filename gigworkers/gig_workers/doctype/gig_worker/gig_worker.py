@@ -426,7 +426,9 @@ class GigWorker(Document):
 			})
 			user.flags.ignore_password_policy = True
 			user.flags.ignore_validate = True   # prevent validate_username from blanking our GW ID
+			frappe.flags.in_import = True
 			user.insert(ignore_permissions=True)
+			frappe.flags.in_import = False
 			# validate_username is skipped above, so set username explicitly after insert
 			frappe.db.set_value("User", login_email, "username", gw_username, update_modified=False)
 		else:
@@ -441,5 +443,4 @@ class GigWorker(Document):
 
 		self.db_set("user", login_email, update_modified=False)
 		update_password(login_email, self.phone)
-
 
