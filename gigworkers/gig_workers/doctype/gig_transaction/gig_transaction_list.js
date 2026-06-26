@@ -13,26 +13,6 @@ frappe.listview_settings["Gig Transaction"] = {
 
 	onload(listview) {
 
-		// For Aggregator users, always enforce their own aggregator filter so
-		// stale browser-cached filters from other aggregators never leak through.
-		if (
-			frappe.user_roles.includes("Aggregator") &&
-			!frappe.user_roles.includes("System Manager")
-		) {
-			frappe.db.get_value("Aggregator", { email: frappe.session.user }, "name")
-				.then(r => {
-					const agg = r && r.message && r.message.name;
-					if (!agg) return;
-
-					// Remove any stale aggregator filter already in the bar,
-					// then set the correct one so the list always shows own data.
-					listview.filter_area.remove("aggregator");
-					listview.filter_area.add([
-						[listview.doctype, "aggregator", "=", agg]
-					]).then(() => listview.refresh());
-				});
-		}
-
 		if (!frappe.user.has_role("Gig Worker")) {
 			listview.page.add_button(__("Bulk Import"), function () {
 				frappe.set_route("bulk-gig-transaction-import");
@@ -131,8 +111,8 @@ function _adjustment_entry(listview) {
 	} else {
 		frappe.db.get_value("Aggregator", { email: frappe.session.user }, "name")
 			.then(r => {
-				const agg = r && r.message && r.message.name;
-				_show_transaction_picker(agg || null, listview);
+				const agg = r && (r.message?.name || r.message);
+				_show_transaction_picker((agg && typeof agg === "string") ? agg : null, listview);
 			})
 			.catch(() => _show_transaction_picker(null, listview));
 	}

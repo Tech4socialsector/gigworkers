@@ -7,8 +7,11 @@ def _get_aggregator_name(user):
 
 
 def _get_gig_worker_name(user):
-    """Return the Gig Worker record name linked to this user's email."""
-    return frappe.db.get_value("Gig Worker", {"email": user}, "name")
+    """Return the Gig Worker record name linked to this user account."""
+    return (
+        frappe.db.get_value("Gig Worker", {"user": user}, "name")
+        or frappe.db.get_value("Gig Worker", {"email": user}, "name")
+    )
 
 
 def user_based_query(user=None, doctype=None):
@@ -58,7 +61,7 @@ def user_based_query(user=None, doctype=None):
     # ----------------------------------------------------------------
     if "Gig Worker" in roles:
         if doctype == "Gig Worker":
-            return f"`tabGig Worker`.`email` = {frappe.db.escape(user)}"
+            return f"`tabGig Worker`.`user` = {frappe.db.escape(user)}"
 
         gig_worker = _get_gig_worker_name(user)
         if not gig_worker:
@@ -146,7 +149,7 @@ def user_has_permission(doc, ptype="read", user=None):
         gig_worker = _get_gig_worker_name(user)
 
         if doctype == "Gig Worker":
-            return doc.email == user
+            return doc.user == user
 
         elif doctype == "Gig Transaction":
             return doc.gig_worker == gig_worker
