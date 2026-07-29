@@ -51,26 +51,27 @@ function show_status_banner(frm) {
 	const start = frm.doc.effective_start_date;
 	const end   = frm.doc.effective_end_date;
 
+	const fmt = (d) => frappe.datetime.str_to_user(d);
+
+	let icon, color, bg, label;
 	if (end && end < today) {
-		frm.dashboard.set_headline(
-			`<span style="color:#c0392b;font-weight:600;">
-				<i class="fa fa-times-circle"></i> Expired — ended on ${end}
-			</span>`
-		);
+		icon = "fa-times-circle"; color = "#a4161a"; bg = "#fdecea";
+		label = `Expired — ended on ${fmt(end)}`;
 	} else if (start && start > today) {
-		frm.dashboard.set_headline(
-			`<span style="color:#f39c12;font-weight:600;">
-				<i class="fa fa-clock-o"></i> Scheduled — starts on ${start}
-			</span>`
-		);
+		icon = "fa-clock-o"; color = "#8a5a00"; bg = "#fff4de";
+		label = `Scheduled — starts on ${fmt(start)}`;
 	} else {
-		frm.dashboard.set_headline(
-			`<span style="color:#27ae60;font-weight:600;">
-				<i class="fa fa-check-circle"></i> Active
-				${end ? " — ends on " + end : ""}
-			</span>`
-		);
+		icon = "fa-check-circle"; color = "#146c2e"; bg = "#e9f7ef";
+		label = `Active${end ? " — ends on " + fmt(end) : ""}`;
 	}
+
+	frm.dashboard.set_headline(
+		`<div style="display:inline-flex;align-items:center;gap:8px;
+			background:${bg};color:${color};font-weight:600;font-size:13px;
+			padding:6px 14px;border-radius:6px;">
+			<i class="fa ${icon}"></i><span>${label}</span>
+		</div>`
+	);
 }
 
 // ── Color-code Rate Log rows ───────────────────────────────────────────────────
@@ -92,19 +93,33 @@ function color_rate_log_rows(frm) {
 		// Remove stale footer from previous render
 		grid.wrapper.find(".rate-log-footer").remove();
 
+		const today = frappe.datetime.get_today();
+
 		all_rows.forEach(function (row, idx) {
 			const $row = grid.grid_rows_by_docname[row.name];
 			if (!$row || !$row.row) return;
 
+			// Status is computed live from this row's own dates, not the stored
+			// snapshot (which was only ever accurate at the moment it was logged).
+			let live_status;
+			if (row.effective_end_date && row.effective_end_date < today) live_status = "Expired";
+			else if (row.effective_start_date && row.effective_start_date > today) live_status = "Scheduled";
+			else live_status = "Active";
+
+			if (row.status !== live_status) {
+				frappe.model.set_value(row.doctype, row.name, "status", live_status);
+			}
+
 			// Color coding
-			const c = colors[row.status];
+			const c = colors[live_status];
 			if (c) {
 				$row.row.css({ "background-color": c.bg });
 				$row.row.find("[data-fieldname='status']").css({ "color": c.text, "font-weight": "600" });
 			}
 
-			// Lock expired rows
-			if (row.status === "Expired") {
+			// Only expired periods are locked from editing; Active/Scheduled rows
+			// remain editable so upcoming or in-progress rates can still be corrected.
+			if (live_status === "Expired") {
 				$row.row.find(".btn-open-row").hide();
 			}
 
@@ -204,6 +219,10 @@ function open_update_rate_dialog(frm) {
 		],
 		primary_action_label: __("Save & Update"),
 		primary_action(values) {
+			// Guard against double submission (double-click / repeat Enter),
+			// which would otherwise log the same rate period twice.
+			if (d.get_primary_btn().prop("disabled")) return;
+
 			if (values.close_current_on < frm.doc.effective_start_date) {
 				frappe.msgprint(__("Close Current Rate On cannot be before the current Start Date ({0}).", [frm.doc.effective_start_date]));
 				return;
@@ -216,6 +235,8 @@ function open_update_rate_dialog(frm) {
 				frappe.msgprint(__("New End Date must be after the New Start Date."));
 				return;
 			}
+
+			d.get_primary_btn().prop("disabled", true);
 
 			frappe.call({
 				method: "gigworkers.gig_workers.doctype.service.service.update_rate",
@@ -235,6 +256,9 @@ function open_update_rate_dialog(frm) {
 						frappe.show_alert({ message: __("Rate updated and logged successfully."), indicator: "green" }, 5);
 						frm.reload_doc();
 					}
+				},
+				always() {
+					d.get_primary_btn().prop("disabled", false);
 				},
 			});
 		},
