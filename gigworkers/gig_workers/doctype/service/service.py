@@ -14,6 +14,15 @@ class Service(Document):
 
 	def before_save(self):
 		if self.is_new():
+			# First save: log the initial rate period as the current row.
+			if not _current_already_logged(self):
+				self.append("rate_log", {
+					"welfare_percentage_":  self.welfare_percentage_,
+					"welfare_cap":          self.welfare_cap,
+					"effective_start_date": self.effective_start_date,
+					"effective_end_date":   self.effective_end_date,
+					"status":               _compute_status(self.effective_start_date, self.effective_end_date),
+				})
 			return
 
 		old = self.get_doc_before_save()
@@ -36,17 +45,40 @@ class Service(Document):
 				"status":               _compute_status(old.effective_start_date, old.effective_end_date),
 			})
 
+		# The last rate_log row should always mirror the currently active/scheduled
+		# period, not just the periods that have already been superseded.
+		if not _current_already_logged(self):
+			self.append("rate_log", {
+				"welfare_percentage_":  self.welfare_percentage_,
+				"welfare_cap":          self.welfare_cap,
+				"effective_start_date": self.effective_start_date,
+				"effective_end_date":   self.effective_end_date,
+				"status":               _compute_status(self.effective_start_date, self.effective_end_date),
+			})
+
+
+def _row_matches(row, welfare_percentage_, welfare_cap, effective_start_date, effective_end_date):
+	return (
+		str(row.welfare_percentage_ or "") == str(welfare_percentage_ or "")
+		and str(row.welfare_cap or "")         == str(welfare_cap or "")
+		and str(row.effective_start_date or "") == str(effective_start_date or "")
+		and str(row.effective_end_date or "")   == str(effective_end_date or "")
+	)
+
 
 def _already_logged(doc, old):
-	"""Return True if the last rate_log row already captures the old values (prevents duplicates)."""
-	if not doc.rate_log:
-		return False
-	last = doc.rate_log[-1]
-	return (
-		str(last.welfare_percentage_ or "") == str(old.welfare_percentage_ or "")
-		and str(last.welfare_cap or "")         == str(old.welfare_cap or "")
-		and str(last.effective_start_date or "") == str(old.effective_start_date or "")
-		and str(last.effective_end_date or "")   == str(old.effective_end_date or "")
+	"""Return True if any rate_log row already captures the old values (prevents duplicates)."""
+	return any(
+		_row_matches(row, old.welfare_percentage_, old.welfare_cap, old.effective_start_date, old.effective_end_date)
+		for row in doc.rate_log
+	)
+
+
+def _current_already_logged(doc):
+	"""Return True if any rate_log row already mirrors the doc's current values."""
+	return any(
+		_row_matches(row, doc.welfare_percentage_, doc.welfare_cap, doc.effective_start_date, doc.effective_end_date)
+		for row in doc.rate_log
 	)
 
 

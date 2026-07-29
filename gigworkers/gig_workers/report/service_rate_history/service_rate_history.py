@@ -3,6 +3,17 @@
 
 import frappe
 
+# Status is computed live from each row's own dates rather than trusting
+# log.status, which is only a snapshot of what the status was when the row
+# was logged and never gets updated afterwards.
+LIVE_STATUS_SQL = """
+	CASE
+		WHEN log.effective_end_date IS NOT NULL AND log.effective_end_date < CURDATE() THEN 'Expired'
+		WHEN log.effective_start_date IS NOT NULL AND log.effective_start_date > CURDATE() THEN 'Scheduled'
+		ELSE 'Active'
+	END
+"""
+
 
 def execute(filters=None):
 	filters = filters or {}
@@ -74,7 +85,7 @@ def get_data(filters):
 		values["service"] = filters["service"]
 
 	if filters.get("status"):
-		conditions.append("log.status = %(status)s")
+		conditions.append(LIVE_STATUS_SQL + " = %(status)s")
 		values["status"] = filters["status"]
 
 	if filters.get("category"):
@@ -87,7 +98,7 @@ def get_data(filters):
 
 	where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
-	return frappe.db.sql(f"""
+	return frappe.db.sql("""
 		SELECT
 			log.parent                          AS service,
 			COALESCE(sc.category_name, svc.category)   AS category_name,
@@ -96,11 +107,11 @@ def get_data(filters):
 			log.welfare_cap,
 			log.effective_start_date,
 			log.effective_end_date,
-			log.status
+			{live_status} AS status
 		FROM `tabService Rate Log` log
 		JOIN `tabService` svc ON svc.name = log.parent
 		LEFT JOIN `tabService Category` sc ON sc.name = svc.category
 		LEFT JOIN `tabVehicle Type` vt ON vt.name = svc.vehicle_type
 		{where}
 		ORDER BY log.parent, log.creation DESC
-	""", values, as_dict=True)
+	""".format(live_status=LIVE_STATUS_SQL, where=where), values, as_dict=True)
