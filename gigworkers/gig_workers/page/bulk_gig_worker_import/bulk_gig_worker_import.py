@@ -114,6 +114,10 @@ def get_log_detail(log_name):
 	"""Return full details of a single import log record."""
 	frappe.only_for(["System Manager", "Aggregator"])
 	doc = frappe.get_doc("Gig Worker Import Log", log_name)
+
+	if "System Manager" not in frappe.get_roles() and doc.imported_by != frappe.session.user:
+		frappe.throw(_("You are not permitted to view this import log."), frappe.PermissionError)
+
 	return {
 		"name": doc.name,
 		"import_id": doc.import_id,
@@ -131,10 +135,20 @@ def get_log_detail(log_name):
 
 @frappe.whitelist()
 def get_import_logs(limit=10, offset=0):
-	"""Return paginated import log records for the history table."""
+	"""Return paginated import log records for the history table.
+
+	Only System Manager can see everyone's logs — other users only see
+	the imports they themselves ran.
+	"""
 	frappe.only_for(["System Manager", "Aggregator"])
+
+	filters = {}
+	if "System Manager" not in frappe.get_roles():
+		filters["imported_by"] = frappe.session.user
+
 	logs = frappe.get_all(
 		"Gig Worker Import Log",
+		filters=filters,
 		fields=[
 			"name", "import_id", "import_date", "file_name",
 			"status", "total_rows", "inserted", "skipped",
@@ -144,5 +158,5 @@ def get_import_logs(limit=10, offset=0):
 		limit=int(limit),
 		start=int(offset),
 	)
-	total = frappe.db.count("Gig Worker Import Log")
+	total = frappe.db.count("Gig Worker Import Log", filters=filters)
 	return {"logs": logs, "total": total}
