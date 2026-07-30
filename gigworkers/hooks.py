@@ -169,7 +169,9 @@ scheduler_events = {
 	},
 	"daily": [
 		# Check for overdue invoices and send reminders
-		"gigworkers.gig_workers.doctype.welfare_fee_invoice.utils.check_overdue_invoices"
+		"gigworkers.gig_workers.doctype.welfare_fee_invoice.utils.check_overdue_invoices",
+		# Auto-approve aggregator applications left untouched past the configured number of days
+		"gigworkers.gig_workers.page.aggregator_approval.aggregator_approval.auto_approve_stale_aggregators"
 	]
 }
 
