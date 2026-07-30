@@ -104,10 +104,15 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			processed += 1
 			continue
 
-		# Normalise fields
-		email   = row.get("email", "").strip().lower()
+		# Normalise fields — email/aadhaar_number/pan_number/eshram_id all carry a
+		# unique DB index, so blank values must become None (NULL), never "".
+		# MySQL's unique index allows any number of NULLs but only one empty
+		# string — with "" every row after the first blank one gets silently
+		# dropped by bulk_insert's INSERT IGNORE, while still being counted
+		# as "inserted".
+		email   = row.get("email", "").strip().lower() or None
 		phone   = re.sub(r"\s+", "", row.get("phone", ""))
-		aadhaar = row.get("aadhaar_number", "").replace(" ", "")
+		aadhaar = row.get("aadhaar_number", "").replace(" ", "") or None
 		pan     = row.get("pan_number", "").strip().upper() if row.get("pan_number") else None
 		eshram  = row.get("eshram_id", "").strip().upper()  if row.get("eshram_id")  else None
 
