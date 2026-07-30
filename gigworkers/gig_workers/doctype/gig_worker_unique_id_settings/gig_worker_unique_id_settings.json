@@ -1,0 +1,145 @@
+{
+ "actions": [],
+ "creation": "2026-07-30 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "id_proof_mode",
+  "section_break_single",
+  "id_proof_type",
+  "section_break_multi",
+  "allow_pan",
+  "column_break_id_proof_1",
+  "allow_driving_licence",
+  "column_break_id_proof_2",
+  "allow_aadhar",
+  "section_break_prefix",
+  "need_prefix",
+  "prefix",
+  "column_break_prefix",
+  "suffix",
+  "section_break_preview",
+  "preview_format"
+ ],
+ "fields": [
+  {
+   "default": "Single ID Proof",
+   "description": "Single ID Proof: only one ID proof can be selected as the base of the Unique ID. Multi ID Proof: more than one ID proof can be allowed, combined into a single ID.",
+   "fieldname": "id_proof_mode",
+   "fieldtype": "Select",
+   "label": "ID Proof Selection Mode",
+   "options": "Single ID Proof\nMulti ID Proof",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.id_proof_mode==\"Single ID Proof\"",
+   "fieldname": "section_break_single",
+   "fieldtype": "Section Break",
+   "label": "Unique ID Format Based On"
+  },
+  {
+   "depends_on": "eval:doc.id_proof_mode==\"Single ID Proof\"",
+   "fieldname": "id_proof_type",
+   "fieldtype": "Select",
+   "label": "ID Proof Type",
+   "mandatory_depends_on": "eval:doc.id_proof_mode==\"Single ID Proof\"",
+   "options": "PAN\nDriving Licence\nAadhar"
+  },
+  {
+   "depends_on": "eval:doc.id_proof_mode==\"Multi ID Proof\"",
+   "description": "Select every ID proof to combine into the Gig Worker's Unique ID. At least one must be selected.",
+   "fieldname": "section_break_multi",
+   "fieldtype": "Section Break",
+   "label": "Unique ID Format Based On (select all that apply)"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.id_proof_mode==\"Multi ID Proof\"",
+   "fieldname": "allow_pan",
+   "fieldtype": "Check",
+   "label": "PAN"
+  },
+  {
+   "depends_on": "eval:doc.id_proof_mode==\"Multi ID Proof\"",
+   "fieldname": "column_break_id_proof_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.id_proof_mode==\"Multi ID Proof\"",
+   "fieldname": "allow_driving_licence",
+   "fieldtype": "Check",
+   "label": "Driving Licence"
+  },
+  {
+   "depends_on": "eval:doc.id_proof_mode==\"Multi ID Proof\"",
+   "fieldname": "column_break_id_proof_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.id_proof_mode==\"Multi ID Proof\"",
+   "fieldname": "allow_aadhar",
+   "fieldtype": "Check",
+   "label": "Aadhar"
+  },
+  {
+   "fieldname": "section_break_prefix",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "need_prefix",
+   "fieldtype": "Check",
+   "label": "Need Prefix?"
+  },
+  {
+   "depends_on": "eval:doc.need_prefix",
+   "fieldname": "prefix",
+   "fieldtype": "Data",
+   "label": "Prefix",
+   "mandatory_depends_on": "eval:doc.need_prefix"
+  },
+  {
+   "fieldname": "column_break_prefix",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Enter the starting running number, e.g. 001. Each new Gig Worker Unique ID generated will auto-increment this number (001, 002, 003 ...); leading zeros set the padding width.",
+   "fieldname": "suffix",
+   "fieldtype": "Data",
+   "label": "Suffix (Starting Running Number)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_preview",
+   "fieldtype": "Section Break",
+   "label": "Preview"
+  },
+  {
+   "description": "This is only a preview of how the Gig Worker Unique ID will look based on the selections above. It updates automatically as you change the settings.",
+   "fieldname": "preview_format",
+   "fieldtype": "Data",
+   "label": "Unique ID Preview",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gig Workers",
+ "name": "Gig Worker Unique ID Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
