@@ -108,23 +108,6 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         {sql_cond} AND status = 'Payment Cancelled'
     """, sql_params, as_dict=True)[0].cnt
 
-    # --- Worker stats ---
-    # Total unique workers who have transacted (respects active date/service filters)
-    total_workers_result = frappe.db.sql(f"""
-        SELECT COUNT(DISTINCT gig_worker) AS cnt
-        FROM `tabGig Transaction`
-        {sql_cond}
-    """, sql_params, as_dict=True)
-    total_workers = total_workers_result[0].cnt if total_workers_result else 0
-
-    # Workers with Onboarded/Active status in mapping log
-    onboarded_workers_result = frappe.db.sql("""
-        SELECT COUNT(DISTINCT gig_worker) AS cnt
-        FROM `tabWorker Mapping Log`
-        WHERE aggregator = %s AND worker_status IN ('Onboarded', 'Active')
-    """, aggregator_name, as_dict=True)
-    onboarded_workers = onboarded_workers_result[0].cnt if onboarded_workers_result else 0
-
     # --- Welfare fee payment stats (filtered by date + service category,
     # via a join back to the Gig Transaction the payment was raised for) ---
     wfp_sql_cond  = "WHERE wfp.aggregator = %(agg)s"
@@ -173,23 +156,6 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         ORDER BY wfp.payment_date DESC
     """, wfp_params, as_dict=True)
 
-    # --- Worker Mapping Log ---
-    worker_list_sql_cond = "WHERE aggregator = %(agg)s"
-    worker_list_params   = {"agg": aggregator_name}
-    if from_date:
-        worker_list_sql_cond += " AND log_datetime >= %(from_date)s"
-        worker_list_params["from_date"] = from_date
-    if to_date:
-        worker_list_sql_cond += " AND log_datetime <= %(to_date)s"
-        worker_list_params["to_date"] = to_date + " 23:59:59"
-
-    worker_list = frappe.db.sql(f"""
-        SELECT name, gig_worker, service, event_type, worker_status, log_datetime
-        FROM `tabWorker Mapping Log`
-        {worker_list_sql_cond}
-        ORDER BY log_datetime DESC
-    """, worker_list_params, as_dict=True)
-
     # --- Worker roster + status breakdown, sourced from the Gig Worker
     # records this aggregator actually owns (Worker Mapping Log is not
     # populated for most aggregators, so it can't drive this) ---
@@ -217,14 +183,15 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         ORDER BY cnt DESC
     """, gw_params, as_dict=True)
 
-    # --- Suspected duplicate transactions (read-only view for aggregator) ---
-    suspected_dups = frappe.get_all(
-        "Gig Transaction",
-        filters={"aggregator": aggregator_name, "status": "Suspected duplicate"},
-        fields=["name", "date", "gig_worker", "service", "service_category", "amount",
-                "base_payout", "welfare_amount", "duplicate_of"],
-        order_by="creation desc",
-    )
+    # --- Suspected duplicate transactions (read-only view for aggregator,
+    # respects the same date + service category filters as everything else) ---
+    suspected_dups = frappe.db.sql(f"""
+        SELECT name, date, gig_worker, service, service_category, amount,
+               base_payout, welfare_amount, duplicate_of
+        FROM `tabGig Transaction`
+        {sql_cond} AND status = 'Suspected duplicate'
+        ORDER BY creation DESC
+    """, sql_params, as_dict=True)
 
     # --- Quarterly Welfare Fee Invoices ---
     quarterly_invoices = frappe.get_all(
@@ -296,6 +263,15 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         ORDER BY month
     """, mt_params, as_dict=True)
 
+    # --- Worker growth trend (new Gig Workers registered, last 12 months) ---
+    worker_growth_trend = frappe.db.sql("""
+        SELECT DATE_FORMAT(creation, '%%Y-%%m') AS month, COUNT(*) AS cnt
+        FROM `tabGig Worker`
+        WHERE created_by_aggregator = %(agg)s AND creation >= %(trend_start)s
+        GROUP BY month
+        ORDER BY month
+    """, {"agg": aggregator_name, "trend_start": trend_start}, as_dict=True)
+
     # Status breakdown for donut chart (respects active filters)
     status_breakdown = frappe.db.sql(f"""
         SELECT status, COUNT(*) AS cnt
@@ -327,10 +303,6 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
             "total_base_payout":      float(txn_stats.total_base_payout or 0),
             "total_welfare":          float(txn_stats.total_welfare or 0),
         },
-        "workers": {
-            "total":     total_workers or 0,
-            "active":    onboarded_workers or 0,
-        },
         "welfare_payments": {
             "total_paid":     float(wfp_stats.total_paid or 0),
             "total_payments": wfp_stats.total_payments or 0,
@@ -340,11 +312,11 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "invoice_summary":    invoice_summary,
         "recent_transactions": recent_txns,
         "pending_wfp":         pending_wfp,
-        "worker_list":         worker_list,
         "aggregator_workers":  aggregator_workers,
         "worker_status_breakdown": [dict(r) for r in worker_status_breakdown],
         "suspected_dups":      suspected_dups,
         "monthly_trend":       [dict(r) for r in monthly_trend],
+        "worker_growth_trend": [dict(r) for r in worker_growth_trend],
         "status_breakdown":    [dict(r) for r in status_breakdown],
         "svc_cat_breakdown":   [dict(r) for r in svc_cat_breakdown],
         "top_workers":         [dict(r) for r in top_workers],
@@ -440,3 +412,28 @@ def get_transaction_detail(transaction, aggregator_override=None):
     )
 
     return {"transaction": txn, "welfare_payments": welfare_payments}
+
+
+@frappe.whitelist()
+def get_invoice_detail(invoice, aggregator_override=None):
+    """Line-item breakdown for a single Welfare Fee Invoice, scoped to the
+    calling aggregator — powers the quarterly-invoice card drilldown."""
+    aggregator_name = _resolve_aggregator(aggregator_override)
+
+    inv = frappe.db.get_value(
+        "Welfare Fee Invoice", {"name": invoice, "aggregator": aggregator_name},
+        ["name", "quarter", "year", "from_date", "to_date", "due_date",
+         "total_transactions", "total_due_amount", "amount_paid", "balance_due", "invoice_status"],
+        as_dict=True,
+    )
+    if not inv:
+        frappe.throw("Invoice not found.")
+
+    items = frappe.get_all(
+        "Welfare Fee Invoice Item",
+        filters={"parent": invoice},
+        fields=["transaction", "gig_worker", "transaction_date", "fee_amount", "payment_status"],
+        order_by="transaction_date desc",
+    )
+
+    return {"invoice": inv, "items": items}

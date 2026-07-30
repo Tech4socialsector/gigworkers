@@ -164,7 +164,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	};
 
 	function init_agg_charts(data) {
-		const { monthly_trend, status_breakdown, svc_cat_breakdown, worker_status_breakdown } = data;
+		const { monthly_trend, status_breakdown, svc_cat_breakdown, worker_status_breakdown, worker_growth_trend } = data;
 
 		// Worker Status Donut
 		if (worker_status_breakdown && worker_status_breakdown.length && frappe && frappe.Chart) {
@@ -199,7 +199,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 							{ name: "Completed", values: monthly_trend.map(r => r.completed_count) },
 						],
 					},
-					height: 270,
+					height: 220,
 					colors: ["#c7d5f8", "#4e73df"],
 					barOptions: { spaceRatio: 0.35 },
 					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
@@ -226,7 +226,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 							{ name: "Welfare (₹)", values: monthly_trend.map(r => parseFloat(r.total_welfare || 0)) },
 						],
 					},
-					height: 270,
+					height: 220,
 					colors: ["#36b9cc", "#1cc88a"],
 					lineOptions: { regionFill: 0, dotSize: 4 },
 					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
@@ -236,6 +236,28 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			}
 		} else {
 			$("#agg-welfare-trend-empty").show().text("No data available");
+		}
+
+		// Worker Growth Chart (new workers registered per month)
+		if (worker_growth_trend && worker_growth_trend.length && frappe && frappe.Chart) {
+			try {
+				$("#agg-worker-growth-empty").hide();
+				new frappe.Chart("#agg-worker-growth-chart", {
+					type: "bar",
+					data: {
+						labels: worker_growth_trend.map(r => r.month),
+						datasets: [{ name: "New Workers", values: worker_growth_trend.map(r => r.cnt) }],
+					},
+					height: 220,
+					colors: ["#1cc88a"],
+					barOptions: { spaceRatio: 0.35 },
+					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
+				});
+			} catch (e) {
+				$("#agg-worker-growth-empty").show().text("Chart unavailable");
+			}
+		} else {
+			$("#agg-worker-growth-empty").show().text("No new workers registered in the last 12 months");
 		}
 
 		// Service Category Distribution Chart
@@ -288,7 +310,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	// ── Drill-down modal ─────────────────────────────────────────────────────
 
 	function bind_agg_drilldown(data) {
-		const { recent_transactions, worker_list, aggregator_workers, pending_wfp, suspected_dups, top_workers } = data;
+		const { recent_transactions, aggregator_workers, pending_wfp, suspected_dups, top_workers } = data;
 
 		const txn_cols = [
 			{ label: "Transaction ID", render: t => txn_link(t.name), csv: t => t.name },
@@ -768,6 +790,72 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			$("#agg-dd-export-csv").toggle(!!wfp_rows.length);
 		}
 
+		function open_invoice_detail(invoice) {
+			$("#agg-dd-title").text(`Invoice — ${invoice}`);
+			$("#agg-dd-count").text("Loading…");
+			$("#agg-dd-back").hide();
+			$("#agg-dd-export-csv").hide();
+			$("#agg-dd-summary").hide();
+			$("#agg-dd-chart-wrap").hide();
+			destroy_dd_table();
+			reset_table_wrap();
+			$("#agg-dd-table-wrap").html('<div style="text-align:center;padding:30px;color:#aaa;"><i class="fa fa-spinner fa-spin"></i> Loading invoice details…</div>');
+			_dd_stack_type = null;
+
+			$("#agg-dd-overlay").addClass("active");
+			$("#agg-dd-body").scrollTop(0);
+
+			frappe.call({
+				method: "gigworkers.gig_workers.page.aggregator_dashboard.aggregator_dashboard.get_invoice_detail",
+				args: { invoice, aggregator_override: _agg_override },
+				callback(r) {
+					if (r.message) render_invoice_detail(r.message);
+				},
+				error() {
+					$("#agg-dd-count").text("Failed to load");
+				},
+			});
+		}
+
+		function render_invoice_detail(d) {
+			const inv = d.invoice || {};
+			$("#agg-dd-title").text(`Invoice — ${inv.quarter || ""} ${inv.year || ""}`);
+			$("#agg-dd-count").text(`${inv.name}  ·  ${inv.from_date || "-"} to ${inv.to_date || "-"}`);
+
+			render_dd_summary([
+				{ label: "Total Transactions", value: inv.total_transactions || 0, color: "#4e73df" },
+				{ label: "Total Due", value: fmt_currency(inv.total_due_amount) },
+				{ label: "Paid", value: fmt_currency(inv.amount_paid), color: "#1cc88a" },
+				{ label: "Balance Due", value: fmt_currency(inv.balance_due), color: inv.balance_due > 0 ? "#e74a3b" : "#1cc88a" },
+				{ label: "Status", value: inv.invoice_status || "-" },
+			]);
+			render_dd_chart(null);
+
+			const item_cols = [
+				{ label: "Transaction", render: i => txn_link(i.transaction), csv: i => i.transaction },
+				{ label: "Gig Worker", render: i => worker_link(i.gig_worker), csv: i => i.gig_worker || "-" },
+				{ label: "Transaction Date", render: i => i.transaction_date || "-" },
+				{ label: "Fee Amount", render: i => fmt_currency(i.fee_amount) },
+				{ label: "Payment Status", render: i => status_badge(i.payment_status) },
+			];
+			const rows = d.items || [];
+
+			destroy_dd_table();
+			$("#agg-dd-table-wrap").html(`
+				<div style="margin-bottom:14px;">
+					<a href="/app/welfare-fee-invoice/${inv.name}" style="font-size:12px;color:#4e73df;">View full invoice in desk &rarr;</a>
+				</div>
+				<h6>Welfare Fee Items</h6>
+				<table id="agg-dd-dt-table" class="display" style="width:100%"></table>
+			`);
+			render_dd_table(item_cols, rows, "No welfare fee items recorded on this invoice yet.");
+
+			_dd_export_cols = item_cols;
+			_dd_export_rows = rows;
+			_dd_export_title = `invoice_${inv.name}_items`;
+			$("#agg-dd-export-csv").toggle(!!rows.length);
+		}
+
 		function close_drilldown() {
 			destroy_dd_table();
 			reset_table_wrap();
@@ -776,7 +864,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		}
 
 		$(document).off("click.agg_drilldown").off("keydown.agg_drilldown");
-		$("#agg-dashboard").off("click.agg_drilldown").off("click.agg_worker_link").off("click.agg_txn_link");
+		$("#agg-dashboard").off("click.agg_drilldown").off("click.agg_worker_link").off("click.agg_txn_link").off("click.agg_invoice_link");
 
 		$("#agg-dashboard").on("click.agg_drilldown", ".agg-drillable[data-drilldown]", function () {
 			open_drilldown($(this).data("drilldown"));
@@ -790,6 +878,11 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		$("#agg-dashboard").on("click.agg_txn_link", ".agg-worker-link[data-txn]", function (e) {
 			e.stopPropagation();
 			open_transaction_detail($(this).data("txn"), _dd_stack_type);
+		});
+
+		$("#agg-dashboard").on("click.agg_invoice_link", ".agg-invoice-card[data-invoice]", function (e) {
+			e.stopPropagation();
+			open_invoice_detail($(this).data("invoice"));
 		});
 
 		$("#agg-dd-back").on("click", function () {
@@ -936,10 +1029,14 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				{ label: "Total Welfare (INR)",      value: fmt_currency_plain(d.stats.total_welfare) },
 			]);
 
+			const worker_status_counts = {};
+			(d.worker_status_breakdown || []).forEach(r => { worker_status_counts[r.worker_status || "Unknown"] = r.cnt; });
+
 			section_heading("Workers & Welfare");
 			stats_table([
-				{ label: "Workers Transacted",         value: d.workers.total },
-				{ label: "Onboarded Workers",          value: d.workers.active },
+				{ label: "Total Registered Workers",   value: (d.aggregator_workers || []).length },
+				{ label: "Active Workers",             value: worker_status_counts["Active"] || 0 },
+				{ label: "Inactive Workers",           value: worker_status_counts["Inactive"] || 0 },
 				{ label: "Welfare Fees Settled (INR)", value: fmt_currency_plain(d.welfare_payments.total_paid) },
 				{ label: "Welfare Fees Pending (INR)", value: fmt_currency_plain(d.welfare_payments.pending_amount) },
 			]);
@@ -954,13 +1051,13 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				])
 			);
 
-			section_heading("Worker Mapping Log");
+			section_heading("Registered Workers");
 			pdf_table(
-				["Log ID", "Gig Worker", "Service", "Event", "Worker Status", "Logged At"],
-				(d.worker_list || []).map(w => [
-					w.name, w.gig_worker || "-", w.service || "-",
-					w.event_type || "-", w.worker_status || "-",
-					(w.log_datetime || "").substring(0, 16),
+				["Worker ID", "Name", "Phone", "Service", "Status", "Registered On"],
+				(d.aggregator_workers || []).map(w => [
+					w.name, w.worker_name || "-", w.phone || "-",
+					w.name_of_service || "-", w.status || "-",
+					(w.creation || "").substring(0, 10),
 				])
 			);
 
@@ -1059,8 +1156,8 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			const color = inv_status_color[inv.invoice_status] || "#6c757d";
 			const is_overdue = inv.invoice_status === "Overdue";
 			return `
-			<div style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:16px 18px;
-				box-shadow:0 2px 8px rgba(0,0,0,0.08);border-top:4px solid ${color};position:relative;">
+			<div class="agg-invoice-card" data-invoice="${inv.name}" style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:16px 18px;
+				box-shadow:0 2px 8px rgba(0,0,0,0.08);border-top:4px solid ${color};position:relative;cursor:pointer;transition:transform .15s,box-shadow .15s;">
 				<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">
 					${inv.quarter || ""} ${inv.year || ""}
 				</div>
@@ -1079,7 +1176,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 					<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;">${inv.invoice_status || "-"}</span>
 					${inv.due_date ? `<span style="font-size:11px;color:#888;margin-left:6px;">Due: ${inv.due_date}</span>` : ""}
 				</div>
-				<a href="/app/welfare-fee-invoice/${inv.name}" style="position:absolute;top:14px;right:14px;font-size:11px;color:#4e73df;">View →</a>
+				<span style="position:absolute;top:14px;right:14px;font-size:11px;color:#4e73df;">Details →</span>
 			</div>`;
 		}).join("");
 
@@ -1174,15 +1271,16 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	}
 
 	function render_dashboard(data) {
-		const { aggregator, aggregator_id, stats, workers, welfare_payments,
-			recent_transactions, worker_list, pending_wfp,
+		const { aggregator, aggregator_id, stats, welfare_payments,
+			recent_transactions, pending_wfp,
 			service_categories, active_filters, suspected_dups,
-			service_category_list, monthly_trend, status_breakdown,
+			service_category_list, monthly_trend, status_breakdown, worker_growth_trend,
 			svc_cat_breakdown, worker_status_breakdown, top_workers,
 			quarterly_invoices, invoice_summary } = data;
 
 		const has_charts = (monthly_trend && monthly_trend.length) || (status_breakdown && status_breakdown.length)
-			|| (worker_status_breakdown && worker_status_breakdown.length) || (svc_cat_breakdown && svc_cat_breakdown.length);
+			|| (worker_status_breakdown && worker_status_breakdown.length) || (svc_cat_breakdown && svc_cat_breakdown.length)
+			|| (worker_growth_trend && worker_growth_trend.length);
 
 		const html = `
 		<style>
@@ -1241,6 +1339,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			.agg-worker-link { color: #4e73df; text-decoration: underline; cursor: pointer; }
 			.agg-worker-link:hover { color: #224abe; }
 			.agg-cat-chip:hover { opacity: .85; }
+			.agg-invoice-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(23,26,45,0.14); }
 
 			/* ── Drill-down modal ── */
 			#agg-dd-overlay {
@@ -1498,7 +1597,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		<div class="agg-section-label">
 			<i class="fa fa-bar-chart" style="margin-right:4px;"></i> Analytics
 		</div>
-		<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:20px;margin-bottom:16px;">
+		<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px;">
 			${(monthly_trend && monthly_trend.length) ? `
 			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
 				<h5>
@@ -1526,6 +1625,16 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 					<span><span style="display:inline-block;width:10px;height:10px;background:#36b9cc;border-radius:2px;margin-right:4px;"></span>Total Amount</span>
 					<span><span style="display:inline-block;width:10px;height:10px;background:#1cc88a;border-radius:2px;margin-right:4px;"></span>Welfare</span>
 				</div>
+			</div>` : ""}
+			${(worker_growth_trend && worker_growth_trend.length) ? `
+			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
+				<h5>
+					<i class="fa fa-line-chart" style="color:#1cc88a;margin-right:6px;"></i>
+					Worker Growth
+					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">New workers, last 12 months</span>
+				</h5>
+				<div id="agg-worker-growth-chart"></div>
+				<p id="agg-worker-growth-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
 			</div>` : ""}
 		</div>
 		<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:24px;">
