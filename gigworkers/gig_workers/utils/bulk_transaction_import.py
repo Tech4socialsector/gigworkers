@@ -16,9 +16,10 @@ BATCH_SIZE = 500
 CACHE_KEY  = "gt_bulk_import"
 
 # Fields the import computes automatically — exclude from CSV required check
-# even if the doctype marks them reqd.
+# even if the doctype marks them reqd. `gig_worker` is resolved from the
+# `partner_id` column rather than being collected directly.
 _GT_IMPORT_COMPUTED = {"status", "service_category", "transaction_date",
-                       "incentives", "deduction", "status_of_order"}
+                       "incentives", "deduction", "status_of_order", "gig_worker"}
 
 VALID_STATUS_ORDER = {"", "Order delivered", "Order cancelled"}
 
@@ -58,7 +59,7 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 	_update_progress(import_id, total=total)
 
 	# Pre-load lookup tables once to avoid per-row DB queries
-	valid_workers    = _get_set("Gig Worker", "name")
+	worker_by_partner = _load_worker_by_partner()  # {partner_id: gig_worker_name}
 	valid_aggregators = _get_set("Aggregator", "name")
 	valid_services   = _get_set("Service", "name")
 	service_data     = _load_service_data()        # {service_name: {category, type, pct, cap}}
@@ -91,13 +92,14 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 				)
 				return
 
-		errs = _validate_row(row, idx, valid_workers, valid_aggregators,
+		errs = _validate_row(row, idx, worker_by_partner, valid_aggregators,
 							valid_services, default_aggregator, default_trust_level)
 		if errs:
 			all_errors.extend(errs)
 			skipped += 1; processed += 1; continue
 
-		gig_worker  = row.get("gig_worker", "").strip() or ""
+		partner_id  = row.get("partner_id", "").strip()
+		gig_worker  = worker_by_partner.get(partner_id, "")
 		aggregator  = default_aggregator or row.get("aggregator", "").strip() or ""
 		service     = row.get("service", "").strip()
 		amount      = _to_float(row.get("amount"))
@@ -143,13 +145,13 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 		batch.append((
 			name, now_ts, now_ts, user, user, 0,
 			name,           # transaction_id = name
-			gig_worker, aggregator, service,
+			gig_worker, partner_id, aggregator, service,
 			svc_category, svc_type,
 			amount, base_payout, incentives, deduction,
 			welfare_pct, welfare_amount, welfare_cap,
 			net_payout,
 			date, date,     # date + transaction_date
-			trust_level, status,
+			status,
 			ext_id, dup_key,
 			role, status_order,
 		))
@@ -201,13 +203,13 @@ def _flush_batch(batch):
 	fields = [
 		"name", "creation", "modified", "modified_by", "owner", "docstatus",
 		"transaction_id",
-		"gig_worker", "aggregator", "service",
+		"gig_worker", "partner_id", "aggregator", "service",
 		"service_category", "service_type",
 		"amount", "base_payout", "incentives", "deduction",
 		"welfare_percentage", "welfare_amount", "welfare_cap",
 		"net_payout_to_worker",
 		"date", "transaction_date",
-		"trust_level", "status",
+		"status",
 		"external_transaction_id", "duplicate_key",
 		"role", "status_of_order",
 	]
@@ -273,6 +275,13 @@ def _get_existing_set(field):
 	return {r[0] for r in rows if r[0]}
 
 
+def _load_worker_by_partner():
+	rows = frappe.db.sql(
+		"SELECT partner_id, name FROM `tabGig Worker` WHERE partner_id IS NOT NULL", as_list=True
+	)
+	return {r[0]: r[1] for r in rows if r[0]}
+
+
 def _load_service_data():
 	rows = frappe.db.sql("""
 		SELECT s.name, s.category, s.vehicle_type,
@@ -289,7 +298,7 @@ def _load_service_data():
 # Validation
 # ---------------------------------------------------------------------------
 
-def _validate_row(row, idx, valid_workers, valid_aggregators,
+def _validate_row(row, idx, worker_by_partner, valid_aggregators,
 				valid_services, default_aggregator, default_trust_level):
 	errors = []
 
@@ -301,9 +310,9 @@ def _validate_row(row, idx, valid_workers, valid_aggregators,
 	if errors:
 		return errors
 
-	gig_worker = row.get("gig_worker", "").strip()
-	if gig_worker and gig_worker not in valid_workers:
-		errors.append(f"Row {idx}: Gig Worker '{gig_worker}' not found.")
+	partner_id = row.get("partner_id", "").strip()
+	if partner_id and partner_id not in worker_by_partner:
+		errors.append(f"Row {idx}: Partner ID '{partner_id}' not found — no matching Gig Worker.")
 
 	aggregator = default_aggregator or row.get("aggregator", "").strip() or ""
 	if aggregator and aggregator not in valid_aggregators:

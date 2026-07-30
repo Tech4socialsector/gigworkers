@@ -2,43 +2,68 @@ import frappe
 from frappe import _
 
 
+# Fields the user may choose to include in the CSV template, in display order.
+# (fieldname, label, sample value, required)
+IMPORTABLE_FIELDS = [
+	("worker_name", "Name", "Ravi Kumar", True),
+	("partner_id", "Partner ID", "PTR-001", True),
+	("phone", "Phone", "9876543210", True),
+	("email", "Email", "ravi@example.com", False),
+	("dob", "Date of Birth", "1995-06-15", False),
+	("gender", "Gender", "Male", False),
+	("pan_number", "PAN Number", "ABCDE1234F", False),
+	("eshram_id", "eShram ID", "UW-123456789012", False),
+	("drivers_license", "Drivers License", "KA1234567890123", False),
+	("location_of_work", "Location of work", "Bengaluru", False),
+	("operating_bank_account", "Operating Bank account", "1234567890", False),
+	("uan", "UAN", "100234567890", False),
+	("aadhaar_number", "Aadhaar Number", "123456789012", False),
+	("name_of_aggregator", "Name of aggregator", "", False),
+	("name_of_service", "Name of Service", "", False),
+]
+
+# Columns included in the template when the user hasn't customised the field list
+DEFAULT_FIELDS = [
+	"worker_name", "partner_id", "phone", "email", "dob", "gender",
+	"pan_number", "eshram_id", "drivers_license", "location_of_work",
+	"operating_bank_account", "uan",
+]
+
+
 @frappe.whitelist()
-def get_import_template():
-	"""Return CSV template as a downloadable response."""
-	headers = [
-		"worker_name",
-		"email",
-		"phone",
-		"dob",
-		"gender",
-		"aadhaar_number",
-		"pan_number",
-		"eshram_id",
-		"drivers_license",
-		"location_of_work",
-		"operating_bank_account",
-		"uan",
-		"name_of_aggregator",
-		"name_of_service",
-		"created_by_aggregator",
+def get_importable_fields():
+	"""Return the list of fields the user can choose from for the CSV template."""
+	return [
+		{"fieldname": f, "label": label, "reqd": reqd}
+		for f, label, _sample, reqd in IMPORTABLE_FIELDS
 	]
-	sample = [
-		"Ravi Kumar",
-		"ravi@example.com",
-		"9876543210",
-		"1995-06-15",
-		"Male",
-		"123456789012",
-		"ABCDE1234F",
-		"UW-123456789012",
-		"KA1234567890123",
-		"Bengaluru",
-		"1234567890",
-		"100234567890",
-		"",
-		"",
-		"",
-	]
+
+
+@frappe.whitelist()
+def get_import_template(fields=None):
+	"""Return CSV template as a downloadable response.
+
+	`fields` is an optional JSON-encoded list of fieldnames chosen by the
+	user in the "Choose Fields" popup. Required fields are always included
+	even if the caller omits them.
+	"""
+	catalog = {f: (label, sample, reqd) for f, label, sample, reqd in IMPORTABLE_FIELDS}
+	required = [f for f, _l, _s, reqd in IMPORTABLE_FIELDS if reqd]
+
+	if fields:
+		selected = frappe.parse_json(fields) if isinstance(fields, str) else fields
+		selected = [f for f in selected if f in catalog]
+	else:
+		selected = list(DEFAULT_FIELDS)
+
+	for f in required:
+		if f not in selected:
+			selected.append(f)
+
+	# Keep catalog order regardless of how the selection was passed in
+	headers = [f for f, *_ in IMPORTABLE_FIELDS if f in selected]
+	sample = [catalog[f][1] for f in headers]
+
 	csv_content = ",".join(headers) + "\n" + ",".join(sample) + "\n"
 
 	frappe.response["filename"] = "gig_worker_import_template.csv"
