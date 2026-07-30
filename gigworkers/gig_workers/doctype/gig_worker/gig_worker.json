@@ -72,8 +72,7 @@
   {
    "fieldname": "phone",
    "fieldtype": "Data",
-   "label": "Phone",
-   "reqd": 1
+   "label": "Phone"
   },
   {
    "fieldname": "dob",
@@ -219,7 +218,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-30 12:59:07.433553",
+ "modified": "2026-07-30 02:39:29.076633",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Worker",
