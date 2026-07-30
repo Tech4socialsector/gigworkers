@@ -17,8 +17,8 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	let _agg_data        = null;
 	let _active_from     = "";
 	let _active_to       = "";
-	let _active_svc_cat  = "";
-	let _active_platform = "";
+	let _active_svc_cat  = [];   // array — multiselect
+	let _dd_stack_type   = null; // last open_drilldown() type, for the worker-detail "Back" button
 
 	// Allow admin to view a specific aggregator via URL param ?aggregator=AG001
 	const _agg_override = frappe.utils.get_url_arg("aggregator") || null;
@@ -33,7 +33,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		frappe.call({
 			method: "gigworkers.gig_workers.page.aggregator_dashboard.aggregator_dashboard.get_dashboard_data",
 			args: { from_date: _active_from, to_date: _active_to, service_category: _active_svc_cat,
-				aggregator_override: _agg_override, platform: _active_platform },
+				aggregator_override: _agg_override },
 			callback(r) {
 				if (r.message) { _agg_data = r.message; render_dashboard(r.message); }
 			},
@@ -110,6 +110,44 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		return new Date().toISOString().slice(0, 10).replace(/-/g, "");
 	}
 
+	function worker_link(id) {
+		if (!id) return "-";
+		return `<a href="javascript:void(0)" class="agg-worker-link" data-worker="${id}">${id}</a>`;
+	}
+
+	function txn_link(id) {
+		if (!id) return "-";
+		return `<a href="javascript:void(0)" class="agg-worker-link" data-txn="${id}">${id}</a>`;
+	}
+
+	// ── CSV export ───────────────────────────────────────────────────────────
+
+	function csv_escape(v) {
+		const s = String(v == null ? "" : v);
+		return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+	}
+
+	function strip_html(html) {
+		return $("<div>").html(html == null ? "" : String(html)).text().trim();
+	}
+
+	function export_rows_csv(filename, cols, rows) {
+		if (!cols || !cols.length || !rows || !rows.length) return;
+		const lines = [cols.map(c => csv_escape(c.label)).join(",")];
+		rows.forEach(row => {
+			lines.push(cols.map(c => csv_escape(c.csv ? c.csv(row) : strip_html(c.render(row)))).join(","));
+		});
+		const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `${filename.replace(/[^a-z0-9]+/gi, "_")}_${today_str()}.csv`;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		URL.revokeObjectURL(url);
+	}
+
 	// ── Standalone charts ────────────────────────────────────────────────────
 
 	const STATUS_COLORS = {
@@ -120,8 +158,33 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 	const CAT_COLORS = ['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69','#2e59d9','#17a673','#2c9faf'];
 
+	const WORKER_STATUS_COLORS = {
+		Active: '#1cc88a', Onboarded: '#1cc88a', Inactive: '#e74a3b',
+		Offboarded: '#6c757d', Deceased: '#343a40', Pending: '#f6c23e',
+	};
+
 	function init_agg_charts(data) {
-		const { monthly_trend, status_breakdown, svc_cat_breakdown } = data;
+		const { monthly_trend, status_breakdown, svc_cat_breakdown, worker_status_breakdown } = data;
+
+		// Worker Status Donut
+		if (worker_status_breakdown && worker_status_breakdown.length && frappe && frappe.Chart) {
+			try {
+				$("#agg-worker-status-empty").hide();
+				new frappe.Chart("#agg-worker-status-chart", {
+					type: "donut",
+					data: {
+						labels: worker_status_breakdown.map(r => r.worker_status || "Unknown"),
+						datasets: [{ values: worker_status_breakdown.map(r => r.cnt) }],
+					},
+					height: 200,
+					colors: worker_status_breakdown.map(r => WORKER_STATUS_COLORS[r.worker_status] || "#858796"),
+				});
+			} catch (e) {
+				$("#agg-worker-status-empty").show().text("Chart unavailable");
+			}
+		} else {
+			$("#agg-worker-status-empty").show().text("No worker status data yet");
+		}
 
 		// Monthly Trend Chart (Transaction Count)
 		if (monthly_trend && monthly_trend.length && frappe && frappe.Chart) {
@@ -136,7 +199,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 							{ name: "Completed", values: monthly_trend.map(r => r.completed_count) },
 						],
 					},
-					height: 200,
+					height: 270,
 					colors: ["#c7d5f8", "#4e73df"],
 					barOptions: { spaceRatio: 0.35 },
 					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
@@ -163,7 +226,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 							{ name: "Welfare (₹)", values: monthly_trend.map(r => parseFloat(r.total_welfare || 0)) },
 						],
 					},
-					height: 200,
+					height: 270,
 					colors: ["#36b9cc", "#1cc88a"],
 					lineOptions: { regionFill: 0, dotSize: 4 },
 					axisOptions: { xIsSeries: false, shortenYAxisNumbers: true },
@@ -225,12 +288,12 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	// ── Drill-down modal ─────────────────────────────────────────────────────
 
 	function bind_agg_drilldown(data) {
-		const { recent_transactions, worker_list, pending_wfp, suspected_dups, top_workers } = data;
+		const { recent_transactions, worker_list, aggregator_workers, pending_wfp, suspected_dups, top_workers } = data;
 
 		const txn_cols = [
-			{ label: "Transaction ID", render: t => `<a href="/app/gig-transaction/${t.name}" style="color:#4e73df;">${t.name}</a>` },
+			{ label: "Transaction ID", render: t => txn_link(t.name), csv: t => t.name },
 			{ label: "Date",           render: t => t.date || "-" },
-			{ label: "Gig Worker",     render: t => t.gig_worker || "-" },
+			{ label: "Gig Worker",     render: t => worker_link(t.gig_worker), csv: t => t.gig_worker || "-" },
 			{ label: "Service",        render: t => t.service || "-" },
 			{ label: "Service Category", render: t => t.service_category || "-" },
 			{ label: "Amount",         render: t => fmt_currency(t.amount) },
@@ -367,52 +430,23 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				},
 			},
 			total_workers: {
-				title: "Worker Mapping Log",
-				rows: () => worker_list || [],
+				title: "All Workers",
+				rows: () => aggregator_workers || [],
 				cols: [
-					{ label: "Gig Worker",   render: w => `<a href="/app/gig-worker/${w.gig_worker}" style="color:#4e73df;">${w.gig_worker || "-"}</a>` },
-					{ label: "Service",      render: w => w.service || "-" },
-					{ label: "Event",        render: w => w.event_type || "-" },
-					{ label: "Worker Status", render: w => status_badge(w.worker_status) },
-					{ label: "Logged At",    render: w => (w.log_datetime || "").substring(0, 16) },
+					{ label: "Worker ID",     render: w => worker_link(w.name), csv: w => w.name },
+					{ label: "Name",          render: w => w.worker_name || "-" },
+					{ label: "Phone",         render: w => w.phone || "-" },
+					{ label: "Service",       render: w => w.name_of_service || "-" },
+					{ label: "Status",        render: w => status_badge(w.status) },
+					{ label: "Registered On", render: w => (w.creation || "").substring(0, 10) },
 				],
-				summary: rows => [{ label: "Total Records", value: rows.length }],
+				summary: rows => [{ label: "Total Workers", value: rows.length, color: "#4e73df" }],
 				chart: rows => {
 					const sc = {};
-					rows.forEach(w => { const s = w.worker_status || "Unknown"; sc[s] = (sc[s] || 0) + 1; });
+					rows.forEach(w => { const s = w.status || "Unknown"; sc[s] = (sc[s] || 0) + 1; });
 					const labels = Object.keys(sc);
 					if (!labels.length) return null;
-					return { type: "donut", data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] }, colors: ["#1cc88a", "#6c757d", "#4e73df", "#f6c23e", "#e74a3b"] };
-				},
-			},
-			onboarded_workers: {
-				title: "Onboarded Workers",
-				rows: () => (worker_list || []).filter(w => ["Onboarded", "Active"].includes(w.worker_status)),
-				cols: [
-					{ label: "Gig Worker",   render: w => `<a href="/app/gig-worker/${w.gig_worker}" style="color:#4e73df;">${w.gig_worker || "-"}</a>` },
-					{ label: "Service",      render: w => w.service || "-" },
-					{ label: "Event",        render: w => w.event_type || "-" },
-					{ label: "Worker Status", render: w => status_badge(w.worker_status) },
-					{ label: "Logged At",    render: w => (w.log_datetime || "").substring(0, 16) },
-				],
-				summary: rows => [{ label: "Count", value: rows.length, color: "#1cc88a" }],
-				chart: null,
-			},
-			workers_transacted: {
-				title: "Workers Who Have Transacted",
-				rows: () => recent_transactions,
-				cols: txn_cols,
-				summary: rows => [
-					{ label: "Unique Workers", value: new Set(rows.map(t => t.gig_worker).filter(Boolean)).size, color: "#4e73df" },
-					{ label: "Total Transactions", value: rows.length },
-				],
-				chart: rows => {
-					const sc = {};
-					rows.forEach(t => { const w = t.gig_worker || "Unknown"; sc[w] = (sc[w] || 0) + 1; });
-					const top = Object.entries(sc).sort((a, b) => b[1] - a[1]).slice(0, 8);
-					const labels = top.map(e => e[0]);
-					if (!labels.length) return null;
-					return { type: "bar", data: { labels, datasets: [{ name: "Transactions", values: top.map(e => e[1]) }] }, colors: ["#4e73df"] };
+					return { type: "donut", data: { labels, datasets: [{ values: labels.map(l => sc[l]) }] }, colors: labels.map(l => WORKER_STATUS_COLORS[l] || "#858796") };
 				},
 			},
 			welfare_settled: {
@@ -479,27 +513,26 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			}
 		}
 
-		function open_drilldown(type) {
-			const cfg = configs[type];
-			if (!cfg) return;
-			const rows = cfg.rows();
+		let _dd_export_cols = null;
+		let _dd_export_rows = null;
+		let _dd_export_title = "export";
 
-			if ($.fn.DataTable && $.fn.DataTable.isDataTable("#agg-dd-dt-table")) {
-				$("#agg-dd-dt-table").DataTable().destroy();
-				$("#agg-dd-dt-table").empty();
-			}
+		function destroy_dd_table() {
+			$("#agg-dd-body table.dataTable").each(function () {
+				if ($.fn.DataTable.isDataTable(this)) $(this).DataTable().destroy();
+			});
+		}
 
-			$("#agg-dd-title").text(cfg.title);
-			$("#agg-dd-count").text(`${rows.length} record${rows.length !== 1 ? "s" : ""}`);
+		function reset_table_wrap() {
+			$("#agg-dd-table-wrap").html('<h6>Detail Records</h6><table id="agg-dd-dt-table" class="display" style="width:100%"></table>');
+		}
 
-			render_dd_summary(cfg.summary ? cfg.summary(rows) : null);
-			render_dd_chart(rows.length && cfg.chart ? cfg.chart(rows) : null);
-
-			if (cfg.cols && cfg.cols.length) {
-				const thead = `<thead><tr>${cfg.cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>`;
+		function render_dd_table(cols, rows, empty_msg) {
+			if (cols && cols.length) {
+				const thead = `<thead><tr>${cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>`;
 				const tbody_html = rows.length
-					? rows.map(row => `<tr>${cfg.cols.map(c => `<td>${c.render(row)}</td>`).join("")}</tr>`).join("")
-					: `<tr><td colspan="${cfg.cols.length}" style="text-align:center;color:#aaa;padding:24px;">No records found</td></tr>`;
+					? rows.map(row => `<tr>${cols.map(c => `<td>${c.render(row)}</td>`).join("")}</tr>`).join("")
+					: `<tr><td colspan="${cols.length}" style="text-align:center;color:#aaa;padding:24px;">${empty_msg || "No records found"}</td></tr>`;
 				$("#agg-dd-dt-table").html(`${thead}<tbody>${tbody_html}</tbody>`);
 
 				if (rows.length && $.fn.DataTable) {
@@ -512,24 +545,259 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			} else {
 				$("#agg-dd-dt-table").html(`<tbody><tr><td style="text-align:center;padding:24px;color:#888;">No detailed records available for this view.</td></tr></tbody>`);
 			}
+		}
 
+		function open_drilldown(type) {
+			const cfg = configs[type];
+			if (!cfg) return;
+			const rows = cfg.rows();
+
+			destroy_dd_table();
+			reset_table_wrap();
+
+			$("#agg-dd-title").text(cfg.title);
+			$("#agg-dd-count").text(`${rows.length} record${rows.length !== 1 ? "s" : ""}`);
+			$("#agg-dd-back").hide();
+
+			render_dd_summary(cfg.summary ? cfg.summary(rows) : null);
+			render_dd_chart(rows.length && cfg.chart ? cfg.chart(rows) : null);
+			render_dd_table(cfg.cols, rows);
+
+			_dd_export_cols = cfg.cols;
+			_dd_export_rows = rows;
+			_dd_export_title = cfg.title;
+			$("#agg-dd-export-csv").toggle(!!(cfg.cols && cfg.cols.length && rows.length));
+
+			_dd_stack_type = type;
 			$("#agg-dd-overlay").addClass("active");
 			$("#agg-dd-body").scrollTop(0);
 		}
 
-		function close_drilldown() {
-			if ($.fn.DataTable && $.fn.DataTable.isDataTable("#agg-dd-dt-table")) {
-				$("#agg-dd-dt-table").DataTable().destroy();
-				$("#agg-dd-dt-table").empty();
+		function open_worker_detail(gig_worker, return_type) {
+			$("#agg-dd-title").text(`Worker Profile — ${gig_worker}`);
+			$("#agg-dd-count").text("Loading…");
+			$("#agg-dd-back").toggle(!!return_type);
+			$("#agg-dd-export-csv").hide();
+			$("#agg-dd-summary").hide();
+			$("#agg-dd-chart-wrap").hide();
+			destroy_dd_table();
+			$("#agg-dd-dt-table").html('<tbody><tr><td style="text-align:center;padding:30px;color:#aaa;"><i class="fa fa-spinner fa-spin"></i> Loading worker profile…</td></tr></tbody>');
+			_dd_stack_type = return_type || null;
+
+			$("#agg-dd-overlay").addClass("active");
+			$("#agg-dd-body").scrollTop(0);
+
+			frappe.call({
+				method: "gigworkers.gig_workers.page.aggregator_dashboard.aggregator_dashboard.get_worker_detail",
+				args: { gig_worker, aggregator_override: _agg_override },
+				callback(r) {
+					if (r.message) render_worker_detail(r.message);
+				},
+				error() {
+					$("#agg-dd-count").text("Failed to load");
+				},
+			});
+		}
+
+		function render_worker_detail(d) {
+			const w = d.worker_info || {};
+			$("#agg-dd-title").text(`Worker Profile — ${w.worker_name || d.gig_worker}`);
+			$("#agg-dd-count").text(d.gig_worker);
+
+			render_dd_summary([
+				{ label: "Total Transactions", value: d.summary.total_transactions, color: "#4e73df" },
+				{ label: "Completed", value: d.summary.completed_transactions, color: "#1cc88a" },
+				{ label: "Total Amount", value: fmt_currency(d.summary.total_amount) },
+				{ label: "Total Welfare", value: fmt_currency(d.summary.total_welfare), color: "#1cc88a" },
+				{ label: "Current Status", value: d.summary.current_status || "-" },
+			]);
+			render_dd_chart(null);
+
+			const worker_txn_cols = [
+				{ label: "Transaction ID", render: t => txn_link(t.name), csv: t => t.name },
+				{ label: "Date", render: t => t.date || "-" },
+				{ label: "Service", render: t => t.service || "-" },
+				{ label: "Service Category", render: t => t.service_category || "-" },
+				{ label: "Amount", render: t => fmt_currency(t.amount) },
+				{ label: "Welfare", render: t => fmt_currency(t.welfare_amount) },
+				{ label: "Status", render: t => status_badge(t.status) },
+			];
+
+			const profile_html = `
+				<div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 6px rgba(0,0,0,0.07);margin-bottom:16px;
+					display:flex;flex-wrap:wrap;gap:20px;">
+					<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Worker ID</div><div style="font-weight:700;">${d.gig_worker}</div></div>
+					${w.worker_name ? `<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Name</div><div style="font-weight:700;">${w.worker_name}</div></div>` : ""}
+					${w.phone ? `<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Phone</div><div style="font-weight:700;">${w.phone}</div></div>` : ""}
+					${w.status ? `<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Profile Status</div><div>${status_badge(w.status)}</div></div>` : ""}
+				</div>`;
+
+			destroy_dd_table();
+			$("#agg-dd-table-wrap").html(`
+				${profile_html}
+				<h6>Transaction History</h6>
+				<table id="agg-dd-dt-table" class="display" style="width:100%"></table>
+				<h6 style="margin-top:18px;">Worker Mapping Log</h6>
+				<table id="agg-dd-worker-log" class="display" style="width:100%"></table>
+			`);
+			render_dd_table(worker_txn_cols, d.transactions || [], "No transactions for this worker yet.");
+
+			const log_cols = [
+				{ label: "Service", render: l => l.service || "-" },
+				{ label: "Event", render: l => l.event_type || "-" },
+				{ label: "Worker Status", render: l => status_badge(l.worker_status) },
+				{ label: "Logged At", render: l => (l.log_datetime || "").substring(0, 16) },
+			];
+			const log_rows = d.mapping_log || [];
+			const log_thead = `<thead><tr>${log_cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>`;
+			const log_tbody = log_rows.length
+				? log_rows.map(r => `<tr>${log_cols.map(c => `<td>${c.render(r)}</td>`).join("")}</tr>`).join("")
+				: `<tr><td colspan="${log_cols.length}" style="text-align:center;color:#aaa;padding:20px;">No mapping log entries.</td></tr>`;
+			$("#agg-dd-worker-log").html(`${log_thead}<tbody>${log_tbody}</tbody>`);
+			if (log_rows.length && $.fn.DataTable) {
+				$("#agg-dd-worker-log").DataTable({
+					pageLength: 10, lengthMenu: [5, 10, 25, 50], order: [],
+					language: { search: "Filter:", lengthMenu: "Show _MENU_ entries", info: "Showing _START_ to _END_ of _TOTAL_ records", emptyTable: "No records found" },
+					dom: '<"dt-top"lf>rt<"dt-bottom"ip>',
+				});
 			}
+
+			_dd_export_cols = worker_txn_cols;
+			_dd_export_rows = d.transactions || [];
+			_dd_export_title = `worker_${d.gig_worker}_transactions`;
+			$("#agg-dd-export-csv").toggle(!!(d.transactions && d.transactions.length));
+		}
+
+		function open_transaction_detail(transaction, return_type) {
+			$("#agg-dd-title").text(`Transaction — ${transaction}`);
+			$("#agg-dd-count").text("Loading…");
+			$("#agg-dd-back").toggle(!!return_type);
+			$("#agg-dd-export-csv").hide();
+			$("#agg-dd-summary").hide();
+			$("#agg-dd-chart-wrap").hide();
+			destroy_dd_table();
+			reset_table_wrap();
+			$("#agg-dd-table-wrap").html('<div style="text-align:center;padding:30px;color:#aaa;"><i class="fa fa-spinner fa-spin"></i> Loading transaction details…</div>');
+			_dd_stack_type = return_type || null;
+
+			$("#agg-dd-overlay").addClass("active");
+			$("#agg-dd-body").scrollTop(0);
+
+			frappe.call({
+				method: "gigworkers.gig_workers.page.aggregator_dashboard.aggregator_dashboard.get_transaction_detail",
+				args: { transaction, aggregator_override: _agg_override },
+				callback(r) {
+					if (r.message) render_transaction_detail(r.message);
+				},
+				error() {
+					$("#agg-dd-count").text("Failed to load");
+				},
+			});
+		}
+
+		function render_transaction_detail(d) {
+			const t = d.transaction || {};
+			$("#agg-dd-title").text(`Transaction — ${t.name}`);
+			$("#agg-dd-count").text(t.service_category ? t.service_category : "");
+
+			render_dd_summary([
+				{ label: "Amount", value: fmt_currency(t.amount), color: "#36b9cc" },
+				{ label: "Base Payout", value: fmt_currency(t.base_payout) },
+				{ label: "Welfare", value: fmt_currency(t.welfare_amount), color: "#1cc88a" },
+				{ label: "Net Payout to Worker", value: fmt_currency(t.net_payout_to_worker) },
+			]);
+			render_dd_chart(null);
+
+			function field(label, value) {
+				if (value === null || value === undefined || value === "") return "";
+				return `<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">${label}</div>
+					<div style="font-size:14px;font-weight:600;margin-top:4px;">${value}</div>
+				</div>`;
+			}
+
+			const grid = `
+				<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:20px;">
+					${field("Gig Worker", worker_link(t.gig_worker))}
+					${field("Service", t.service)}
+					${field("Service Category", t.service_category)}
+					${field("Service Type", t.service_type)}
+					${field("Role", t.role)}
+					${field("Date", t.date)}
+					${field("Transaction Date", t.transaction_date)}
+					${field("Status", status_badge(t.status))}
+					${field("Status of Order", t.status_of_order)}
+					${field("Settlement Status", t.settlement_status)}
+					${field("External Transaction ID", t.external_transaction_id)}
+					${field("Incentives", t.incentives != null ? fmt_currency(t.incentives) : null)}
+					${field("Welfare %", t.welfare_percentage != null ? t.welfare_percentage + "%" : null)}
+					${field("Welfare Cap", t.welfare_cap != null ? fmt_currency(t.welfare_cap) : null)}
+					${field("Deduction", t.deduction != null ? fmt_currency(t.deduction) : null)}
+					${field("District", t.district)}
+					${field("City", t.city)}
+					${field("Adjustment Count", t.adjustment_count)}
+					${field("Suspected Duplicate", t.suspected_duplicate ? "Yes" : null)}
+					${field("Duplicate Of", t.duplicate_of ? txn_link(t.duplicate_of) : null)}
+					${field("Confirmed At", t.confirmed_at)}
+					${field("Created", t.creation ? String(t.creation).substring(0, 16) : null)}
+					${field("Last Modified", t.modified ? String(t.modified).substring(0, 16) : null)}
+				</div>`;
+
+			const wfp_cols = [
+				{ label: "Payment ID", render: p => `<a href="/app/welfare-fee-payment/${p.name}" style="color:#4e73df;">${p.name}</a>`, csv: p => p.name },
+				{ label: "Fee Amount", render: p => fmt_currency(p.fee_amount) },
+				{ label: "Due Date", render: p => p.payment_date || "-" },
+				{ label: "Status", render: p => status_badge(p.payment_status) },
+				{ label: "Settlement Status", render: p => p.settlement_status || "-" },
+				{ label: "Mode", render: p => p.mode_of_payment || "-" },
+			];
+			const wfp_rows = d.welfare_payments || [];
+
+			destroy_dd_table();
+			$("#agg-dd-table-wrap").html(`
+				<h6>Transaction Details</h6>
+				${grid}
+				<h6>Linked Welfare Fee Payments</h6>
+				<table id="agg-dd-dt-table" class="display" style="width:100%"></table>
+			`);
+			render_dd_table(wfp_cols, wfp_rows, "No welfare fee payments linked to this transaction.");
+
+			_dd_export_cols = wfp_cols;
+			_dd_export_rows = wfp_rows;
+			_dd_export_title = `transaction_${t.name}_welfare_payments`;
+			$("#agg-dd-export-csv").toggle(!!wfp_rows.length);
+		}
+
+		function close_drilldown() {
+			destroy_dd_table();
+			reset_table_wrap();
 			$("#agg-dd-overlay").removeClass("active");
+			_dd_stack_type = null;
 		}
 
 		$(document).off("click.agg_drilldown").off("keydown.agg_drilldown");
-		$("#agg-dashboard").off("click.agg_drilldown");
+		$("#agg-dashboard").off("click.agg_drilldown").off("click.agg_worker_link").off("click.agg_txn_link");
 
 		$("#agg-dashboard").on("click.agg_drilldown", ".agg-drillable[data-drilldown]", function () {
 			open_drilldown($(this).data("drilldown"));
+		});
+
+		$("#agg-dashboard").on("click.agg_worker_link", ".agg-worker-link[data-worker]", function (e) {
+			e.stopPropagation();
+			open_worker_detail($(this).data("worker"), _dd_stack_type);
+		});
+
+		$("#agg-dashboard").on("click.agg_txn_link", ".agg-worker-link[data-txn]", function (e) {
+			e.stopPropagation();
+			open_transaction_detail($(this).data("txn"), _dd_stack_type);
+		});
+
+		$("#agg-dd-back").on("click", function () {
+			if (_dd_stack_type) open_drilldown(_dd_stack_type);
+		});
+
+		$("#agg-dd-export-csv").on("click", function () {
+			export_rows_csv(_dd_export_title, _dd_export_cols, _dd_export_rows);
 		});
 
 		$("#agg-dd-close").on("click", close_drilldown);
@@ -721,10 +989,15 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 	}
 
 	function render_filter_bar(service_categories, active_filters) {
-		const cat_opts = (service_categories || []).map(c =>
-			`<option value="${c}" ${active_filters.service_category === c ? "selected" : ""}>${c}</option>`
-		).join("");
-		const has_filter = active_filters.from_date || active_filters.to_date || active_filters.service_category;
+		const selected_cats = active_filters.service_category || [];
+		const cat_opts = (service_categories || []).map(c => {
+			const checked = selected_cats.includes(c) ? "checked" : "";
+			return `<label class="agg-ms-opt"><input type="checkbox" class="agg-ms-checkbox" value="${c}" ${checked}> ${c}</label>`;
+		}).join("");
+		const has_filter = active_filters.from_date || active_filters.to_date || selected_cats.length;
+		const cat_summary = !selected_cats.length ? "All Services"
+			: selected_cats.length === 1 ? selected_cats[0]
+			: `${selected_cats.length} categories selected`;
 		return `
 		<div id="agg-filter-bar" style="background:#fff;border-radius:10px;padding:16px 20px;
 			box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:20px;
@@ -739,19 +1012,28 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				<input type="date" id="agg-filter-to" value="${active_filters.to_date}"
 					style="width:100%;padding:7px 10px;border:1px solid #d1d3e2;border-radius:6px;font-size:13px;">
 			</div>
-			<div style="flex:1;min-width:160px;">
+			<div style="flex:1;min-width:200px;position:relative;">
 				<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Service Category</label>
-				<select id="agg-filter-cat"
-					style="width:100%;padding:7px 10px;border:1px solid #d1d3e2;border-radius:6px;font-size:13px;">
-					<option value="">All Services</option>
-					${cat_opts}
-				</select>
+				<button type="button" id="agg-ms-toggle"
+					style="width:100%;text-align:left;padding:7px 10px;border:1px solid #d1d3e2;border-radius:6px;
+						font-size:13px;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+					<span id="agg-ms-summary" style="color:${selected_cats.length ? '#333' : '#888'};">${cat_summary}</span>
+					<i class="fa fa-chevron-down" style="font-size:10px;color:#aaa;"></i>
+				</button>
+				<div id="agg-ms-panel" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;
+					background:#fff;border:1px solid #d1d3e2;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.15);
+					z-index:50;max-height:260px;overflow-y:auto;">
+					<label class="agg-ms-opt" style="border-bottom:1px solid #eee;font-weight:600;">
+						<input type="checkbox" id="agg-ms-select-all" ${service_categories && service_categories.length && selected_cats.length === service_categories.length ? "checked" : ""}> Select All
+					</label>
+					${cat_opts || '<div style="padding:10px 14px;color:#aaa;font-size:12px;">No categories yet</div>'}
+				</div>
 			</div>
 			<div style="display:flex;gap:8px;align-items:flex-end;">
 				<button id="agg-btn-apply-filter"
 					style="background:#e74a3b;color:#fff;border:none;border-radius:6px;
 						padding:8px 20px;font-size:13px;cursor:pointer;font-weight:600;">
-					Apply Filter
+					<i class="fa fa-search" style="margin-right:5px;"></i>Apply
 				</button>
 				${has_filter ? `<button id="agg-btn-clear-filter"
 					style="background:#fff;color:#e74a3b;border:1px solid #e74a3b;
@@ -763,7 +1045,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				Showing filtered results
 				${active_filters.from_date ? ` from <b>${active_filters.from_date}</b>` : ""}
 				${active_filters.to_date ? ` to <b>${active_filters.to_date}</b>` : ""}
-				${active_filters.service_category ? ` &mdash; Service: <b style="color:#e74a3b;">${active_filters.service_category}</b>` : ""}
+				${selected_cats.length ? ` &mdash; Service: <b style="color:#e74a3b;">${selected_cats.join(", ")}</b>` : ""}
 			</div>` : ""}
 		</div>`;
 	}
@@ -843,7 +1125,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		const rows = top_workers.map((w, i) => `
 			<tr>
 				<td style="font-weight:600;color:#555;">${i + 1}</td>
-				<td><a href="/app/gig-worker/${w.gig_worker}" style="color:#4e73df;">${w.gig_worker || "-"}</a></td>
+				<td>${worker_link(w.gig_worker)}</td>
 				<td style="text-align:center;font-weight:600;">${w.txn_count || 0}</td>
 				<td style="text-align:right;">${fmt_currency(w.total_amount)}</td>
 				<td style="text-align:right;color:#1cc88a;">${fmt_currency(w.total_welfare)}</td>
@@ -895,52 +1177,70 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		const { aggregator, aggregator_id, stats, workers, welfare_payments,
 			recent_transactions, worker_list, pending_wfp,
 			service_categories, active_filters, suspected_dups,
-			services, monthly_trend, status_breakdown,
-			svc_cat_breakdown, top_workers,
+			service_category_list, monthly_trend, status_breakdown,
+			svc_cat_breakdown, worker_status_breakdown, top_workers,
 			quarterly_invoices, invoice_summary } = data;
 
-		const has_charts = (monthly_trend && monthly_trend.length) || (status_breakdown && status_breakdown.length);
+		const has_charts = (monthly_trend && monthly_trend.length) || (status_breakdown && status_breakdown.length)
+			|| (worker_status_breakdown && worker_status_breakdown.length) || (svc_cat_breakdown && svc_cat_breakdown.length);
 
 		const html = `
 		<style>
-			.agg-card-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+			#agg-dashboard { background: #f3f5fb; border-radius: 14px; }
+			.agg-card-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 			.agg-stat-card {
-				flex: 1; min-width: 150px; background: #fff; border-radius: 10px;
-				padding: 18px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-				border-left: 4px solid var(--card-color, #4e73df);
+				flex: 1; min-width: 130px; background: #fff; border-radius: 10px;
+				padding: 12px 13px; box-shadow: 0 1px 2px rgba(23,26,45,0.04), 0 4px 10px rgba(23,26,45,0.05);
+				border-left: 3px solid var(--card-color, #4e73df);
+				transition: box-shadow .15s;
 			}
-			.agg-stat-card .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
-			.agg-stat-card .value { font-size: 26px; font-weight: 700; color: #333; margin-top: 6px; }
-			.agg-stat-card .sub { font-size: 11px; color: #aaa; margin-top: 3px; }
+			.agg-stat-card .label { font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+			.agg-stat-card .value { font-size: 19px; font-weight: 700; color: #2b2d3e; margin-top: 4px; line-height: 1.15; }
+			.agg-stat-card .sub { font-size: 10.5px; color: #a7abbd; margin-top: 2px; }
 			.agg-stat-card.agg-drillable {
 				cursor: pointer;
 				transition: transform .15s, box-shadow .15s;
 				position: relative;
 			}
 			.agg-stat-card.agg-drillable:hover {
-				transform: translateY(-3px);
-				box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+				transform: translateY(-2px);
+				box-shadow: 0 6px 18px rgba(23,26,45,0.11);
 			}
 			.agg-stat-card.agg-drillable::after {
 				content: "↗";
-				position: absolute; top: 10px; right: 12px;
-				font-size: 13px; color: #ddd; transition: color .15s;
+				position: absolute; top: 8px; right: 10px;
+				font-size: 12px; color: #e2e4ee; transition: color .15s;
 			}
 			.agg-stat-card.agg-drillable:hover::after { color: var(--card-color, #4e73df); }
-			.agg-section { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 24px; }
-			.agg-section h5 { font-weight: 700; margin-bottom: 14px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-			.agg-profile { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; background:#fff; border-radius:10px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
-			.agg-avatar { width: 52px; height: 52px; border-radius: 50%; background: #e74a3b; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; flex-shrink:0; }
-			.agg-profile-info .name { font-size: 20px; font-weight: 700; color: #333; }
-			.agg-profile-info .meta { font-size: 13px; color: #888; margin-top: 4px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+			.agg-section {
+				background: #fff; border-radius: 12px; padding: 18px 20px;
+				box-shadow: 0 1px 2px rgba(23,26,45,0.04), 0 4px 12px rgba(23,26,45,0.05); margin-bottom: 20px;
+			}
+			.agg-section h5 { font-weight: 700; margin-bottom: 14px; color: #333546; font-size: 14.5px; border-bottom: 1px solid #f0f1f6; padding-bottom: 10px; }
+			.agg-section-label {
+				font-size: 11px; font-weight: 700; color: #9297ab; text-transform: uppercase;
+				letter-spacing: .7px; margin: 22px 0 10px; display: flex; align-items: center; gap: 6px;
+			}
+			.agg-profile {
+				display: flex; align-items: center; gap: 16px; margin-bottom: 20px; background:#fff;
+				border-radius:12px; padding:16px 20px; box-shadow: 0 1px 2px rgba(23,26,45,0.04), 0 4px 12px rgba(23,26,45,0.05);
+			}
+			.agg-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg,#e74a3b,#f6685c); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; flex-shrink:0; }
+			.agg-profile-info .name { font-size: 18px; font-weight: 700; color: #2b2d3e; }
+			.agg-profile-info .meta { font-size: 12.5px; color: #8a8fa3; margin-top: 4px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 			.highlight { color: #e74a3b; font-weight: 700; }
 			.dt-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 			.dt-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-			table.dataTable thead th { background: #f8f9fa; color: #555; font-weight: 600; }
-			table.dataTable tbody tr:hover td { background: #fafafa; }
-			table.dataTable { font-size: 13px; }
-			.agg-section-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
+			table.dataTable thead th { background: #f8f9fc; color: #666a7d; font-weight: 600; }
+			table.dataTable tbody tr:hover td { background: #fafbfd; }
+			table.dataTable { font-size: 12.5px; }
+			.agg-section-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
 			.agg-section-row > .agg-section { margin-bottom: 0; }
+			.agg-ms-opt { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 13px; color: #333; cursor: pointer; margin: 0; }
+			.agg-ms-opt:hover { background: #f8f9fa; }
+			.agg-worker-link { color: #4e73df; text-decoration: underline; cursor: pointer; }
+			.agg-worker-link:hover { color: #224abe; }
+			.agg-cat-chip:hover { opacity: .85; }
 
 			/* ── Drill-down modal ── */
 			#agg-dd-overlay {
@@ -967,6 +1267,16 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				cursor: pointer; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: all .12s;
 			}
 			#agg-dd-close:hover { color: #333; background: #f5f5f5; }
+			#agg-dd-back {
+				background: #f5f5f5; border: none; font-size: 15px; color: #555; width: 30px; height: 30px;
+				border-radius: 50%; cursor: pointer; flex-shrink: 0; margin-top: 1px;
+			}
+			#agg-dd-back:hover { background: #e9e9e9; color: #333; }
+			#agg-dd-export-csv {
+				background: #fff; border: 1px solid #1cc88a; color: #1cc88a; border-radius: 6px;
+				padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+			}
+			#agg-dd-export-csv:hover { background: #1cc88a; color: #fff; }
 			#agg-dd-body { padding: 16px 20px 20px; overflow-y: auto; flex: 1; }
 			#agg-dd-summary { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 			.agg-dd-stat {
@@ -1027,7 +1337,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 					<span><i class="fa fa-envelope" style="margin-right:4px;"></i>${aggregator.email || ""}</span>
 					${aggregator.mobile ? `<span><i class="fa fa-phone" style="margin-right:4px;"></i>${aggregator.mobile}</span>` : ""}
 					${status_badge(aggregator.status)}
-					${(services && services.length) ? `<span style="color:#4e73df;font-weight:600;"><i class="fa fa-building" style="margin-right:4px;"></i>${services.length} Service${services.length > 1 ? "s" : ""}</span>` : ""}
+					${(service_category_list && service_category_list.length) ? `<span style="color:#4e73df;font-weight:600;"><i class="fa fa-building" style="margin-right:4px;"></i>${service_category_list.length} Service Categor${service_category_list.length > 1 ? "ies" : "y"}</span>` : ""}
 				</div>
 			</div>
 		</div>
@@ -1060,85 +1370,66 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			</div>`}
 		</div>` : ""}
 
-		${(services && services.length) ? `
-		<div class="agg-section" style="margin-bottom:24px;">
-			<h5><i class="fa fa-building" style="margin-right:6px;color:#4e73df;"></i>My Registered Services</h5>
-			<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="svc-tabs">
-					<button class="svc-tab-btn" data-idx="-1" data-svc=""
-						style="padding:6px 18px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
-						border:2px solid #aaa;background:${!_active_platform?'#555':'#fff'};color:${!_active_platform?'#fff':'#555'};">
-						<i class="fa fa-th" style="font-size:10px;margin-right:4px;"></i> All Services
-					</button>
-				${(services || []).map((s, i) => `
-					<button class="svc-tab-btn" data-idx="${i}" data-svc="${s.service_name}"
-						style="padding:6px 18px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
-						border:2px solid #4e73df;background:${_active_platform ? (_active_platform===s.service_name?'#4e73df':'#fff') : (i===0?'#4e73df':'#fff')};color:${_active_platform ? (_active_platform===s.service_name?'#fff':'#4e73df') : (i===0?'#fff':'#4e73df')};">
-						<i class="fa fa-circle" style="font-size:8px;margin-right:4px;color:${s.service_status==='Active'?'#1cc88a':'#aaa'};"></i>
-						${s.service_name}
-					</button>`).join("")}
+		<div class="agg-section" style="margin-bottom:20px;">
+			<h5><i class="fa fa-building" style="margin-right:6px;color:#4e73df;"></i>Company Profile</h5>
+			<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;">
+				<div style="background:#f8f9fc;border-radius:8px;padding:12px;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Company Type</div>
+					<div style="font-size:14px;font-weight:600;margin-top:4px;">${aggregator.company_type || "-"}</div>
+				</div>
+				<div style="background:#f8f9fc;border-radius:8px;padding:12px;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Company ID</div>
+					<div style="font-size:14px;font-weight:600;margin-top:4px;">${aggregator.company_id || "-"}</div>
+				</div>
+				<div style="background:#f8f9fc;border-radius:8px;padding:12px;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">CIN Number</div>
+					<div style="font-size:14px;font-weight:600;margin-top:4px;font-family:monospace;">${aggregator.cin_number || "-"}</div>
+				</div>
+				<div style="background:#f8f9fc;border-radius:8px;padding:12px;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">PAN</div>
+					<div style="font-size:14px;font-weight:600;margin-top:4px;font-family:monospace;">${aggregator.pan_number || "-"}</div>
+				</div>
+				<div style="background:#f8f9fc;border-radius:8px;padding:12px;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">GSTIN</div>
+					<div style="font-size:14px;font-weight:600;margin-top:4px;font-family:monospace;">${aggregator.gstin || "-"}</div>
+				</div>
+				${aggregator.website_url ? `<div style="background:#f8f9fc;border-radius:8px;padding:12px;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Website</div>
+					<div style="margin-top:4px;"><a href="${aggregator.website_url}" target="_blank" style="color:#4e73df;">${aggregator.website_url}</a></div>
+				</div>` : ""}
+				${aggregator.app_url ? `<div style="background:#f8f9fc;border-radius:8px;padding:12px;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">App URL</div>
+					<div style="margin-top:4px;"><a href="${aggregator.app_url}" target="_blank" style="color:#4e73df;">${aggregator.app_url}</a></div>
+				</div>` : ""}
+				${aggregator.registered_address ? `<div style="background:#f8f9fc;border-radius:8px;padding:12px;grid-column:span 2;">
+					<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Registered Address</div>
+					<div style="font-size:14px;font-weight:500;margin-top:4px;">${aggregator.registered_address}</div>
+				</div>` : ""}
 			</div>
-			<div id="svc-detail-panel">
-				${(services || []).map((s, i) => `
-				<div class="svc-detail" data-idx="${i}" style="display:${_active_platform ? (_active_platform===s.service_name?'block':'none') : (i===0?'block':'none')}">
-					<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
-						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Brand Name</div>
-							<div style="font-size:15px;font-weight:600;margin-top:4px;">${s.brand_name || "-"}</div>
-						</div>
-						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Company Type</div>
-							<div style="font-size:15px;font-weight:600;margin-top:4px;">${s.company_type || "-"}</div>
-						</div>
-						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Company ID</div>
-							<div style="font-size:15px;font-weight:600;margin-top:4px;">${s.company_id || "-"}</div>
-						</div>
-						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">PAN</div>
-							<div style="font-size:15px;font-weight:600;margin-top:4px;font-family:monospace;">${s.pan || "-"}</div>
-						</div>
-						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">GSTIN</div>
-							<div style="font-size:15px;font-weight:600;margin-top:4px;font-family:monospace;">${s.gstin || "-"}</div>
-						</div>
-						<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Status</div>
-							<div style="margin-top:4px;">${s.service_status === 'Active'
-								? '<span style="background:#d4edda;color:#155724;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">Active</span>'
-								: '<span style="background:#f8d7da;color:#721c24;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">Inactive</span>'}</div>
-						</div>
-						${s.address ? `<div style="background:#f8f9fa;border-radius:8px;padding:12px;grid-column:span 2;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Registered Address</div>
-							<div style="font-size:14px;font-weight:500;margin-top:4px;">${s.address}</div>
-						</div>` : ""}
-						${s.website_url ? `<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Website</div>
-							<div style="margin-top:4px;"><a href="${s.website_url}" target="_blank" style="color:#4e73df;">${s.website_url}</a></div>
-						</div>` : ""}
-						${s.app_url ? `<div style="background:#f8f9fa;border-radius:8px;padding:12px;">
-							<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">App URL</div>
-							<div style="margin-top:4px;"><a href="${s.app_url}" target="_blank" style="color:#4e73df;">${s.app_url}</a></div>
-						</div>` : ""}
-					</div>
-				</div>`).join("")}
-			</div>
+			${(service_category_list && service_category_list.length) ? `
+			<div style="margin-top:16px;">
+				<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
+					Registered Service Categories <span style="text-transform:none;font-weight:400;color:#bbb;">(click to filter the dashboard)</span>
+				</div>
+				<div style="display:flex;flex-wrap:wrap;gap:8px;">
+					${service_category_list.map(c => {
+						const cat_name = c.category_name || c.category_id;
+						const is_active = (active_filters.service_category || []).includes(cat_name);
+						return `<span class="agg-cat-chip${is_active ? " active" : ""}" data-cat="${frappe.utils.escape_html(cat_name)}"
+							style="background:${is_active ? "#4e73df" : "#eef2fd"};color:${is_active ? "#fff" : "#4e73df"};
+								padding:5px 14px;border-radius:16px;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s,color .15s;">
+							${cat_name}${is_active ? ' <i class="fa fa-times-circle" style="margin-left:3px;"></i>' : ""}
+						</span>`;
+					}).join("")}
+				</div>
+			</div>` : `
+			<div style="margin-top:16px;font-size:12.5px;color:#aaa;">
+				<i class="fa fa-info-circle" style="margin-right:4px;"></i>No service categories registered yet. Please contact the admin to update your profile.
+			</div>`}
 		</div>
-		` : `
-		<div class="agg-section" style="margin-bottom:24px;text-align:center;color:#888;padding:30px;">
-			<i class="fa fa-building" style="font-size:28px;margin-bottom:8px;display:block;color:#ccc;"></i>
-			No services registered yet. Please contact the admin to update your profile.
-		</div>
-		`}
-
-		${_active_platform ? `
-		<div style="background:#e8f4fd;border:1.5px solid #4e73df;border-radius:8px;padding:10px 18px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
-			<i class="fa fa-filter" style="color:#4e73df;"></i>
-			<span style="font-weight:600;color:#4e73df;">Filtered by: ${_active_platform}</span>
-			<span style="font-size:12px;color:#888;margin-left:4px;">Stats and tables below show data for this service only</span>
-		</div>` : ""}
 
 		<!-- Transaction Count Cards -->
-		<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">
+		<div class="agg-section-label">
 			<i class="fa fa-exchange" style="margin-right:4px;"></i> Transaction Overview
 		</div>
 		<div class="agg-card-row">
@@ -1171,7 +1462,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		</div>
 
 		<!-- Financial Amount Cards -->
-		<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">
+		<div class="agg-section-label">
 			<i class="fa fa-inr" style="margin-right:4px;"></i> Financial Summary
 		</div>
 		<div class="agg-card-row">
@@ -1202,29 +1493,12 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			</div>
 		</div>
 
-		<!-- Worker Cards -->
-		<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">
-			<i class="fa fa-users" style="margin-right:4px;"></i> Worker Summary
-		</div>
-		<div class="agg-card-row" style="margin-bottom:24px;">
-			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="workers_transacted">
-				<div class="label">Workers Transacted</div>
-				<div class="value">${workers.total}</div>
-				<div class="sub">Unique workers with transactions</div>
-			</div>
-			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="onboarded_workers">
-				<div class="label">Onboarded Workers</div>
-				<div class="value">${workers.active}</div>
-				<div class="sub">Active in mapping log</div>
-			</div>
-		</div>
-
 		<!-- Analytics Charts -->
 		${has_charts ? `
-		<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">
+		<div class="agg-section-label">
 			<i class="fa fa-bar-chart" style="margin-right:4px;"></i> Analytics
 		</div>
-		<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:24px;">
+		<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:20px;margin-bottom:16px;">
 			${(monthly_trend && monthly_trend.length) ? `
 			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
 				<h5>
@@ -1253,12 +1527,25 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 					<span><span style="display:inline-block;width:10px;height:10px;background:#1cc88a;border-radius:2px;margin-right:4px;"></span>Welfare</span>
 				</div>
 			</div>` : ""}
+		</div>
+		<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:24px;">
+			${(worker_status_breakdown && worker_status_breakdown.length) ? `
+			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
+				<h5>
+					<i class="fa fa-pie-chart" style="color:#4e73df;margin-right:6px;"></i>
+					Worker Status
+					<a href="javascript:void(0)" class="agg-drillable" data-drilldown="total_workers"
+						style="float:right;font-size:11.5px;font-weight:500;color:#4e73df;">All Workers &rarr;</a>
+				</h5>
+				<div id="agg-worker-status-chart"></div>
+				<p id="agg-worker-status-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
+			</div>` : ""}
 			${(svc_cat_breakdown && svc_cat_breakdown.length) ? `
 			<div class="agg-section" style="margin-bottom:0;padding-bottom:8px;">
 				<h5>
 					<i class="fa fa-pie-chart" style="color:#36b9cc;margin-right:6px;"></i>
 					By Service Category
-					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Transaction count</span>
+					<span style="float:right;font-size:11.5px;font-weight:400;color:#aaa;">Txn count</span>
 				</h5>
 				<div id="agg-svc-cat-chart"></div>
 				<p id="agg-svc-cat-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
@@ -1268,7 +1555,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				<h5>
 					<i class="fa fa-pie-chart" style="color:#36b9cc;margin-right:6px;"></i>
 					Payment Status
-					<span style="float:right;font-size:12px;font-weight:400;color:#aaa;">Current filter</span>
+					<span style="float:right;font-size:11.5px;font-weight:400;color:#aaa;">Current filter</span>
 				</h5>
 				<div id="agg-status-chart"></div>
 				<p id="agg-status-empty" style="text-align:center;color:#ccc;font-size:12px;display:none;padding:40px 0;margin:0;"></p>
@@ -1302,9 +1589,9 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				</tr></thead>
 				<tbody>
 					${recent_transactions.map(t => `<tr>
-						<td><a href="/app/gig-transaction/${t.name}" style="color:#4e73df;">${t.name}</a></td>
+						<td>${txn_link(t.name)}</td>
 						<td>${t.date || "-"}</td>
-						<td>${t.gig_worker || "-"}</td>
+						<td>${worker_link(t.gig_worker)}</td>
 						<td>${t.service || "-"}</td>
 						<td>${t.service_category || "-"}</td>
 						<td>${fmt_currency(t.amount)}</td>
@@ -1355,9 +1642,9 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				</tr></thead>
 				<tbody>
 					${suspected_dups.map(d => `<tr>
-						<td><a href="/app/gig-transaction/${d.name}" style="color:#4e73df;">${d.name}</a></td>
+						<td>${txn_link(d.name)}</td>
 						<td>${d.date || "-"}</td>
-						<td>${d.gig_worker || "-"}</td>
+						<td>${worker_link(d.gig_worker)}</td>
 						<td>${d.service || "-"}</td>
 						<td>${d.service_category || "-"}</td>
 						<td style="color:#e74a3b;font-weight:600;">${fmt_currency(d.amount)}</td>
@@ -1377,11 +1664,19 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 		<div id="agg-dd-overlay">
 			<div id="agg-dd-modal">
 				<div id="agg-dd-header">
-					<div>
-						<div id="agg-dd-title"></div>
-						<div id="agg-dd-count"></div>
+					<div style="display:flex;align-items:flex-start;gap:10px;">
+						<button id="agg-dd-back" title="Back" style="display:none;">&larr;</button>
+						<div>
+							<div id="agg-dd-title"></div>
+							<div id="agg-dd-count"></div>
+						</div>
 					</div>
-					<button id="agg-dd-close" title="Close (Esc)">&#10005;</button>
+					<div style="display:flex;align-items:center;gap:8px;">
+						<button id="agg-dd-export-csv" title="Export to CSV" style="display:none;">
+							<i class="fa fa-download"></i> Export CSV
+						</button>
+						<button id="agg-dd-close" title="Close (Esc)">&#10005;</button>
+					</div>
 				</div>
 				<div id="agg-dd-body">
 					<div id="agg-dd-summary" style="display:none;"></div>
@@ -1415,20 +1710,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 		$("#agg-btn-dl-pdf").on("click", download_pdf);
 
-		// Service tab switching
-		$(document).off("click.svctab").on("click.svctab", ".svc-tab-btn", function () {
-			const idx = $(this).data("idx");
-			const svc = $(this).data("svc");
-			$(".svc-tab-btn[data-idx='-1']").css({ background: "#fff", color: "#555" });
-			$(".svc-tab-btn:not([data-idx='-1'])").css({ background: "#fff", color: "#4e73df" });
-			if (idx === -1) { $(this).css({ background: "#555", color: "#fff" }); }
-			else { $(this).css({ background: "#4e73df", color: "#fff" }); }
-			$(".svc-detail").hide();
-			if (idx !== -1) $(`.svc-detail[data-idx="${idx}"]`).show();
-			_active_platform = svc || "";
-			fetch_dashboard();
-		});
-
 		// Clarification submit
 		$("#agg-clarif-submit").on("click", function () {
 			const response = $("#agg-clarif-response").val().trim();
@@ -1451,15 +1732,42 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			});
 		});
 
+		// Service category chip — click to filter the whole dashboard by that category (click again to clear)
+		$(".agg-cat-chip").on("click", function () {
+			const cat = $(this).data("cat");
+			const already_only = _active_svc_cat.length === 1 && _active_svc_cat[0] === cat;
+			_active_svc_cat = already_only ? [] : [cat];
+			fetch_dashboard();
+		});
+
+		// Multiselect: toggle panel
+		$("#agg-ms-toggle").on("click", function (e) {
+			e.stopPropagation();
+			$("#agg-ms-panel").toggle();
+		});
+		$(document).off("click.agg_ms_close").on("click.agg_ms_close", function (e) {
+			if (!$(e.target).closest("#agg-ms-panel, #agg-ms-toggle").length) $("#agg-ms-panel").hide();
+		});
+		function sync_select_all() {
+			const total = $(".agg-ms-checkbox").length;
+			const checked = $(".agg-ms-checkbox:checked").length;
+			$("#agg-ms-select-all").prop("checked", total > 0 && total === checked);
+		}
+		$("#agg-ms-select-all").on("change", function () {
+			$(".agg-ms-checkbox").prop("checked", $(this).is(":checked"));
+		});
+		$(document).off("change.agg_ms_opt").on("change.agg_ms_opt", ".agg-ms-checkbox", sync_select_all);
+		sync_select_all();
+
 		// Filter events
 		$("#agg-btn-apply-filter").on("click", function () {
 			_active_from    = $("#agg-filter-from").val() || "";
 			_active_to      = $("#agg-filter-to").val() || "";
-			_active_svc_cat = $("#agg-filter-cat").val() || "";
+			_active_svc_cat = $(".agg-ms-checkbox:checked").map(function () { return $(this).val(); }).get();
 			fetch_dashboard();
 		});
 		$("#agg-btn-clear-filter").on("click", function () {
-			_active_from = ""; _active_to = ""; _active_svc_cat = ""; _active_platform = "";
+			_active_from = ""; _active_to = ""; _active_svc_cat = [];
 			fetch_dashboard();
 		});
 	}
