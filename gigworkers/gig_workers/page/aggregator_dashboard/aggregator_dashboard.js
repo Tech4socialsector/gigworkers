@@ -1126,18 +1126,13 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 					${cat_opts || '<div style="padding:10px 14px;color:#aaa;font-size:12px;">No categories yet</div>'}
 				</div>
 			</div>
-			<div style="display:flex;gap:8px;align-items:flex-end;">
-				<button id="agg-btn-apply-filter"
-					style="background:#e74a3b;color:#fff;border:none;border-radius:6px;
-						padding:8px 20px;font-size:13px;cursor:pointer;font-weight:600;">
-					<i class="fa fa-search" style="margin-right:5px;"></i>Apply
-				</button>
-				${has_filter ? `<button id="agg-btn-clear-filter"
+			${has_filter ? `<div style="display:flex;gap:8px;align-items:flex-end;">
+				<button id="agg-btn-clear-filter"
 					style="background:#fff;color:#e74a3b;border:1px solid #e74a3b;
 						border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;">
 					Clear
-				</button>` : ""}
-			</div>
+				</button>
+			</div>` : ""}
 			${has_filter ? `<div style="width:100%;margin-top:4px;font-size:12px;color:#888;">
 				Showing filtered results
 				${active_filters.from_date ? ` from <b>${active_filters.from_date}</b>` : ""}
@@ -1862,19 +1857,25 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			const checked = $(".agg-ms-checkbox:checked").length;
 			$("#agg-ms-select-all").prop("checked", total > 0 && total === checked);
 		}
-		$("#agg-ms-select-all").on("change", function () {
-			$(".agg-ms-checkbox").prop("checked", $(this).is(":checked"));
-		});
-		$(document).off("change.agg_ms_opt").on("change.agg_ms_opt", ".agg-ms-checkbox", sync_select_all);
 		sync_select_all();
 
-		// Filter events
-		$("#agg-btn-apply-filter").on("click", function () {
+		// Filters auto-apply as soon as they change — no Apply button needed
+		function apply_filters() {
 			_active_from    = $("#agg-filter-from").val() || "";
 			_active_to      = $("#agg-filter-to").val() || "";
 			_active_svc_cat = $(".agg-ms-checkbox:checked").map(function () { return $(this).val(); }).get();
 			fetch_dashboard();
+		}
+		$("#agg-filter-from, #agg-filter-to").on("change", apply_filters);
+		$("#agg-ms-select-all").on("change", function () {
+			$(".agg-ms-checkbox").prop("checked", $(this).is(":checked"));
+			apply_filters();
 		});
+		$(document).off("change.agg_ms_opt").on("change.agg_ms_opt", ".agg-ms-checkbox", function () {
+			sync_select_all();
+			apply_filters();
+		});
+
 		$("#agg-btn-clear-filter").on("click", function () {
 			_active_from = ""; _active_to = ""; _active_svc_cat = [];
 			fetch_dashboard();
