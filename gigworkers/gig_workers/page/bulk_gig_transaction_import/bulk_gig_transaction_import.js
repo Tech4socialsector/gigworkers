@@ -42,6 +42,14 @@ class GigTransactionBulkImport {
 					<button class="btn btn-default btn-sm" id="btn-download-template">
 						<i class="fa fa-download"></i>&nbsp; Download CSV Template
 					</button>
+					<button class="btn btn-default btn-sm" id="btn-view-services">
+						<i class="fa fa-list"></i>&nbsp; View Service IDs
+					</button>
+					<p class="text-muted mb-0 mt-1" style="font-size:12px;">
+						The <strong>Service</strong> column drives welfare calculation — if it's left
+						blank or uses an ID that doesn't exist, welfare percentage/cap/amount will
+						come out as ₹0. Use <strong>View Service IDs</strong> to see the exact IDs to enter.
+					</p>
 				</div>
 
 				<div class="form-group">
@@ -159,6 +167,7 @@ class GigTransactionBulkImport {
 
 	_bind_events() {
 		this.page.main.find("#btn-download-template").on("click", () => this._download_template());
+		this.page.main.find("#btn-view-services").on("click", () => this._show_service_reference());
 		this.page.main.find("#btn-refresh-logs").on("click", () => {
 			this._log_offset = 0;
 			this._load_import_logs(true);
@@ -513,10 +522,124 @@ class GigTransactionBulkImport {
 	}
 
 	_download_template() {
-		window.open(
-			"/api/method/gigworkers.gig_workers.page.bulk_gig_transaction_import.bulk_gig_transaction_import.get_import_template",
-			"_blank"
-		);
+		frappe.call({
+			method: "gigworkers.gig_workers.page.bulk_gig_transaction_import.bulk_gig_transaction_import.get_importable_fields",
+			freeze: true,
+			callback: (r) => {
+				const importable_fields = r.message || [];
+				this._show_field_picker(importable_fields);
+			},
+		});
+	}
+
+	_show_service_reference() {
+		frappe.call({
+			method: "gigworkers.gig_workers.page.bulk_gig_transaction_import.bulk_gig_transaction_import.get_service_reference",
+			freeze: true,
+			freeze_message: __("Loading services…"),
+			callback: (r) => {
+				const services = r.message || [];
+
+				const rows_html = services.length
+					? services.map((s) => `
+						<tr>
+							<td style="font-family:monospace;">${frappe.utils.escape_html(s.service_id || "")}</td>
+							<td>${frappe.utils.escape_html(s.category || "—")}</td>
+							<td>${frappe.utils.escape_html(s.vehicle_type || "—")}</td>
+							<td>${s.welfare_percentage != null ? Number(s.welfare_percentage) + "%" : "—"}</td>
+							<td>${s.welfare_cap != null ? "₹" + Number(s.welfare_cap) : "—"}</td>
+						</tr>
+					`).join("")
+					: `<tr><td colspan="5" class="text-muted text-center">No services found.</td></tr>`;
+
+				const html = `
+					<p class="text-muted" style="font-size:13px;">
+						Put the <strong>Service ID</strong> (first column) in the CSV
+						<code>service</code> column — it determines the welfare
+						percentage/cap applied to each transaction.
+					</p>
+					<div style="max-height:420px; overflow:auto;">
+						<table class="table table-bordered table-sm">
+							<thead>
+								<tr>
+									<th>Service ID</th>
+									<th>Category</th>
+									<th>Vehicle Type</th>
+									<th>Welfare %</th>
+									<th>Welfare Cap</th>
+								</tr>
+							</thead>
+							<tbody>${rows_html}</tbody>
+						</table>
+					</div>
+				`;
+
+				const dlg = new frappe.ui.Dialog({
+					title: __("Available Services"),
+					size: "large",
+					fields: [{ fieldtype: "HTML", options: html }],
+				});
+				dlg.show();
+			},
+		});
+	}
+
+	_show_field_picker(importable_fields) {
+		const dlg = new frappe.ui.Dialog({
+			title: __("Choose Fields to Import"),
+			size: "large",
+			fields: [
+				{
+					fieldtype: "HTML",
+					options: `<p class="text-muted" style="font-size:13px;">
+						Select the Gig Transaction fields you want in the sample sheet.
+						Required fields are always included. Give the worker's
+						<strong>Partner ID</strong> — the Gig Worker and their details
+						are looked up automatically during import.
+					</p>`,
+				},
+				{
+					fieldname: "select_all",
+					fieldtype: "Check",
+					label: __("Select All"),
+				},
+				{ fieldtype: "Column Break" },
+				...importable_fields.map((f) => ({
+					fieldname: f.fieldname,
+					fieldtype: "Check",
+					label: f.label + (f.reqd ? " " + __("(Required)") : ""),
+					default: f.reqd ? 1 : 0,
+					read_only: f.reqd ? 1 : 0,
+				})),
+			],
+			primary_action_label: __("Download Sample Sheet"),
+			primary_action: (values) => {
+				const selected = importable_fields
+					.filter((f) => f.reqd || values[f.fieldname])
+					.map((f) => f.fieldname);
+
+				if (!selected.length) {
+					frappe.msgprint(__("Please choose at least one field."));
+					return;
+				}
+
+				const url =
+					"/api/method/gigworkers.gig_workers.page.bulk_gig_transaction_import.bulk_gig_transaction_import.get_import_template" +
+					"?fields=" + encodeURIComponent(JSON.stringify(selected));
+				window.open(url, "_blank");
+				dlg.hide();
+			},
+		});
+
+		// "Select All" toggles every non-required checkbox
+		dlg.fields_dict.select_all.$input.on("change", function () {
+			const checked = $(this).is(":checked");
+			importable_fields
+				.filter((f) => !f.reqd)
+				.forEach((f) => dlg.set_value(f.fieldname, checked ? 1 : 0));
+		});
+
+		dlg.show();
 	}
 
 	_fmt(n)            { return Number(n || 0).toLocaleString(); }

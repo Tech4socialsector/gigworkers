@@ -2,24 +2,95 @@ import frappe
 from frappe import _
 
 
+# Fields the user may choose to include in the CSV template, in display order.
+# (fieldname, label, sample value, required)
+# `gig_worker` is intentionally not offered here — the importer resolves the
+# Gig Worker record (and its details) from the `partner_id` column instead.
+# `aggregator` is also not marked required here — for Aggregator users it is
+# resolved automatically from the uploader's own account (see start_import);
+# only a System Manager importing on behalf of multiple aggregators needs to
+# tick it and supply it per row.
+IMPORTABLE_FIELDS = [
+	("partner_id", "Partner ID", "PTR-001", True),
+	("amount", "Final Payout Amount", "500.00", True),
+	("base_payout", "Base Payout to Worker", "450.00", True),
+	("date", "Date", "2026-05-25", True),
+	("aggregator", "Aggregator", "AG001", False),
+	("service", "Service", "SE001", False),
+	("incentives", "Incentives", "0.00", False),
+	("deduction", "Deduction", "0.00", False),
+	("status_of_order", "Status of Order", "Order delivered", False),
+	("role", "Role", "", False),
+	("external_transaction_id", "External Transaction ID", "", False),
+	("district", "District", "", False),
+	("city", "City", "", False),
+]
+
+# Columns included in the template when the user hasn't customised the field list
+DEFAULT_FIELDS = [
+	"partner_id", "aggregator", "service", "amount", "base_payout",
+	"deduction", "incentives", "date", "status_of_order",
+]
+
+
 @frappe.whitelist()
-def get_import_template():
-	headers = [
-		"gig_worker", "aggregator", "service",
-		"amount", "base_payout", "deduction", "incentives",
-		"date", "status_of_order",
+def get_importable_fields():
+	"""Return the list of fields the user can choose from for the CSV template."""
+	return [
+		{"fieldname": f, "label": label, "reqd": reqd}
+		for f, label, _sample, reqd in IMPORTABLE_FIELDS
 	]
-	sample = [
-		"GW001", "AG001", "SE001",
-		"500.00", "450.00", "0.00", "0.00",
-		"2026-05-25", "Order delivered",
-	]
+
+
+@frappe.whitelist()
+def get_import_template(fields=None):
+	"""Return CSV template as a downloadable response.
+
+	`fields` is an optional JSON-encoded list of fieldnames chosen by the
+	user in the "Choose Fields" popup. Required fields are always included
+	even if the caller omits them.
+	"""
+	catalog = {f: (label, sample, reqd) for f, label, sample, reqd in IMPORTABLE_FIELDS}
+	required = [f for f, _l, _s, reqd in IMPORTABLE_FIELDS if reqd]
+
+	if fields:
+		selected = frappe.parse_json(fields) if isinstance(fields, str) else fields
+		selected = [f for f in selected if f in catalog]
+	else:
+		selected = list(DEFAULT_FIELDS)
+
+	for f in required:
+		if f not in selected:
+			selected.append(f)
+
+	# Keep catalog order regardless of how the selection was passed in
+	headers = [f for f, *_ in IMPORTABLE_FIELDS if f in selected]
+	sample = [catalog[f][1] for f in headers]
+
 	csv_content = ",".join(headers) + "\n" + ",".join(sample) + "\n"
 
 	frappe.response["filename"] = "gig_transaction_import_template.csv"
 	frappe.response["filecontent"] = csv_content.encode("utf-8")
 	frappe.response["type"] = "download"
 	frappe.response["content_type"] = "text/csv"
+
+
+@frappe.whitelist()
+def get_service_reference():
+	"""Return every Service record's ID + category/type/welfare details, so
+	uploaders know exactly which Service ID to put in the CSV `service` column."""
+	frappe.only_for(["System Manager", "Aggregator"])
+	return frappe.db.sql("""
+		SELECT s.name AS service_id,
+		       sc.category_name AS category,
+		       vt.vehicle_type AS vehicle_type,
+		       s.welfare_percentage_ AS welfare_percentage,
+		       s.welfare_cap AS welfare_cap
+		FROM `tabService` s
+		LEFT JOIN `tabService Category` sc ON sc.name = s.category
+		LEFT JOIN `tabVehicle Type` vt ON vt.name = s.vehicle_type
+		ORDER BY s.name
+	""", as_dict=True)
 
 
 @frappe.whitelist()

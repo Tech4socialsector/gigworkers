@@ -655,10 +655,70 @@ class GigWorkerBulkImport {
 	}
 
 	_download_template() {
-		window.open(
-			"/api/method/gigworkers.gig_workers.page.bulk_gig_worker_import.bulk_gig_worker_import.get_import_template",
-			"_blank"
-		);
+		frappe.call({
+			method: "gigworkers.gig_workers.page.bulk_gig_worker_import.bulk_gig_worker_import.get_importable_fields",
+			freeze: true,
+			callback: (r) => {
+				const importable_fields = r.message || [];
+				this._show_field_picker(importable_fields);
+			},
+		});
+	}
+
+	_show_field_picker(importable_fields) {
+		const dlg = new frappe.ui.Dialog({
+			title: __("Choose Fields to Import"),
+			size: "large",
+			fields: [
+				{
+					fieldtype: "HTML",
+					options: `<p class="text-muted" style="font-size:13px;">
+						Select the Gig Worker fields you want in the sample sheet.
+						Required fields are always included.
+					</p>`,
+				},
+				{
+					fieldname: "select_all",
+					fieldtype: "Check",
+					label: __("Select All"),
+				},
+				{ fieldtype: "Column Break" },
+				...importable_fields.map((f) => ({
+					fieldname: f.fieldname,
+					fieldtype: "Check",
+					label: f.label + (f.reqd ? " " + __("(Required)") : ""),
+					default: f.reqd ? 1 : 0,
+					read_only: f.reqd ? 1 : 0,
+				})),
+			],
+			primary_action_label: __("Download Sample Sheet"),
+			primary_action: (values) => {
+				const selected = importable_fields
+					.filter((f) => f.reqd || values[f.fieldname])
+					.map((f) => f.fieldname);
+
+				if (!selected.length) {
+					frappe.msgprint(__("Please choose at least one field."));
+					return;
+				}
+
+				const url =
+					"/api/method/gigworkers.gig_workers.page.bulk_gig_worker_import.bulk_gig_worker_import.get_import_template" +
+					"?fields=" + encodeURIComponent(JSON.stringify(selected));
+				window.open(url, "_blank");
+				dlg.hide();
+			},
+		});
+
+		// "Select All" toggles every non-required checkbox
+		dlg.fields_dict.select_all.$input.on("change", function () {
+			const checked = $(this).is(":checked");
+			importable_fields
+				.filter((f) => !f.reqd)
+				.forEach((f) => dlg.set_value(f.fieldname, checked ? 1 : 0));
+		});
+
+		dlg.show();
 	}
 
 	_human_size(bytes) {

@@ -7,6 +7,8 @@ from frappe.utils import today
 
 
 class Service(Document):
+	# Rate card (welfare_percentage_ / welfare_cap) read by Gig Transaction.calculate_welfare_fee().
+
 	def validate(self):
 		if self.effective_end_date and self.effective_start_date:
 			if str(self.effective_end_date) < str(self.effective_start_date):

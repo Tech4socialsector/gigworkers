@@ -16,9 +16,9 @@ from frappe.utils import now_datetime, getdate, date_diff, today
 BATCH_SIZE = 500
 CACHE_KEY = "gw_bulk_import"
 
-# Fields the import sets automatically — exclude from CSV required check
-# even if the doctype marks them reqd.
-_GW_IMPORT_COMPUTED = {"status"}
+# Fields the import sets automatically, or no longer collects via CSV —
+# exclude from the required-field check even if the doctype marks them reqd.
+_GW_IMPORT_COMPUTED = {"status", "aadhaar_number"}
 
 
 def _get_required_fields():
@@ -67,6 +67,7 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 	now_ts    = now_datetime()
 	batch     = []
 	user_batch = []   # [(gw_id, phone, email, worker_name)]
+	wpm_batch  = []   # [(gw_id, partner_id, worker_name)]
 
 	for idx, row in enumerate(rows, start=1):
 		# Check cancel signal at each batch boundary
@@ -76,7 +77,8 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 					_flush_batch(batch)
 					inserted += len(batch)
 					_create_users_batch(user_batch, now_ts, user)
-					batch = []; user_batch = []
+					_flush_wpm_batch(wpm_batch, now_ts, user)
+					batch = []; user_batch = []; wpm_batch = []
 					frappe.db.commit()
 				_update_progress(import_id, status="Cancelled",
 								processed=processed, inserted=inserted,
@@ -131,10 +133,12 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 		name        = make_autoname("GW.###", "Gig Worker")
 		agg         = created_by_aggregator or row.get("created_by_aggregator") or None
 		worker_name = row.get("worker_name", "").strip()
+		partner_id  = row.get("partner_id", "").strip() or None
 
 		batch.append((
 			name, now_ts, now_ts, user, user, 0,
 			worker_name,
+			partner_id,
 			row.get("gender", "").strip(),
 			aadhaar, pan, phone,
 			_parse_date(row.get("dob")),
@@ -148,6 +152,7 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			agg, "Active",
 		))
 		user_batch.append((name, phone, email, worker_name))
+		wpm_batch.append((name, partner_id, worker_name))
 
 		if skip_duplicates:
 			if email:   existing_emails.add(email)
@@ -162,7 +167,8 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			_flush_batch(batch)
 			inserted += len(batch)
 			_create_users_batch(user_batch, now_ts, user)
-			batch = []; user_batch = []
+			_flush_wpm_batch(wpm_batch, now_ts, user)
+			batch = []; user_batch = []; wpm_batch = []
 			_update_progress(import_id, processed=processed, inserted=inserted,
 							skipped=skipped, errors=all_errors[-50:])
 			frappe.db.commit()
@@ -172,6 +178,7 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 		_flush_batch(batch)
 		inserted += len(batch)
 		_create_users_batch(user_batch, now_ts, user)
+		_flush_wpm_batch(wpm_batch, now_ts, user)
 		frappe.db.commit()
 
 	_update_progress(import_id, status="Completed", total=total,
@@ -228,12 +235,30 @@ def _save_import_log(import_id, file_url, file_name, status, total, inserted,
 def _flush_batch(batch):
 	fields = [
 		"name", "creation", "modified", "modified_by", "owner", "docstatus",
-		"worker_name", "gender", "aadhaar_number", "pan_number", "phone", "dob",
+		"worker_name", "partner_id", "gender", "aadhaar_number", "pan_number", "phone", "dob",
 		"eshram_id", "email", "drivers_license", "location_of_work",
 		"operating_bank_account", "uan", "name_of_aggregator", "name_of_service",
 		"created_by_aggregator", "status",
 	]
 	frappe.db.bulk_insert("Gig Worker", fields=fields, values=batch, ignore_duplicates=True)
+
+
+def _flush_wpm_batch(wpm_batch, now_ts, user):
+	"""Bulk-insert Worker Partner Mapping records, one per imported Gig Worker."""
+	if not wpm_batch:
+		return
+	rows = [
+		(make_autoname("WPM.###", "Worker Partner Mapping"), now_ts, now_ts, user, user, 0,
+		 gig_worker_id, partner_id, worker_name)
+		for gig_worker_id, partner_id, worker_name in wpm_batch
+	]
+	frappe.db.bulk_insert(
+		"Worker Partner Mapping",
+		fields=["name", "creation", "modified", "modified_by", "owner", "docstatus",
+				"gig_worker_id", "partner_id", "worker_name"],
+		values=rows,
+		ignore_duplicates=True,
+	)
 
 
 def _create_users_batch(user_data, now_ts, owner):

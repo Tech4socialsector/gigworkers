@@ -294,6 +294,7 @@ class GigTransaction(Document):
             )
 
     def calculate_welfare_fee(self):
+        # Welfare cess: base_payout * welfare% from the Service rate card, capped at welfare_cap.
         if not self.base_payout or not self.service:
             return
         service_data = frappe.db.get_value(
@@ -303,6 +304,7 @@ class GigTransaction(Document):
         )
         if not service_data:
             return
+        # Denormalize so dashboards/reports can filter without joining back to Service.
         if service_data.category:
             self.service_category = (
                 frappe.db.get_value("Service Category", service_data.category, "category_name")
@@ -313,11 +315,13 @@ class GigTransaction(Document):
                 frappe.db.get_value("Vehicle Type", service_data.vehicle_type, "vehicle_type")
                 or service_data.vehicle_type
             )
+        # Snapshot the rate at save time so past transactions don't shift if the rate card changes later.
         self.welfare_percentage = service_data.welfare_percentage_ or 0
         self.welfare_cap        = service_data.welfare_cap
         if not self.welfare_percentage:
             return
         rate_amount = (self.base_payout * self.welfare_percentage) / 100
+        # Cap applies only when set — an unset/zero cap means "uncapped".
         self.welfare_amount = (
             min(rate_amount, self.welfare_cap) if self.welfare_cap else rate_amount
         )
@@ -325,6 +329,7 @@ class GigTransaction(Document):
             self.welfare_amount = 0
 
     def calculate_net_payout(self):
+        # Worker's actual take-home — welfare_amount goes to the welfare fund, not the worker.
         base    = self.base_payout or 0
         inc     = self.incentives or 0
         ded     = self.deduction or 0

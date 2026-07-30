@@ -9,6 +9,7 @@
  "field_order": [
   "personal_details_section",
   "worker_name",
+  "partner_id",
   "dob",
   "phone",
   "uan",
@@ -205,12 +206,20 @@
    "fieldname": "age",
    "fieldtype": "Data",
    "label": "Age"
+  },
+  {
+   "fieldname": "partner_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Partner ID",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-11 20:49:55.567221",
+ "modified": "2026-07-30 12:59:07.433553",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Gig Worker",
