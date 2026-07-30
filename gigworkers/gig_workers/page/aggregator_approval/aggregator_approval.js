@@ -55,6 +55,25 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 		.aa-search:focus { border-color: #1e40af; }
 		.aa-spacer { flex: 1; }
 
+		/* Auto-approve setting */
+		.aa-auto-approve {
+			display: flex; align-items: center; gap: 6px;
+			padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px;
+			background: #f8fafc; font-size: 12px; color: #475569; white-space: nowrap;
+		}
+		.aa-auto-approve input {
+			width: 46px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px;
+			font-size: 12px; text-align: center; outline: none;
+		}
+		.aa-auto-approve input:focus { border-color: #1e40af; }
+		.aa-auto-approve button {
+			padding: 4px 10px; border: 1px solid #bfdbfe; border-radius: 4px;
+			background: #eff6ff; color: #1e40af; font-size: 11px; font-weight: 600;
+			cursor: pointer; font-family: inherit;
+		}
+		.aa-auto-approve button:hover { opacity: .85; }
+		.aa-auto-approve button:disabled { opacity: .4; cursor: not-allowed; }
+
 		/* Buttons */
 		.aa-btn {
 			display: inline-flex; align-items: center; gap: 5px;
@@ -181,6 +200,12 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 
 			<div class="aa-toolbar">
 				<input class="aa-search" id="aa-search" type="text" placeholder="Search name, email, mobile, ID…" />
+				<div class="aa-auto-approve" title="Submitted applications with no admin action are auto-approved after this many days. Set to 0 to disable.">
+					<span>Auto-approve after</span>
+					<input type="number" id="aa-auto-days" min="0" step="1" value="" />
+					<span>day(s)</span>
+					<button id="aa-auto-days-save">Save</button>
+				</div>
 				<div class="aa-spacer"></div>
 				<button class="aa-btn aa-btn-default" id="aa-refresh">&#x21bb; Refresh</button>
 				<button class="aa-btn aa-btn-process" id="aa-bulk-process" disabled>Mark Under Process</button>
@@ -303,6 +328,45 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 		});
 
 		sync_bulk_buttons();
+	}
+
+	// ── Auto-approve setting ────────────────────────────────────────────────────
+	function load_auto_approve_days() {
+		frappe.call({
+			method: "gigworkers.gig_workers.page.aggregator_approval.aggregator_approval.get_auto_approve_days",
+			callback(r) {
+				document.getElementById("aa-auto-days").value = (r.message !== undefined && r.message !== null) ? r.message : 7;
+			},
+		});
+	}
+
+	function save_auto_approve_days() {
+		const input = document.getElementById("aa-auto-days");
+		const btn = document.getElementById("aa-auto-days-save");
+		const val = parseInt(input.value, 10);
+
+		if (isNaN(val) || val < 0) {
+			frappe.msgprint("Please enter a whole number of days (0 or more).");
+			return;
+		}
+
+		btn.disabled = true;
+		frappe.call({
+			method: "gigworkers.gig_workers.page.aggregator_approval.aggregator_approval.set_auto_approve_days",
+			args: { days: val },
+			callback(r) {
+				btn.disabled = false;
+				const d = (r.message || {}).auto_approve_days;
+				input.value = d;
+				frappe.show_alert({
+					message: d > 0
+						? `Submitted applications will auto-approve after ${d} day(s).`
+						: "Auto-approval disabled.",
+					indicator: "green",
+				});
+			},
+			error() { btn.disabled = false; },
+		});
 	}
 
 	// ── API ────────────────────────────────────────────────────────────────────
@@ -428,6 +492,7 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 	});
 
 	document.getElementById("aa-refresh").addEventListener("click", load_data);
+	document.getElementById("aa-auto-days-save").addEventListener("click", save_auto_approve_days);
 	document.getElementById("aa-bulk-process").addEventListener("click", () => do_bulk("Under Process"));
 	document.getElementById("aa-bulk-approve").addEventListener("click", () => do_bulk("Approved"));
 	document.getElementById("aa-bulk-clarify").addEventListener("click", () => do_bulk("Pending with Clarification"));
@@ -440,4 +505,5 @@ frappe.pages["aggregator-approval"].on_page_load = function (wrapper) {
 	}
 
 	load_datatables(load_data);
+	load_auto_approve_days();
 };

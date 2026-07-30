@@ -1,5 +1,60 @@
 import frappe
 import json
+from frappe.utils import add_days, now_datetime
+
+
+@frappe.whitelist()
+def get_auto_approve_days():
+    """Return the configured number of days after which a Submitted application auto-approves."""
+    frappe.only_for("System Manager")
+    return frappe.db.get_single_value("Aggregator Approval Settings", "auto_approve_days") or 0
+
+
+@frappe.whitelist()
+def set_auto_approve_days(days):
+    """Update the number of days after which a Submitted application auto-approves."""
+    frappe.only_for("System Manager")
+
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        frappe.throw("Days must be a whole number.")
+
+    if days < 0:
+        frappe.throw("Days cannot be negative.")
+
+    frappe.db.set_single_value("Aggregator Approval Settings", "auto_approve_days", days)
+    frappe.db.commit()
+    return {"auto_approve_days": days}
+
+
+def auto_approve_stale_aggregators():
+    """Daily scheduled job: auto-approve applications left in 'Submitted' status
+    for longer than the configured number of days."""
+    days = frappe.db.get_single_value("Aggregator Approval Settings", "auto_approve_days") or 0
+    if not days:
+        return
+
+    cutoff = add_days(now_datetime(), -days)
+    stale_ids = frappe.get_all(
+        "Aggregator",
+        filters={"status": "Submitted", "creation": ("<=", cutoff)},
+        pluck="name",
+    )
+
+    for agg_id in stale_ids:
+        try:
+            doc = frappe.get_doc("Aggregator", agg_id)
+            doc.status = "Approved"
+            doc.flags.trigger_status_email = "Approved"
+            doc.save(ignore_permissions=True)
+            frappe.db.commit()
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(
+                message=frappe.get_traceback(),
+                title=f"Auto-approve failed for aggregator {agg_id}",
+            )
 
 
 @frappe.whitelist()
