@@ -1,8 +1,26 @@
 import frappe
 
 
+def _as_list(value):
+    """Accept a single value, comma-separated string, or JSON-encoded list and
+    normalize it to a plain python list (empty list if nothing was passed)."""
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [v for v in value if v]
+    if isinstance(value, str):
+        try:
+            parsed = frappe.parse_json(value)
+            if isinstance(parsed, list):
+                return [v for v in parsed if v]
+        except Exception:
+            pass
+        return [v.strip() for v in value.split(",") if v.strip()]
+    return [value]
+
+
 @frappe.whitelist()
-def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggregator_override=None, platform=None):
+def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggregator_override=None):
     user = frappe.session.user
 
     # System Manager can view any aggregator's dashboard
@@ -17,18 +35,20 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
 
     aggregator = frappe.db.get_value(
         "Aggregator", aggregator_name,
-        ["aggregator_name", "status", "email", "mobile", "clarification_comments", "clarification_response"],
+        ["aggregator_name", "status", "email", "mobile", "clarification_comments", "clarification_response",
+         "company_type", "cin_number", "registered_address", "website_url", "company_id", "app_url",
+         "pan_number", "gstin"],
         as_dict=True,
     )
 
-    # Fetch all registered services (child table)
-    services = frappe.get_all(
-        "Aggregator Service",
-        filters={"parent": aggregator_name},
-        fields=["service_name", "brand_name", "company_type", "company_id",
-                "address", "website_url", "app_url", "pan", "gstin", "service_status"],
-        order_by="idx asc",
-    )
+    # --- Registered service categories (child table -> Service Category master) ---
+    service_category_rows = frappe.db.sql("""
+        SELECT sc.category_name AS category_name, link.service_category AS category_id
+        FROM `tabAggregator Service Category` link
+        LEFT JOIN `tabService Category` sc ON sc.name = link.service_category
+        WHERE link.parent = %s
+        ORDER BY link.idx
+    """, aggregator_name, as_dict=True)
 
     # --- Distinct service categories for filter dropdown ---
     service_cats = frappe.db.sql("""
@@ -56,15 +76,11 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         else:
             orm_filter["date"] = ["<=", to_date]
 
-    if service_category:
-        sql_cond  += " AND service_category = %(svc_cat)s"
-        sql_params["svc_cat"] = service_category
-        orm_filter["service_category"] = service_category
-
-    if platform:
-        sql_cond  += " AND platform = %(platform)s"
-        sql_params["platform"] = platform
-        orm_filter["platform"] = platform
+    service_categories_filter = _as_list(service_category)
+    if service_categories_filter:
+        sql_cond  += " AND service_category IN %(svc_cat)s"
+        sql_params["svc_cat"] = tuple(service_categories_filter)
+        orm_filter["service_category"] = ["in", service_categories_filter]
 
     # --- Transaction stats ---
     txn_stats = frappe.db.sql(f"""
@@ -109,26 +125,34 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
     """, aggregator_name, as_dict=True)
     onboarded_workers = onboarded_workers_result[0].cnt if onboarded_workers_result else 0
 
-    # --- Welfare fee payment stats (filtered by date) ---
-    wfp_sql_cond  = "WHERE aggregator = %(agg)s"
+    # --- Welfare fee payment stats (filtered by date + service category,
+    # via a join back to the Gig Transaction the payment was raised for) ---
+    wfp_sql_cond  = "WHERE wfp.aggregator = %(agg)s"
     wfp_params    = {"agg": aggregator_name}
+    wfp_join = ""
+    if service_categories_filter:
+        wfp_join = "JOIN `tabGig Transaction` gt ON gt.name = wfp.transaction"
+        wfp_sql_cond += " AND gt.service_category IN %(svc_cat_wfp)s"
+        wfp_params["svc_cat_wfp"] = tuple(service_categories_filter)
     if from_date:
-        wfp_sql_cond += " AND payment_date >= %(from_date)s"
+        wfp_sql_cond += " AND wfp.payment_date >= %(from_date)s"
         wfp_params["from_date"] = from_date
     if to_date:
-        wfp_sql_cond += " AND payment_date <= %(to_date)s"
+        wfp_sql_cond += " AND wfp.payment_date <= %(to_date)s"
         wfp_params["to_date"] = to_date
 
     wfp_stats = frappe.db.sql(f"""
-        SELECT COUNT(*) AS total_payments, COALESCE(SUM(fee_amount), 0) AS total_paid
-        FROM `tabWelfare Fee Payment`
-        {wfp_sql_cond} AND payment_status = 'Completed'
+        SELECT COUNT(*) AS total_payments, COALESCE(SUM(wfp.fee_amount), 0) AS total_paid
+        FROM `tabWelfare Fee Payment` wfp
+        {wfp_join}
+        {wfp_sql_cond} AND wfp.payment_status = 'Completed'
     """, wfp_params, as_dict=True)[0]
 
     pending_welfare = frappe.db.sql(f"""
-        SELECT COALESCE(SUM(fee_amount), 0) AS pending
-        FROM `tabWelfare Fee Payment`
-        {wfp_sql_cond} AND payment_status = 'Pending'
+        SELECT COALESCE(SUM(wfp.fee_amount), 0) AS pending
+        FROM `tabWelfare Fee Payment` wfp
+        {wfp_join}
+        {wfp_sql_cond} AND wfp.payment_status = 'Pending'
     """, wfp_params, as_dict=True)[0].pending
 
     # --- Transactions (filtered) ---
@@ -140,14 +164,14 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         order_by="date desc",
     )
 
-    # --- Pending welfare fee payments ---
-    wfp_orm = {"aggregator": aggregator_name, "payment_status": "Pending"}
-    pending_wfp = frappe.get_all(
-        "Welfare Fee Payment",
-        filters=wfp_orm,
-        fields=["name", "transaction", "fee_amount", "payment_date", "payment_status"],
-        order_by="payment_date desc",
-    )
+    # --- Pending welfare fee payments (same date + service category filters) ---
+    pending_wfp = frappe.db.sql(f"""
+        SELECT wfp.name, wfp.transaction, wfp.fee_amount, wfp.payment_date, wfp.payment_status
+        FROM `tabWelfare Fee Payment` wfp
+        {wfp_join}
+        {wfp_sql_cond} AND wfp.payment_status = 'Pending'
+        ORDER BY wfp.payment_date DESC
+    """, wfp_params, as_dict=True)
 
     # --- Worker Mapping Log ---
     worker_list_sql_cond = "WHERE aggregator = %(agg)s"
@@ -165,6 +189,33 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         {worker_list_sql_cond}
         ORDER BY log_datetime DESC
     """, worker_list_params, as_dict=True)
+
+    # --- Worker roster + status breakdown, sourced from the Gig Worker
+    # records this aggregator actually owns (Worker Mapping Log is not
+    # populated for most aggregators, so it can't drive this) ---
+    gw_sql_cond   = "WHERE created_by_aggregator = %(agg)s"
+    gw_params     = {"agg": aggregator_name}
+    if from_date:
+        gw_sql_cond += " AND DATE(creation) >= %(from_date)s"
+        gw_params["from_date"] = from_date
+    if to_date:
+        gw_sql_cond += " AND DATE(creation) <= %(to_date)s"
+        gw_params["to_date"] = to_date
+
+    aggregator_workers = frappe.db.sql(f"""
+        SELECT name, worker_name, phone, status, name_of_service, creation
+        FROM `tabGig Worker`
+        {gw_sql_cond}
+        ORDER BY creation DESC
+    """, gw_params, as_dict=True)
+
+    worker_status_breakdown = frappe.db.sql(f"""
+        SELECT status AS worker_status, COUNT(*) AS cnt
+        FROM `tabGig Worker`
+        {gw_sql_cond}
+        GROUP BY status
+        ORDER BY cnt DESC
+    """, gw_params, as_dict=True)
 
     # --- Suspected duplicate transactions (read-only view for aggregator) ---
     suspected_dups = frappe.get_all(
@@ -226,13 +277,9 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
 
     mt_params = {"agg": aggregator_name, "trend_start": trend_start}
     mt_extra = ""
-    if service_category:
-        mt_extra += " AND service_category = %(svc_cat_mt)s"
-        mt_params["svc_cat_mt"] = service_category
-    if platform:
-        mt_extra += " AND platform = %(platform_mt)s"
-        mt_params["platform_mt"] = platform
-
+    if service_categories_filter:
+        mt_extra += " AND service_category IN %(svc_cat_mt)s"
+        mt_params["svc_cat_mt"] = tuple(service_categories_filter)
     monthly_trend = frappe.db.sql(f"""
         SELECT
             LEFT(date, 7)                                                     AS month,
@@ -263,13 +310,12 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "aggregator_id":                   aggregator_name,
         "aggregator_clarification_comments":  aggregator.get("clarification_comments") or "",
         "aggregator_clarification_response":  aggregator.get("clarification_response") or "",
-        "services":         services,
+        "service_category_list": service_category_rows,
         "service_categories": [s.service_category for s in service_cats],
         "active_filters": {
             "from_date":        from_date or "",
             "to_date":          to_date or "",
-            "service_category": service_category or "",
-            "platform":         platform or "",
+            "service_category": service_categories_filter,
         },
         "stats": {
             "total_transactions":     txn_stats.total_transactions or 0,
@@ -295,9 +341,102 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "recent_transactions": recent_txns,
         "pending_wfp":         pending_wfp,
         "worker_list":         worker_list,
+        "aggregator_workers":  aggregator_workers,
+        "worker_status_breakdown": [dict(r) for r in worker_status_breakdown],
         "suspected_dups":      suspected_dups,
         "monthly_trend":       [dict(r) for r in monthly_trend],
         "status_breakdown":    [dict(r) for r in status_breakdown],
         "svc_cat_breakdown":   [dict(r) for r in svc_cat_breakdown],
         "top_workers":         [dict(r) for r in top_workers],
     }
+
+
+def _resolve_aggregator(aggregator_override=None):
+    user = frappe.session.user
+    if aggregator_override and "System Manager" in frappe.get_roles(user):
+        return aggregator_override
+    aggregator_name = frappe.db.get_value("Aggregator", {"email": user}, "name")
+    if not aggregator_name and user == "Administrator":
+        aggregator_name = frappe.db.get_value("Aggregator", {}, "name")
+    if not aggregator_name:
+        frappe.throw("No Aggregator profile found for this user.")
+    return aggregator_name
+
+
+@frappe.whitelist()
+def get_worker_detail(gig_worker, aggregator_override=None):
+    """Full drill-through profile for a single gig worker, scoped to the
+    calling aggregator — used for the second-level drilldown from any
+    worker/transaction table on the dashboard."""
+    aggregator_name = _resolve_aggregator(aggregator_override)
+
+    transactions = frappe.get_all(
+        "Gig Transaction",
+        filters={"aggregator": aggregator_name, "gig_worker": gig_worker},
+        fields=["name", "date", "service", "service_category",
+                "amount", "base_payout", "welfare_amount", "status"],
+        order_by="date desc",
+    )
+
+    mapping_log = frappe.get_all(
+        "Worker Mapping Log",
+        filters={"aggregator": aggregator_name, "gig_worker": gig_worker},
+        fields=["name", "service", "event_type", "worker_status", "log_datetime"],
+        order_by="log_datetime desc",
+    )
+
+    worker_info = frappe.db.get_value(
+        "Gig Worker", gig_worker,
+        ["name", "worker_name", "phone", "status"],
+        as_dict=True,
+    ) if frappe.db.exists("Gig Worker", gig_worker) else None
+
+    total_amount = sum(t.amount or 0 for t in transactions)
+    total_welfare = sum(t.welfare_amount or 0 for t in transactions)
+    completed = len([t for t in transactions if t.status == "Payment complete"])
+
+    return {
+        "gig_worker": gig_worker,
+        "worker_info": worker_info,
+        "transactions": transactions,
+        "mapping_log": mapping_log,
+        "summary": {
+            "total_transactions": len(transactions),
+            "completed_transactions": completed,
+            "total_amount": total_amount,
+            "total_welfare": total_welfare,
+            "current_status": mapping_log[0].worker_status if mapping_log else None,
+        },
+    }
+
+
+@frappe.whitelist()
+def get_transaction_detail(transaction, aggregator_override=None):
+    """Full field-level detail for a single Gig Transaction, scoped to the
+    calling aggregator — powers the transaction-row drilldown popup."""
+    aggregator_name = _resolve_aggregator(aggregator_override)
+
+    txn = frappe.db.get_value(
+        "Gig Transaction", {"name": transaction, "aggregator": aggregator_name},
+        [
+            "name", "date", "transaction_date", "gig_worker", "service", "service_category",
+            "service_type", "role", "status", "status_of_order", "settlement_status",
+            "amount", "base_payout", "incentives", "welfare_percentage", "welfare_amount",
+            "welfare_cap", "deduction", "net_payout_to_worker", "external_transaction_id",
+            "suspected_duplicate", "duplicate_of", "confirmed_at", "district", "city",
+            "adjustment_count", "creation", "modified",
+        ],
+        as_dict=True,
+    )
+    if not txn:
+        frappe.throw("Transaction not found.")
+
+    welfare_payments = frappe.get_all(
+        "Welfare Fee Payment",
+        filters={"aggregator": aggregator_name, "transaction": transaction},
+        fields=["name", "fee_amount", "payment_date", "payment_status",
+                "settlement_status", "mode_of_payment", "bank_reference"],
+        order_by="creation desc",
+    )
+
+    return {"transaction": txn, "welfare_payments": welfare_payments}
