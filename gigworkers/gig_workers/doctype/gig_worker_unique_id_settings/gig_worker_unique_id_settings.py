@@ -7,14 +7,16 @@ from frappe.model.document import Document
 ID_PROOF_PLACEHOLDERS = {
 	"PAN": "ABCDE1234F",
 	"Driving Licence": "KA0120230012345",
-	"Aadhar": "XXXXXXXXXXXX",
 }
+
+AADHAR_SAMPLE_DIGITS = "123456789012"
 
 
 class GigWorkerUniqueIDSettings(Document):
 	def validate(self):
 		self.validate_id_proof_selection()
 		self.validate_suffix()
+		self.validate_aadhar_display_format()
 		self.preview_format = self.get_preview_format()
 
 	def validate_id_proof_selection(self):
@@ -24,6 +26,10 @@ class GigWorkerUniqueIDSettings(Document):
 	def validate_suffix(self):
 		if self.suffix and not self.suffix.isdigit():
 			frappe.throw("Suffix (Starting Running Number) must contain digits only, e.g. 001.")
+
+	def validate_aadhar_display_format(self):
+		if "Aadhar" in self.get_selected_proof_types() and not self.aadhar_display_format:
+			frappe.throw("Please select an Aadhar Number Display Format.")
 
 	def get_selected_proof_types(self):
 		if self.id_proof_mode == "Single ID Proof":
@@ -43,7 +49,7 @@ class GigWorkerUniqueIDSettings(Document):
 		if self.need_prefix and self.prefix:
 			parts.append(self.prefix)
 
-		parts.extend(ID_PROOF_PLACEHOLDERS.get(proof_type, "") for proof_type in self.get_selected_proof_types())
+		parts.extend(self.get_id_proof_placeholder(proof_type) for proof_type in self.get_selected_proof_types())
 
 		if self.suffix:
 			parts.append(self.suffix)
@@ -55,3 +61,16 @@ class GigWorkerUniqueIDSettings(Document):
 			preview += f"  (next: ...-{next_suffix})"
 
 		return preview
+
+	def get_id_proof_placeholder(self, proof_type):
+		if proof_type == "Aadhar":
+			return self.get_aadhar_placeholder()
+		return ID_PROOF_PLACEHOLDERS.get(proof_type, "")
+
+	def get_aadhar_placeholder(self):
+		if self.aadhar_display_format == "Full":
+			return AADHAR_SAMPLE_DIGITS
+		if self.aadhar_display_format == "First 4 Digits":
+			return AADHAR_SAMPLE_DIGITS[:4]
+		# default: Last 4 Digits
+		return AADHAR_SAMPLE_DIGITS[-4:]

@@ -13,6 +13,8 @@
   "allow_driving_licence",
   "column_break_id_proof_2",
   "allow_aadhar",
+  "section_break_aadhar",
+  "aadhar_display_format",
   "section_break_prefix",
   "need_prefix",
   "prefix",
@@ -82,6 +84,21 @@
    "fieldname": "allow_aadhar",
    "fieldtype": "Check",
    "label": "Aadhar"
+  },
+  {
+   "depends_on": "eval:(doc.id_proof_mode==\"Single ID Proof\" && doc.id_proof_type==\"Aadhar\") || (doc.id_proof_mode==\"Multi ID Proof\" && doc.allow_aadhar)",
+   "fieldname": "section_break_aadhar",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "Last 4 Digits",
+   "depends_on": "eval:(doc.id_proof_mode==\"Single ID Proof\" && doc.id_proof_type==\"Aadhar\") || (doc.id_proof_mode==\"Multi ID Proof\" && doc.allow_aadhar)",
+   "description": "Controls how the Aadhar number is masked when it is captured and displayed on the Gig Worker record.",
+   "fieldname": "aadhar_display_format",
+   "fieldtype": "Select",
+   "label": "Aadhar Number Display Format",
+   "mandatory_depends_on": "eval:(doc.id_proof_mode==\"Single ID Proof\" && doc.id_proof_type==\"Aadhar\") || (doc.id_proof_mode==\"Multi ID Proof\" && doc.allow_aadhar)",
+   "options": "Last 4 Digits\nFirst 4 Digits\nFull"
   },
   {
    "fieldname": "section_break_prefix",
