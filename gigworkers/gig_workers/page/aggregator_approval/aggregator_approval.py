@@ -117,6 +117,9 @@ def bulk_update_status(aggregator_ids, new_status, clarification_comments=None):
     if not isinstance(ids, list):
         frappe.throw("aggregator_ids must be a JSON list.")
 
+    import itertools
+    ids = list(itertools.islice((str(i).strip() for i in ids if str(i).strip()), 1000))
+
     updated = 0
     errors = []
     for agg_id in ids:

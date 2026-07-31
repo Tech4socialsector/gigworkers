@@ -166,7 +166,6 @@ class Aggregator(Document):
 		# try:
 		# 	frappe.sendmail(
 		# 		recipients=[self.email],
-		# 		sender="nishanthclintona@gmail.com",
 		# 		delay=False,
 		# 		subject="Your API Credentials – Gig Workers Portal",
 		# 		message=f"""
@@ -664,4 +663,6 @@ class Aggregator(Document):
 				user.append("roles", {"role": "Aggregator"})
 				user.save(ignore_permissions=True)
 
-		update_password(self.email, self.mobile)
+		# Never derive a login credential from the aggregator's own mobile
+		# number — set a random one-time password instead of a guessable value.
+		update_password(self.email, frappe.generate_hash(length=32))

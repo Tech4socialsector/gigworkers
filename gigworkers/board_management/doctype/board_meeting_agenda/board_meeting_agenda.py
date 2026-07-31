@@ -18,6 +18,7 @@ class BoardMeetingAgenda(Document):
 @frappe.whitelist()
 def make_meeting_minutes(source_name, target_doc=None):
 	agenda = frappe.get_doc("Board Meeting Agenda", source_name)
+	frappe.has_permission("Board Meeting Agenda", "read", agenda, throw=True)
 
 	minutes = frappe.new_doc("Board Meeting Minutes")
 	minutes.title = agenda.title

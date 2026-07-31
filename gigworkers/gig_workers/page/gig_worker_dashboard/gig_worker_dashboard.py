@@ -5,9 +5,13 @@ import frappe
 def get_dashboard_data(aggregator=None, service_category=None, worker_override=None):
     user = frappe.session.user
 
-    # System Manager can view any worker's dashboard
+    # System Manager can view any worker's dashboard — log every such access,
+    # since this exposes another worker's PII and welfare-fund data.
     if worker_override and "System Manager" in frappe.get_roles(user):
         worker_name = worker_override
+        frappe.logger("gig_worker_pii_access").info(
+            f"System Manager {user} viewed Gig Worker dashboard for {worker_name} at {frappe.utils.now()}"
+        )
     else:
         worker_name = frappe.db.get_value("Gig Worker", {"email": user}, "name")
     if not worker_name:

@@ -400,7 +400,9 @@ class GigWorker(Document):
 		"""
 		Create a Frappe user for this Gig Worker.
 		  - Username  : GW ID (e.g. GW001)  — used to log in
-		  - Password  : mobile number (phone)
+		  - Password  : random, one-time; the worker must set their own via a
+		                password reset link (never derived from their phone
+		                number, which is often already known to others)
 		  - Email     : optional; if absent a synthetic one is generated
 		  - No registration email is sent
 		"""
@@ -442,5 +444,10 @@ class GigWorker(Document):
 			frappe.db.set_value("User", login_email, "username", gw_username, update_modified=False)
 
 		self.db_set("user", login_email, update_modified=False)
-		update_password(login_email, self.phone)
+		update_password(login_email, frappe.generate_hash(length=32))
+		frappe.db.set_value(
+			"User", login_email,
+			{"reset_password_key": frappe.generate_hash(length=32), "last_reset_password_key_generated_on": frappe.utils.now()},
+			update_modified=False,
+		)
 

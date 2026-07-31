@@ -4,13 +4,18 @@ and inserts records in batches of 500 using frappe.db.bulk_insert,
 bypassing slow per-document hooks (email, PDF, user creation).
 """
 
-import csv
 import re
 from datetime import datetime
 
 import frappe
 from frappe.model.naming import make_autoname
 from frappe.utils import now_datetime, getdate, date_diff, today
+
+from gigworkers.gig_workers.utils.bulk_import_common import (
+	parse_file as _shared_parse_file,
+	update_progress as _shared_update_progress,
+	is_cancelled as _shared_is_cancelled,
+)
 
 
 BATCH_SIZE = 500
@@ -39,9 +44,10 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 	file_name = frappe.db.get_value("File", {"file_url": file_url}, "file_name") or file_url.split("/")[-1]
 
 	try:
-		rows = _parse_file(file_url)
+		rows = _parse_file(file_url, user=user)
 	except Exception as e:
-		errors = [f"File parse error: {e}"]
+		frappe.log_error(frappe.get_traceback(), "Gig Worker Bulk Import Parse Error")
+		errors = ["File parse error: could not read the uploaded file. Please check the format and try again."]
 		_update_progress(import_id, status="Failed", errors=errors)
 		_save_import_log(
 			import_id=import_id, file_url=file_url, file_name=file_name,
@@ -343,41 +349,15 @@ def _create_users_batch(user_data, now_ts, owner):
     for login_email, phone in to_set_password:
         if phone:
             try:
-                update_password(login_email, phone)
+                # Never derive a login credential from the worker's own phone
+                # number — set a random one-time password instead.
+                update_password(login_email, frappe.generate_hash(length=32))
             except Exception:
                 pass  # non-fatal — user exists, password can be reset later
 
 
-def _parse_file(file_url):
-	file_doc  = frappe.get_doc("File", {"file_url": file_url})
-	file_path = file_doc.get_full_path()
-	if file_path.endswith(".xlsx") or file_path.endswith(".xls"):
-		return _parse_excel(file_path)
-	return _parse_csv(file_path)
-
-
-def _parse_csv(file_path):
-	with open(file_path, "r", encoding="utf-8-sig") as f:
-		reader = csv.DictReader(f)
-		return [_clean_row(row) for row in reader if any(row.values())]
-
-
-def _parse_excel(file_path):
-	try:
-		import openpyxl
-	except ImportError:
-		frappe.throw("openpyxl is required for XLSX import. Use CSV format instead.")
-	wb  = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
-	ws  = wb.active
-	rows = list(ws.iter_rows(values_only=True))
-	if not rows:
-		return []
-	headers = [str(h).strip() if h else "" for h in rows[0]]
-	return [_clean_row(dict(zip(headers, r))) for r in rows[1:] if any(r)]
-
-
-def _clean_row(row):
-	return {k.strip(): (str(v).strip() if v is not None else "") for k, v in row.items()}
+def _parse_file(file_url, user=None):
+	return _shared_parse_file(file_url, user=user)
 
 
 # ---------------------------------------------------------------------------
@@ -445,7 +425,14 @@ def _parse_date(val):
 	return None
 
 
+# Only these Gig Worker fields may ever be interpolated as a column name below —
+# `field` must never be derived from request/CSV input without checking this set.
+_ALLOWED_EXISTING_SET_FIELDS = {"email", "phone", "aadhaar_number", "pan_number", "eshram_id"}
+
+
 def _get_existing_set(field):
+	if field not in _ALLOWED_EXISTING_SET_FIELDS:
+		frappe.throw(f"Invalid field for duplicate lookup: {field}")
 	rows = frappe.db.sql(
 		f"SELECT `{field}` FROM `tabGig Worker` WHERE `{field}` IS NOT NULL", as_list=True
 	)
@@ -453,12 +440,8 @@ def _get_existing_set(field):
 
 
 def _update_progress(import_id, **kwargs):
-	raw  = frappe.cache().hget(CACHE_KEY, import_id) or "{}"
-	data = frappe.parse_json(raw)
-	data.update(kwargs)
-	frappe.cache().hset(CACHE_KEY, import_id, frappe.as_json(data))
+	_shared_update_progress(CACHE_KEY, import_id, **kwargs)
 
 
 def _is_cancelled(import_id):
-	raw = frappe.cache().hget(CACHE_KEY, import_id) or "{}"
-	return frappe.parse_json(raw).get("cancel_requested", False)
+	return _shared_is_cancelled(CACHE_KEY, import_id)

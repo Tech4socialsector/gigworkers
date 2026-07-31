@@ -54,6 +54,9 @@ def user_based_query(user=None, doctype=None):
         elif doctype == "Welfare Fee Invoice":
             return f"`tabWelfare Fee Invoice`.`aggregator` = {frappe.db.escape(aggregator)}"
 
+        elif doctype == "Welfare Fee Payment":
+            return f"`tabWelfare Fee Payment`.`aggregator` = {frappe.db.escape(aggregator)}"
+
         return "1=0"
 
     # ----------------------------------------------------------------
@@ -75,6 +78,9 @@ def user_based_query(user=None, doctype=None):
 
         elif doctype == "Worker Mapping Log":
             return f"`tabWorker Mapping Log`.`gig_worker` = {frappe.db.escape(gig_worker)}"
+
+        elif doctype == "Welfare Benefit Withdrawal":
+            return f"`tabWelfare Benefit Withdrawal`.`gig_worker` = {frappe.db.escape(gig_worker)}"
 
         elif doctype == "Aggregator":
             return "1=0"
@@ -140,6 +146,11 @@ def user_has_permission(doc, ptype="read", user=None):
                 return True
             return doc.aggregator == aggregator
 
+        elif doctype == "Welfare Fee Payment":
+            if ptype == "create":
+                return True
+            return doc.aggregator == aggregator
+
         return False
 
     # ----------------------------------------------------------------
@@ -158,6 +169,11 @@ def user_has_permission(doc, ptype="read", user=None):
             return doc.gig_worker == gig_worker
 
         elif doctype == "Worker Mapping Log":
+            return doc.gig_worker == gig_worker
+
+        elif doctype == "Welfare Benefit Withdrawal":
+            if ptype == "create":
+                return True
             return doc.gig_worker == gig_worker
 
         elif doctype == "Aggregator":

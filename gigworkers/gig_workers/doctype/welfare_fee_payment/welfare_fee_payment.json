@@ -50,7 +50,8 @@
   {
    "fieldname": "bank_reference",
    "fieldtype": "Data",
-   "label": "Bank Reference"
+   "label": "Bank Reference",
+   "permlevel": 1
   },
   {
    "fieldname": "payment_date",
@@ -65,7 +66,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Payment Status",
-   "options": "\nPending\nCompleted\nFailed"
+   "options": "\nPending\nCompleted\nFailed",
+   "permlevel": 1
   },
   {
    "fieldname": "settlement_status",
@@ -75,7 +77,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Settlement Status",
-   "options": "\nInitiated\nSuccess\nFailed"
+   "options": "\nInitiated\nSuccess\nFailed",
+   "permlevel": 1
   },
   {
    "fieldname": "amount_paid",
@@ -121,6 +124,12 @@
    "read": 1,
    "report": 1,
    "role": "Aggregator",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager",
    "write": 1
   }
  ],

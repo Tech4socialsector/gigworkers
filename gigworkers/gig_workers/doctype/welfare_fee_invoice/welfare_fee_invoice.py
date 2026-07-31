@@ -6,6 +6,18 @@ from frappe.model.document import Document
 from frappe.utils import today, getdate, add_days, get_first_day, get_last_day, nowdate
 
 
+def _assert_can_access_aggregator(aggregator):
+    """Raise unless the caller is System Manager or owns the given Aggregator record."""
+    if "System Manager" in frappe.get_roles():
+        return
+    caller_agg = frappe.db.get_value("Aggregator", {"email": frappe.session.user}, "name")
+    if not caller_agg or caller_agg != aggregator:
+        frappe.throw(
+            "Unauthorized: you may only view your own aggregator's welfare fee data.",
+            frappe.PermissionError,
+        )
+
+
 class WelfareFeeInvoice(Document):
 
 	def validate(self):
@@ -92,7 +104,6 @@ class WelfareFeeInvoice(Document):
 		try:
 			frappe.sendmail(
 				recipients=[self.email],
-				sender="nishanthclintona@gmail.com",
 				subject=f"Payment Confirmation - Welfare Fee Invoice {self.name}",
 				message=f"""
 				<p>Dear {self.aggregator_name},</p>
@@ -162,6 +173,8 @@ def fetch_pending_welfare_fees(aggregator, quarter, year, from_date, to_date):
 	Returns:
 		dict: List of pending welfare fee items
 	"""
+	_assert_can_access_aggregator(aggregator)
+
 	# Get all pending welfare fee payments for this aggregator in the date range
 	welfare_fees = frappe.db.sql("""
 		SELECT
@@ -319,6 +332,8 @@ def get_aggregator_invoice_summary(aggregator=None):
 	if not aggregator:
 		frappe.throw("Aggregator is required.")
 
+	_assert_can_access_aggregator(aggregator)
+
 	# Get current quarter info
 	current_year, current_quarter = _get_current_quarter()
 
@@ -451,7 +466,6 @@ def _send_invoice_notification(invoice):
 	try:
 		frappe.sendmail(
 			recipients=[invoice.email],
-			sender="nishanthclintona@gmail.com",
 			subject=f"New Welfare Fee Invoice - {invoice.quarter} {invoice.year}",
 			message=f"""
 			<p>Dear {invoice.aggregator_name},</p>
