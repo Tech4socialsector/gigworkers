@@ -4,8 +4,9 @@
 const ID_PROOF_PLACEHOLDERS = {
 	"PAN": "ABCDE1234F",
 	"Driving Licence": "KA0120230012345",
-	"Aadhar": "XXXXXXXXXXXX",
 };
+
+const AADHAR_SAMPLE_DIGITS = "123456789012";
 
 function get_selected_proof_types(frm) {
 	if (frm.doc.id_proof_mode === "Single ID Proof") {
@@ -19,6 +20,24 @@ function get_selected_proof_types(frm) {
 	return proof_types;
 }
 
+function get_aadhar_placeholder(frm) {
+	if (frm.doc.aadhar_display_format === "Full") {
+		return AADHAR_SAMPLE_DIGITS;
+	}
+	if (frm.doc.aadhar_display_format === "First 4 Digits") {
+		return AADHAR_SAMPLE_DIGITS.slice(0, 4);
+	}
+	// default: Last 4 Digits
+	return AADHAR_SAMPLE_DIGITS.slice(-4);
+}
+
+function get_id_proof_placeholder(frm, proof_type) {
+	if (proof_type === "Aadhar") {
+		return get_aadhar_placeholder(frm);
+	}
+	return ID_PROOF_PLACEHOLDERS[proof_type] || "";
+}
+
 function update_preview(frm) {
 	let proof_types = get_selected_proof_types(frm);
 	let parts = [];
@@ -27,7 +46,7 @@ function update_preview(frm) {
 		parts.push(frm.doc.prefix);
 	}
 
-	proof_types.forEach((proof_type) => parts.push(ID_PROOF_PLACEHOLDERS[proof_type] || ""));
+	proof_types.forEach((proof_type) => parts.push(get_id_proof_placeholder(frm, proof_type)));
 
 	if (frm.doc.suffix) {
 		parts.push(frm.doc.suffix);
@@ -60,6 +79,9 @@ frappe.ui.form.on("Gig Worker Unique ID Settings", {
 		update_preview(frm);
 	},
 	allow_aadhar(frm) {
+		update_preview(frm);
+	},
+	aadhar_display_format(frm) {
 		update_preview(frm);
 	},
 	need_prefix(frm) {
