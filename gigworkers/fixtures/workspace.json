@@ -2,7 +2,7 @@
  {
   "app": "gigworkers",
   "charts": [],
-  "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profile\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Invoice\",\"col\":4}},{\"id\":\"2x_2SGqygo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":4}},{\"id\":\"agg_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"agg_nc_hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>My Stats</b></span>\",\"col\":12}},{\"id\":\"agg_nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Gig Workers\",\"col\":4}},{\"id\":\"agg_nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Active Workers\",\"col\":4}},{\"id\":\"agg_nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Transactions\",\"col\":4}},{\"id\":\"agg_nc4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Completed Transactions\",\"col\":4}},{\"id\":\"agg_nc5\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Welfare Contributed\",\"col\":4}},{\"id\":\"agg_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
+  "content": "[{\"id\":\"h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Aggregators</b></span>\",\"col\":12}},{\"id\":\"ddq6jJMvEx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Aggregator Dashboard\",\"col\":3}},{\"id\":\"s0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profile\",\"col\":3}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Worker\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gig Transaction\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Invoice\",\"col\":4}},{\"id\":\"dV9Dff8LYB\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fee Payment\",\"col\":4}},{\"id\":\"2x_2SGqygo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Welfare Fund Account\",\"col\":4}},{\"id\":\"agg_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"HiATPoMAy0\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Data Import</b></span>\",\"col\":12}},{\"id\":\"tZBfR54fvx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Bulk Gig worker import\",\"col\":4}},{\"id\":\"aw7YnVfiMx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Bulk gig transaction import\",\"col\":4}},{\"id\":\"HAwr2_azTP\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"agg_nc_hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>My Stats</b></span>\",\"col\":12}},{\"id\":\"agg_nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Gig Workers\",\"col\":4}},{\"id\":\"agg_nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Active Workers\",\"col\":4}},{\"id\":\"agg_nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Transactions\",\"col\":4}},{\"id\":\"agg_nc4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Completed Transactions\",\"col\":4}},{\"id\":\"agg_nc5\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"My Welfare Contributed\",\"col\":4}},{\"id\":\"cLxMT4thkH\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Welfare fee payment\",\"col\":4}},{\"id\":\"agg_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
   "custom_blocks": [],
   "docstatus": 0,
   "doctype": "Workspace",
@@ -77,13 +77,17 @@
     "type": "Link"
    }
   ],
-  "modified": "2026-05-05 00:57:16.126168",
+  "modified": "2026-07-30 19:56:13.765299",
   "module": "Gig Workers",
   "name": "Aggregators",
   "number_cards": [
    {
     "label": "My Gig Workers",
     "number_card_name": "My Gig Workers"
+   },
+   {
+    "label": "Total Welfare fee payment",
+    "number_card_name": "Total Welfare fee payment"
    },
    {
     "label": "My Active Workers",
@@ -121,6 +125,48 @@
     "kanban_board": null,
     "label": "Profile",
     "link_to": "Aggregator",
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": "[]",
+    "type": "DocType",
+    "url": null
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Bulk Gig worker import",
+    "link_to": null,
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "URL",
+    "url": "/desk/bulk-gig-worker-import"
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Bulk gig transaction import",
+    "link_to": null,
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "URL",
+    "url": "/desk/bulk-gig-transaction-import"
+   },
+   {
+    "color": "Yellow",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Welfare Fee Payment",
+    "link_to": "Welfare Fee Payment",
     "report_ref_doctype": null,
     "restrict_to_domain": null,
     "stats_filter": "[]",
