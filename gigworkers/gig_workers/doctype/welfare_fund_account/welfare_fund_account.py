@@ -103,37 +103,54 @@ class WelfareFundAccount(Document):
 		return doc
 
 
-@frappe.whitelist()
-def get_list_summary():
-	"""Aggregate totals for the Welfare Fund Account list view summary cards.
-	Results are scoped to the records the current user is permitted to see.
+def _resolve_fund_account_scope():
+	"""Return (condition_key, aggregator_or_gig_worker_name_or_None) for the caller's role.
+	condition_key is one of "all", "aggregator", "gig_worker", or "none" (no access).
+	NOTE: any dynamic value here must always be passed through a SQL placeholder in the
+	caller, never string-interpolated directly — only these fixed condition_key strings
+	may be spliced into query text.
 	"""
 	user = frappe.session.user
 	roles = frappe.get_roles(user)
 
 	if "System Manager" in roles:
-		condition = ""
-		params = []
+		return "all", None
 
-	elif "Aggregator" in roles:
+	if "Aggregator" in roles:
 		aggregator = frappe.db.get_value("Aggregator", {"email": user}, "name")
 		if not aggregator:
-			return {"total_account_balance": 0, "total_withdrawn": 0}
+			return "none", None
+		return "aggregator", aggregator
+
+	if "Gig Worker" in roles:
+		gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
+		if not gig_worker:
+			return "none", None
+		return "gig_worker", gig_worker
+
+	return "none", None
+
+
+@frappe.whitelist()
+def get_list_summary():
+	"""Aggregate totals for the Welfare Fund Account list view summary cards.
+	Results are scoped to the records the current user is permitted to see.
+	"""
+	scope, value = _resolve_fund_account_scope()
+
+	if scope == "all":
+		condition, params = "", []
+	elif scope == "aggregator":
 		condition = """
 			WHERE gig_worker IN (
 				SELECT name FROM `tabGig Worker`
 				WHERE created_by_aggregator = %s
 			)
 		"""
-		params = [aggregator]
-
-	elif "Gig Worker" in roles:
-		gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
-		if not gig_worker:
-			return {"total_account_balance": 0, "total_withdrawn": 0}
+		params = [value]
+	elif scope == "gig_worker":
 		condition = "WHERE gig_worker = %s"
-		params = [gig_worker]
-
+		params = [value]
 	else:
 		return {"total_account_balance": 0, "total_withdrawn": 0}
 
@@ -153,14 +170,30 @@ def get_list_summary():
 
 @frappe.whitelist()
 def get_list_breakdown(metric):
-	"""Transaction-level breakdown for drill-down from the list view summary cards."""
+	"""Transaction-level breakdown for drill-down from the list view summary cards.
+	Scoped by the same role-based rules as get_list_summary — an Aggregator or Gig
+	Worker must only see their own ledger entries, never the platform-wide detail.
+	"""
 	allowed = {"account_balance", "total_withdrawn"}
 	if metric not in allowed:
 		frappe.throw(frappe._("Invalid metric"))
 
+	scope, value = _resolve_fund_account_scope()
+	if scope == "none":
+		return []
+
 	if metric == "account_balance":
+		if scope == "all":
+			scope_condition, params = "", []
+		elif scope == "aggregator":
+			scope_condition = "AND gt.aggregator = %s"
+			params = [value]
+		else:  # gig_worker
+			scope_condition = "AND gt.gig_worker = %s"
+			params = [value]
+
 		rows = frappe.db.sql(
-			"""
+			f"""
 			SELECT
 				gt.name               AS transaction_id,
 				gt.date               AS transaction_date,
@@ -177,13 +210,24 @@ def get_list_breakdown(metric):
 			WHERE le.entry_type = 'Credit'
 			  AND le.gig_transaction IS NOT NULL
 			  AND le.gig_transaction != ''
+			  {scope_condition}
 			ORDER BY gt.date DESC, le.amount DESC
 			""",
+			params,
 			as_dict=True,
 		)
 	else:
+		if scope == "all":
+			scope_condition, params = "", []
+		elif scope == "aggregator":
+			scope_condition = "AND wfa.gig_worker IN (SELECT name FROM `tabGig Worker` WHERE created_by_aggregator = %s)"
+			params = [value]
+		else:  # gig_worker
+			scope_condition = "AND wfa.gig_worker = %s"
+			params = [value]
+
 		rows = frappe.db.sql(
-			"""
+			f"""
 			SELECT
 				le.reference_name       AS withdrawal_id,
 				wfa.gig_worker,
@@ -197,8 +241,10 @@ def get_list_breakdown(metric):
 			LEFT JOIN `tabWelfare Benefit Withdrawal` wbw
 				ON wbw.name = le.reference_name
 			WHERE le.entry_type = 'Debit'
+			  {scope_condition}
 			ORDER BY le.entry_date DESC, le.amount DESC
 			""",
+			params,
 			as_dict=True,
 		)
 	return rows

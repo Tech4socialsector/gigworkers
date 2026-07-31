@@ -119,6 +119,7 @@
    "in_standard_filter": 1,
    "label": "Invoice Status",
    "options": "Draft\nPending\nPartially Paid\nFully Paid\nOverdue",
+   "permlevel": 1,
    "reqd": 1
   },
   {
@@ -151,6 +152,7 @@
    "in_list_view": 1,
    "label": "Total Due Amount",
    "options": "INR",
+   "permlevel": 1,
    "reqd": 1
   },
   {
@@ -165,6 +167,7 @@
    "fieldtype": "Currency",
    "label": "Total Amount Paid",
    "options": "INR",
+   "permlevel": 1,
    "read_only": 1
   },
   {
@@ -174,7 +177,8 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Balance Due",
-   "options": "INR"
+   "options": "INR",
+   "permlevel": 1
   },
   {
    "description": "List of all pending welfare fee payments for this quarter",
@@ -235,13 +239,18 @@
   },
   {
    "create": 1,
-   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,
    "read": 1,
    "report": 1,
    "role": "Aggregator",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager",
    "write": 1
   }
  ],

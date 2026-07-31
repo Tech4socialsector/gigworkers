@@ -456,7 +456,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				rows: () => aggregator_workers || [],
 				cols: [
 					{ label: "Worker ID",     render: w => worker_link(w.name), csv: w => w.name },
-					{ label: "Name",          render: w => w.worker_name || "-" },
+					{ label: "Name",          render: w => frappe.utils.escape_html(w.worker_name || "-") },
 					{ label: "Phone",         render: w => w.phone || "-" },
 					{ label: "Service",       render: w => w.name_of_service || "-" },
 					{ label: "Status",        render: w => status_badge(w.status) },
@@ -649,8 +649,8 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				<div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 6px rgba(0,0,0,0.07);margin-bottom:16px;
 					display:flex;flex-wrap:wrap;gap:20px;">
 					<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Worker ID</div><div style="font-weight:700;">${d.gig_worker}</div></div>
-					${w.worker_name ? `<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Name</div><div style="font-weight:700;">${w.worker_name}</div></div>` : ""}
-					${w.phone ? `<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Phone</div><div style="font-weight:700;">${w.phone}</div></div>` : ""}
+					${w.worker_name ? `<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Name</div><div style="font-weight:700;">${frappe.utils.escape_html(w.worker_name)}</div></div>` : ""}
+					${w.phone ? `<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Phone</div><div style="font-weight:700;">${frappe.utils.escape_html(w.phone)}</div></div>` : ""}
 					${w.status ? `<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;">Profile Status</div><div>${status_badge(w.status)}</div></div>` : ""}
 				</div>`;
 
@@ -1423,13 +1423,13 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 		<!-- Aggregator Profile -->
 		<div class="agg-profile">
-			<div class="agg-avatar">${(aggregator.aggregator_name || "?")[0].toUpperCase()}</div>
+			<div class="agg-avatar">${frappe.utils.escape_html((aggregator.aggregator_name || "?")[0].toUpperCase())}</div>
 			<div class="agg-profile-info" style="flex:1;">
-				<div class="name">${aggregator.aggregator_name || "-"}</div>
+				<div class="name">${frappe.utils.escape_html(aggregator.aggregator_name || "-")}</div>
 				<div class="meta">
-					<span><i class="fa fa-id-badge" style="margin-right:4px;"></i>${aggregator_id}</span>
-					<span><i class="fa fa-envelope" style="margin-right:4px;"></i>${aggregator.email || ""}</span>
-					${aggregator.mobile ? `<span><i class="fa fa-phone" style="margin-right:4px;"></i>${aggregator.mobile}</span>` : ""}
+					<span><i class="fa fa-id-badge" style="margin-right:4px;"></i>${frappe.utils.escape_html(aggregator_id)}</span>
+					<span><i class="fa fa-envelope" style="margin-right:4px;"></i>${frappe.utils.escape_html(aggregator.email || "")}</span>
+					${aggregator.mobile ? `<span><i class="fa fa-phone" style="margin-right:4px;"></i>${frappe.utils.escape_html(aggregator.mobile)}</span>` : ""}
 					${status_badge(aggregator.status)}
 					${(service_category_list && service_category_list.length) ? `<span style="color:#4e73df;font-weight:600;"><i class="fa fa-building" style="margin-right:4px;"></i>${service_category_list.length} Service Categor${service_category_list.length > 1 ? "ies" : "y"}</span>` : ""}
 				</div>

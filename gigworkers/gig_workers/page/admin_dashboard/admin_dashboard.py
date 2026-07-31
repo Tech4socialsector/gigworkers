@@ -37,43 +37,30 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     wfp_where = ("WHERE " + " AND ".join(wfp_conditions)) if wfp_conditions else ""
 
     # --- Platform-wide transaction stats (with filters) ---
-    txn_stats = frappe.db.sql(f"""
+    # One pass over tabGig Transaction using conditional aggregation, instead of
+    # four separate full-table-scan queries for the same filtered row set.
+    txn_stats_row = frappe.db.sql(f"""
         SELECT
             COUNT(*)                         AS total_transactions,
             COALESCE(SUM(amount), 0)         AS total_amount,
             COALESCE(SUM(base_payout), 0)    AS total_base_payout,
-            COALESCE(SUM(welfare_amount), 0) AS total_welfare
+            COALESCE(SUM(welfare_amount), 0) AS total_welfare,
+            SUM(CASE WHEN status = 'Payment complete'  THEN 1 ELSE 0 END) AS completed_count,
+            SUM(CASE WHEN status = 'Payment pending'   THEN 1 ELSE 0 END) AS pending_count,
+            SUM(CASE WHEN status = 'Payment Cancelled' THEN 1 ELSE 0 END) AS cancelled_count
         FROM `tabGig Transaction`
         {txn_where}
     """, txn_params, as_dict=True)[0]
 
-    status_conditions = dict(txn_params)
-    completed_where_parts = list(txn_conditions) + ["status = 'Payment complete'"]
-    pending_where_parts = list(txn_conditions) + ["status = 'Payment pending'"]
-
-    completed_count = frappe.db.sql(
-        f"SELECT COUNT(*) AS cnt FROM `tabGig Transaction` WHERE {' AND '.join(completed_where_parts)}",
-        status_conditions,
-        as_dict=True,
-    )[0].cnt if txn_conditions else frappe.db.count("Gig Transaction", {"status": "Payment complete"})
-
-    pending_count = frappe.db.sql(
-        f"SELECT COUNT(*) AS cnt FROM `tabGig Transaction` WHERE {' AND '.join(pending_where_parts)}",
-        status_conditions,
-        as_dict=True,
-    )[0].cnt if txn_conditions else frappe.db.count("Gig Transaction", {"status": "Payment pending"})
-
-    cancelled_where_parts = list(txn_conditions) + ["status = 'Payment Cancelled'"]
-    cancelled_count = frappe.db.sql(
-        f"SELECT COUNT(*) AS cnt FROM `tabGig Transaction` WHERE {' AND '.join(cancelled_where_parts)}",
-        status_conditions,
-        as_dict=True,
-    )[0].cnt if txn_conditions else frappe.db.count("Gig Transaction", {"status": "Payment Cancelled"})
-
-    if not txn_conditions:
-        completed_count = frappe.db.count("Gig Transaction", {"status": "Payment complete"})
-        pending_count = frappe.db.count("Gig Transaction", {"status": "Payment pending"})
-        cancelled_count = frappe.db.count("Gig Transaction", {"status": "Payment Cancelled"})
+    txn_stats = frappe._dict({
+        "total_transactions": txn_stats_row.total_transactions,
+        "total_amount":       txn_stats_row.total_amount,
+        "total_base_payout":  txn_stats_row.total_base_payout,
+        "total_welfare":      txn_stats_row.total_welfare,
+    })
+    completed_count = txn_stats_row.completed_count or 0
+    pending_count   = txn_stats_row.pending_count or 0
+    cancelled_count = txn_stats_row.cancelled_count or 0
 
     # --- Aggregator stats (not date-filtered; aggregator filter still applies) ---
     agg_filters = {"status": "Active"} if not aggregator else {"status": "Active", "name": aggregator}
@@ -374,6 +361,12 @@ def mark_as_suspected_duplicate(transaction_id):
     frappe.only_for("System Manager")
 
     doc = frappe.get_doc("Gig Transaction", transaction_id)
+    if doc.settlement_status == "Settled":
+        frappe.throw(f"Cannot mark {transaction_id} as duplicate: already Settled.")
+    doc.add_comment(
+        "Info",
+        f"Status changed from {doc.status} to Suspected duplicate by {frappe.session.user}",
+    )
     doc.status = "Suspected duplicate"
     doc.save(ignore_permissions=True)
     frappe.db.commit()
@@ -405,7 +398,13 @@ def mark_multiple_as_suspected_duplicate(transaction_ids):
     for txn_id in ids:
         try:
             doc = frappe.get_doc("Gig Transaction", txn_id)
+            if doc.settlement_status == "Settled":
+                continue  # do not disturb already-settled transactions
             if doc.status != "Suspected duplicate":
+                doc.add_comment(
+                    "Info",
+                    f"Status changed from {doc.status} to Suspected duplicate by {frappe.session.user}",
+                )
                 doc.status = "Suspected duplicate"
                 doc.save(ignore_permissions=True)
                 marked += 1

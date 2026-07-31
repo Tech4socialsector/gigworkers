@@ -58,6 +58,7 @@
    "fieldname": "aadhaar_number",
    "fieldtype": "Data",
    "label": "Aadhaar Number",
+   "permlevel": 1,
    "reqd": 1,
    "unique": 1
   },
@@ -67,6 +68,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "PAN Number",
+   "permlevel": 1,
    "unique": 1
   },
   {
@@ -104,12 +106,14 @@
   {
    "fieldname": "aadhaar_number_file",
    "fieldtype": "Attach",
-   "label": "Aadhaar Number File"
+   "label": "Aadhaar Number File",
+   "permlevel": 1
   },
   {
    "fieldname": "pan_file",
    "fieldtype": "Attach",
-   "label": "PAN File"
+   "label": "PAN File",
+   "permlevel": 1
   },
   {
    "fieldname": "created_by_aggregator",
@@ -161,7 +165,8 @@
   {
    "fieldname": "operating_bank_account",
    "fieldtype": "Data",
-   "label": "Operating Bank account"
+   "label": "Operating Bank account",
+   "permlevel": 1
   },
   {
    "fieldname": "account_status_section",
@@ -247,6 +252,23 @@
    "write": 1
   },
   {
+   "read": 1,
+   "role": "Gig Worker"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Aggregator",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
    "read": 1,
    "role": "Gig Worker"
   }

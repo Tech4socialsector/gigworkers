@@ -139,7 +139,9 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		];
 
 		const cur_agg_label = current.aggregator
-			? (aggregator_list.find(a => a.name === current.aggregator) || {aggregator_name: current.aggregator}).aggregator_name + ` (${current.aggregator})`
+			? frappe.utils.escape_html(
+				(aggregator_list.find(a => a.name === current.aggregator) || {aggregator_name: current.aggregator}).aggregator_name + ` (${current.aggregator})`
+			  )
 			: "";
 
 		return `
@@ -356,9 +358,9 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			if (!matches.length) { $dd.hide(); return; }
 
 			$dd.html(matches.slice(0, 20).map(a =>
-				`<div class="agg-option" data-id="${a.name}">
-					${a.aggregator_name || a.name}
-					<span class="agg-id">${a.name}</span>
+				`<div class="agg-option" data-id="${frappe.utils.escape_html(a.name)}">
+					${frappe.utils.escape_html(a.aggregator_name || a.name)}
+					<span class="agg-id">${frappe.utils.escape_html(a.name)}</span>
 				</div>`
 			).join("")).show();
 		}
@@ -454,7 +456,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 		}
 		if (filters.aggregator) {
 			const agg = (_dash_data && _dash_data.aggregator_list || []).find(a => a.name === filters.aggregator);
-			const label = agg ? `${agg.aggregator_name} (${agg.name})` : filters.aggregator;
+			const label = frappe.utils.escape_html(agg ? `${agg.aggregator_name} (${agg.name})` : filters.aggregator);
 			tags.push(`<span class="filter-tag" style="background:#e6f9f0;color:#1a8a50;border:1px solid #b3e8ce;">
 				<i class="fa fa-building" style="font-size:10px;"></i> ${label}</span>`);
 		}
@@ -754,7 +756,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 
 		const agg_cols = [
 			{ label: "Aggregator ID",      render: a => `<a href="/app/aggregator/${a.aggregator_id}" style="color:#4e73df;">${a.aggregator_id}</a>` },
-			{ label: "Name",               render: a => a.aggregator_name || "-" },
+			{ label: "Name",               render: a => frappe.utils.escape_html(a.aggregator_name || "-") },
 			{ label: "Status",             render: a => status_badge(a.status) },
 			{ label: "Workers",            render: a => a.worker_count || 0 },
 			{ label: "Transactions",       render: a => a.txn_count || 0 },
@@ -774,7 +776,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 
 		const fund_cols = [
 			{ label: "Aggregator ID",   render: a => a.aggregator_id ? `<a href="/app/aggregator/${a.aggregator_id}" style="color:#4e73df;">${a.aggregator_id}</a>` : "-" },
-			{ label: "Aggregator Name", render: a => a.aggregator_name || "-" },
+			{ label: "Aggregator Name", render: a => frappe.utils.escape_html(a.aggregator_name || "-") },
 			{ label: "Workers",         render: a => a.worker_count || 0 },
 			{ label: "Fund Balance",    render: a => fmt_currency(a.total_balance) },
 			{ label: "Total Collected", render: a => fmt_currency(a.total_collected) },
@@ -1607,7 +1609,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				<tbody>
 					${aggregator_breakdown.map(a => `<tr>
 						<td><a href="/app/aggregator/${a.aggregator_id}" style="color:#4e73df;">${a.aggregator_id}</a></td>
-						<td>${a.aggregator_name || "-"}</td>
+						<td>${frappe.utils.escape_html(a.aggregator_name || "-")}</td>
 						<td>${status_badge(a.status)}</td>
 						<td>${a.worker_count || 0}</td>
 						<td>${a.txn_count || 0}</td>

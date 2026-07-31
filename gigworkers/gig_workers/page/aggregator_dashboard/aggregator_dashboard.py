@@ -23,13 +23,12 @@ def _as_list(value):
 def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggregator_override=None):
     user = frappe.session.user
 
-    # System Manager can view any aggregator's dashboard
+    # System Manager can view any aggregator's dashboard, but only via an explicit
+    # aggregator_override — never silently pick an arbitrary tenant for Administrator.
     if aggregator_override and "System Manager" in frappe.get_roles(user):
         aggregator_name = aggregator_override
     else:
         aggregator_name = frappe.db.get_value("Aggregator", {"email": user}, "name")
-        if not aggregator_name and user == "Administrator":
-            aggregator_name = frappe.db.get_value("Aggregator", {}, "name")
     if not aggregator_name:
         frappe.throw("No Aggregator profile found for this user.")
 
@@ -168,8 +167,12 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         gw_sql_cond += " AND DATE(creation) <= %(to_date)s"
         gw_params["to_date"] = to_date
 
+    # Phone numbers are masked in this bulk roster view; the full number is only
+    # available via the scoped, per-worker get_worker_detail drill-through.
     aggregator_workers = frappe.db.sql(f"""
-        SELECT name, worker_name, phone, status, name_of_service, creation
+        SELECT name, worker_name,
+               CONCAT('xxxxxx', RIGHT(phone, 4)) AS phone,
+               status, name_of_service, creation
         FROM `tabGig Worker`
         {gw_sql_cond}
         ORDER BY creation DESC
@@ -328,8 +331,6 @@ def _resolve_aggregator(aggregator_override=None):
     if aggregator_override and "System Manager" in frappe.get_roles(user):
         return aggregator_override
     aggregator_name = frappe.db.get_value("Aggregator", {"email": user}, "name")
-    if not aggregator_name and user == "Administrator":
-        aggregator_name = frappe.db.get_value("Aggregator", {}, "name")
     if not aggregator_name:
         frappe.throw("No Aggregator profile found for this user.")
     return aggregator_name
@@ -357,11 +358,17 @@ def get_worker_detail(gig_worker, aggregator_override=None):
         order_by="log_datetime desc",
     )
 
+    # Only return the worker's PII if this aggregator actually has an onboarding
+    # or transaction relationship with them — a bare Gig Worker name lookup with
+    # no relationship check would let an aggregator enumerate arbitrary workers.
+    worker_is_related = bool(transactions) or bool(mapping_log) or frappe.db.exists(
+        "Gig Worker", {"name": gig_worker, "created_by_aggregator": aggregator_name}
+    )
     worker_info = frappe.db.get_value(
         "Gig Worker", gig_worker,
         ["name", "worker_name", "phone", "status"],
         as_dict=True,
-    ) if frappe.db.exists("Gig Worker", gig_worker) else None
+    ) if worker_is_related else None
 
     total_amount = sum(t.amount or 0 for t in transactions)
     total_welfare = sum(t.welfare_amount or 0 for t in transactions)

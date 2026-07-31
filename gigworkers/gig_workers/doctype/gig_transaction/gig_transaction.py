@@ -2,7 +2,8 @@
 # For license information, please see license.txt
 
 import hashlib
-import random
+import hmac
+import secrets
 import frappe
 from frappe.model.document import Document
 from frappe.utils import now, today, getdate, now_datetime, add_to_date, get_datetime
@@ -17,20 +18,48 @@ _ALLOWED_TRANSITIONS = {
     "":                    {"Payment pending", "Payment complete", "Suspected duplicate", "Payment Cancelled"},
 }
 
-OTP_EXPIRY_MINUTES = 30
-OTP_MAX_ATTEMPTS   = 5
+OTP_EXPIRY_MINUTES  = 30
+OTP_MAX_ATTEMPTS    = 5
+OTP_RESEND_COOLDOWN_SECONDS = 60
+OTP_VERIFY_RATE_LIMIT       = 10   # verify attempts allowed per transaction per window
+OTP_VERIFY_RATE_WINDOW_SECONDS = 1800  # 30 minutes
+OTP_RESEND_RATE_LIMIT       = 3    # resends allowed per transaction per window
+OTP_RESEND_RATE_WINDOW_SECONDS = 3600  # 1 hour
+
+
+def _rate_limit_key(prefix, transaction_name):
+    return f"gig_txn_otp:{prefix}:{transaction_name}"
+
+
+def _check_and_bump_rate_limit(prefix, transaction_name, limit, window_seconds):
+    """Simple fixed-window counter in Frappe's cache, independent of any OTP row state."""
+    key = _rate_limit_key(prefix, transaction_name)
+    cache = frappe.cache()
+    count = cache.get_value(key)
+    count = int(count) if count else 0
+    if count >= limit:
+        frappe.throw(
+            "Too many attempts for this transaction. Please try again later.",
+            title="Rate Limited",
+        )
+    cache.set_value(key, count + 1, expires_in_sec=window_seconds)
 
 
 # ── OTP helpers ───────────────────────────────────────────────────────────────
 
+def _otp_hmac_key():
+    """Server-side secret used to key the OTP hash, from site config (encryption_key as fallback)."""
+    return (frappe.conf.get("otp_hmac_key") or frappe.conf.get("encryption_key") or "").encode()
+
+
 def _generate_otp():
-    """Return (plaintext_otp, sha256_hash)."""
-    otp = str(random.randint(100000, 999999))
-    return otp, hashlib.sha256(otp.encode()).hexdigest()
+    """Return (plaintext_otp, hmac_hash) using a CSPRNG, not Python's Mersenne-Twister random."""
+    otp = str(secrets.randbelow(900000) + 100000)
+    return otp, hmac.new(_otp_hmac_key(), otp.encode(), hashlib.sha256).hexdigest()
 
 
 def _hash_otp(otp_plain):
-    return hashlib.sha256(otp_plain.strip().encode()).hexdigest()
+    return hmac.new(_otp_hmac_key(), otp_plain.strip().encode(), hashlib.sha256).hexdigest()
 
 
 def _get_email(gig_worker_name):
@@ -239,6 +268,7 @@ class GigTransaction(Document):
 
     def validate(self):
         self.validate_status_transition()
+        self.validate_settlement_status_transition()
         self.validate_base_payout()
         self.validate_transaction_date()
         self.prevent_duplicate_transaction()
@@ -260,6 +290,47 @@ class GigTransaction(Document):
             frappe.throw(
                 f"Status cannot be changed from <b>{prev_status}</b> to <b>{new_status}</b>.",
                 title="Invalid Status Transition",
+            )
+
+        # The Aggregator is the financially interested party in this transaction —
+        # they must not be able to self-declare payment complete by editing the
+        # field directly. That transition may only happen via System Manager,
+        # or via the trusted register_gig_transaction/confirm_transaction/verify_otp
+        # code paths (which set self.flags.is_trusted_confirmation before saving).
+        if (
+            new_status == "Payment complete"
+            and not self.flags.get("is_trusted_confirmation")
+            and not self.flags.get("is_adjustment")
+            and "System Manager" not in frappe.get_roles()
+        ):
+            frappe.throw(
+                "Payment complete can only be set via OTP confirmation or by a System Manager.",
+                frappe.PermissionError,
+            )
+
+    def validate_settlement_status_transition(self):
+        """settlement_status may only move forward, and only System Manager may set it directly."""
+        previous = self.get_doc_before_save()
+        prev_settlement = previous.settlement_status if previous else None
+        if prev_settlement == self.settlement_status:
+            return
+        if "System Manager" not in frappe.get_roles():
+            frappe.throw(
+                "Settlement status can only be updated by a System Manager.",
+                frappe.PermissionError,
+            )
+        allowed_settlement = {
+            None: {"Pending", "Confirmed", "Settled"},
+            "":   {"Pending", "Confirmed", "Settled"},
+            "Pending":   {"Confirmed", "Settled"},
+            "Confirmed": {"Settled"},
+            "Settled":   set(),
+        }
+        if self.settlement_status not in allowed_settlement.get(prev_settlement, set()):
+            frappe.throw(
+                f"Settlement status cannot be changed from <b>{prev_settlement}</b> "
+                f"to <b>{self.settlement_status}</b>.",
+                title="Invalid Settlement Status Transition",
             )
 
     def set_duplicate_key(self):
@@ -346,6 +417,9 @@ class GigTransaction(Document):
             confirmed_at = now()
 
             if self.trust_level == "High":
+                # High-trust transactions auto-confirm on save with no separate
+                # human confirmation step, so this path itself is the trusted event.
+                self.flags.is_trusted_confirmation = True
                 self.status       = "Payment complete"
                 self.confirmed_at = confirmed_at
 
@@ -427,7 +501,10 @@ def register_gig_transaction(
         "external_transaction_id":external_transaction_id,
         "status":                 "Payment pending",
     })
-    doc.insert(ignore_permissions=True)
+    # The explicit aggregator-ownership check above already authorizes this call;
+    # inserting without ignore_permissions still lets Frappe's own permission
+    # model (see gigworkers.permissions.user_has_permission) apply on top of it.
+    doc.insert()
 
     from gigworkers.gig_workers.doctype.worker_mapping_log.worker_mapping_log import create_mapping_log
     create_mapping_log(
@@ -459,6 +536,17 @@ def resend_otp(transaction_name):
     if doc.trust_level != "Low":
         frappe.throw("OTP is only used for Low Trust transactions.")
 
+    _check_and_bump_rate_limit(
+        "resend", transaction_name, OTP_RESEND_RATE_LIMIT, OTP_RESEND_RATE_WINDOW_SECONDS
+    )
+
+    if doc.otp_records:
+        last_row = doc.otp_records[-1]
+        if last_row.sent_at and now_datetime() < add_to_date(
+            get_datetime(last_row.sent_at), seconds=OTP_RESEND_COOLDOWN_SECONDS
+        ):
+            frappe.throw("Please wait before requesting another OTP.")
+
     email = _get_email(doc.gig_worker)
 
     # Expire all currently active OTP rows
@@ -485,9 +573,22 @@ def resend_otp(transaction_name):
 
 # ── Manual confirm / resend (admin / aggregator) ───────────────────────────────
 
+def _assert_can_manage_transaction(doc):
+    """Raise unless the caller is System Manager or the aggregator that owns this transaction."""
+    if "System Manager" in frappe.get_roles():
+        return
+    caller_agg = frappe.db.get_value("Aggregator", {"email": frappe.session.user}, "name")
+    if not caller_agg or caller_agg != doc.aggregator:
+        frappe.throw(
+            "Unauthorized: you may only manage your own transactions.",
+            frappe.PermissionError,
+        )
+
+
 @frappe.whitelist()
 def confirm_transaction(transaction_name):
     doc = frappe.get_doc("Gig Transaction", transaction_name)
+    _assert_can_manage_transaction(doc)
 
     if doc.trust_level != "Low":
         frappe.throw("Only Low Trust transactions use this flow.")
@@ -524,6 +625,12 @@ def verify_otp(transaction_name, otp):
     doc      = frappe.get_doc("Gig Transaction", transaction_name)
     otp_hash = _hash_otp(otp)
 
+    # Persistent, per-transaction attempt counter that survives resend_otp,
+    # so an attacker cannot reset the lockout by requesting a fresh OTP row.
+    _check_and_bump_rate_limit(
+        "verify", transaction_name, OTP_VERIFY_RATE_LIMIT, OTP_VERIFY_RATE_WINDOW_SECONDS
+    )
+
     active_row = None
     for row in doc.otp_records:
         if row.confirm_status == "OTP Sent":
@@ -549,6 +656,7 @@ def verify_otp(transaction_name, otp):
     if active_row.otp_code == otp_hash:
         active_row.confirm_status = "Confirmed"
         active_row.confirmed_at   = now()
+        doc.flags.is_trusted_confirmation = True
         doc.status       = "Payment complete"
         doc.confirmed_at = active_row.confirmed_at
         doc.save(ignore_permissions=True)
@@ -909,8 +1017,13 @@ def serve_confirmation_page(transaction_name):
         return
 
     csrf_token = frappe.sessions.get_csrf_token()
+    import json
     import urllib.parse
+    from frappe.utils import escape_html
     encoded_tx = urllib.parse.quote(transaction_name)
+    safe_name_html = escape_html(transaction_name)
+    safe_name_js = json.dumps(transaction_name)
+    safe_csrf_js = json.dumps(csrf_token)
 
     html_content = f"""
     <div style="max-width:420px;margin:40px auto;padding:24px;font-family:sans-serif;
@@ -918,7 +1031,7 @@ def serve_confirmation_page(transaction_name):
         <h2 style="text-align:center;color:#333;">Confirm Transaction</h2>
         <p style="text-align:center;color:#666;font-size:14px;">
             Enter the 6-digit OTP sent to your email to confirm<br>
-            <b>{transaction_name}</b>
+            <b>{safe_name_html}</b>
         </p>
         <p style="text-align:center;font-size:12px;color:#e74a3b;">
             OTP expires in {OTP_EXPIRY_MINUTES} minutes.
@@ -927,7 +1040,7 @@ def serve_confirmation_page(transaction_name):
         <div id="alert-box" style="display:none;padding:10px;margin-bottom:15px;border-radius:4px;font-size:14px;"></div>
 
         <form id="otp-form" onsubmit="submitOTP(event)">
-            <input type="hidden" id="transaction_name" value="{transaction_name}">
+            <input type="hidden" id="transaction_name" value="{safe_name_html}">
             <div style="margin-bottom:15px;">
                 <label style="display:block;margin-bottom:5px;color:#444;font-weight:bold;">OTP Code</label>
                 <input type="text" id="otp" name="otp" required pattern="[0-9]{{6}}" maxlength="6"
@@ -966,8 +1079,8 @@ def serve_confirmation_page(transaction_name):
         div.textContent = 'Sending new OTP...';
         fetch('/api/method/gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.resend_otp', {{
             method: 'POST',
-            headers: {{'Content-Type':'application/json','X-Frappe-CSRF-Token':'{csrf_token}'}},
-            body: JSON.stringify({{transaction_name: '{transaction_name}'}})
+            headers: {{'Content-Type':'application/json','X-Frappe-CSRF-Token':{safe_csrf_js}}},
+            body: JSON.stringify({{transaction_name: {safe_name_js}}})
         }})
         .then(r => r.json())
         .then(d => {{
@@ -984,8 +1097,8 @@ def serve_confirmation_page(transaction_name):
 
         fetch('/api/method/gigworkers.gig_workers.doctype.gig_transaction.gig_transaction.verify_otp', {{
             method: 'POST',
-            headers: {{'Content-Type':'application/json','Accept':'application/json','X-Frappe-CSRF-Token':'{csrf_token}'}},
-            body: JSON.stringify({{transaction_name: '{transaction_name}', otp: otp}})
+            headers: {{'Content-Type':'application/json','Accept':'application/json','X-Frappe-CSRF-Token':{safe_csrf_js}}},
+            body: JSON.stringify({{transaction_name: {safe_name_js}, otp: otp}})
         }})
         .then(r => r.json())
         .then(data => {{
