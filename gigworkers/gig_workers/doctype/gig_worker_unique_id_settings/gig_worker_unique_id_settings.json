@@ -98,7 +98,7 @@
    "fieldtype": "Select",
    "label": "Aadhar Number Display Format",
    "mandatory_depends_on": "eval:(doc.id_proof_mode==\"Single ID Proof\" && doc.id_proof_type==\"Aadhar\") || (doc.id_proof_mode==\"Multi ID Proof\" && doc.allow_aadhar)",
-   "options": "Last 4 Digits\nFirst 4 Digits\nFull"
+   "options": "Last 4 Digits"
   },
   {
    "fieldname": "section_break_prefix",

@@ -68,9 +68,4 @@ class GigWorkerUniqueIDSettings(Document):
 		return ID_PROOF_PLACEHOLDERS.get(proof_type, "")
 
 	def get_aadhar_placeholder(self):
-		if self.aadhar_display_format == "Full":
-			return AADHAR_SAMPLE_DIGITS
-		if self.aadhar_display_format == "First 4 Digits":
-			return AADHAR_SAMPLE_DIGITS[:4]
-		# default: Last 4 Digits
 		return AADHAR_SAMPLE_DIGITS[-4:]
