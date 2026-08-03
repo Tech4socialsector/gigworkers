@@ -21,13 +21,6 @@ function get_selected_proof_types(frm) {
 }
 
 function get_aadhar_placeholder(frm) {
-	if (frm.doc.aadhar_display_format === "Full") {
-		return AADHAR_SAMPLE_DIGITS;
-	}
-	if (frm.doc.aadhar_display_format === "First 4 Digits") {
-		return AADHAR_SAMPLE_DIGITS.slice(0, 4);
-	}
-	// default: Last 4 Digits
 	return AADHAR_SAMPLE_DIGITS.slice(-4);
 }
 
