@@ -16,6 +16,11 @@ from gigworkers.gig_workers.utils.bulk_import_common import (
 	update_progress as _shared_update_progress,
 	is_cancelled as _shared_is_cancelled,
 )
+from gigworkers.gig_workers.doctype.gig_worker_unique_id_settings.gig_worker_unique_id_settings import (
+	MissingIDProofValue,
+	generate_unique_id,
+	mask_aadhar_for_display,
+)
 
 
 BATCH_SIZE = 500
@@ -59,11 +64,15 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 	total = len(rows)
 	_update_progress(import_id, total=total)
 
-	existing_emails  = _get_existing_set("email")          if skip_duplicates else set()
-	existing_phones  = _get_existing_set("phone")          if skip_duplicates else set()
-	existing_aadhaar = _get_existing_set("aadhaar_number") if skip_duplicates else set()
-	existing_pan     = _get_existing_set("pan_number")     if skip_duplicates else set()
-	existing_eshram  = _get_existing_set("eshram_id")      if skip_duplicates else set()
+	existing_emails  = _get_existing_set("email")                    if skip_duplicates else set()
+	existing_phones  = _get_existing_set("phone")                    if skip_duplicates else set()
+	existing_aadhaar = _get_existing_set("aadhaar_number")           if skip_duplicates else set()
+	existing_pan     = _get_existing_set("pan_number")               if skip_duplicates else set()
+	existing_eshram  = _get_existing_set("eshram_id")                if skip_duplicates else set()
+	existing_dl      = _get_existing_set("drivers_license_number")   if skip_duplicates else set()
+
+	uid_settings = frappe.get_single("Gig Worker Unique ID Settings")
+	uid_enabled = bool(uid_settings.get_selected_proof_types())
 
 	processed = 0
 	inserted  = 0
@@ -121,6 +130,8 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 		aadhaar = row.get("aadhaar_number", "").replace(" ", "") or None
 		pan     = row.get("pan_number", "").strip().upper() if row.get("pan_number") else None
 		eshram  = row.get("eshram_id", "").strip().upper()  if row.get("eshram_id")  else None
+		dl_number = row.get("drivers_license", "").strip() or None
+		aadhaar_masked = mask_aadhar_for_display(aadhaar) if aadhaar else None
 
 		# Duplicate check (DB + within-batch)
 		if skip_duplicates:
@@ -140,6 +151,24 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			if eshram and eshram.lower() in existing_eshram:
 				all_errors.append(f"Row {idx}: eShram ID '{eshram}' already exists — skipped.")
 				skipped += 1; processed += 1; continue
+			if dl_number and dl_number.lower() in existing_dl:
+				all_errors.append(f"Row {idx}: Driving Licence Number '{dl_number}' already exists — skipped.")
+				skipped += 1; processed += 1; continue
+
+		unique_id = None
+		if uid_enabled:
+			try:
+				unique_id = generate_unique_id(
+					{
+						"pan_number": pan,
+						"aadhaar_number": aadhaar,
+						"drivers_license_number": dl_number,
+					},
+					settings=uid_settings,
+				)
+			except MissingIDProofValue as e:
+				all_errors.append(f"Row {idx}: cannot generate Unique ID — {e.proof_type} is missing.")
+				skipped += 1; processed += 1; continue
 
 		name        = make_autoname("GW.###", "Gig Worker")
 		agg         = created_by_aggregator or row.get("created_by_aggregator") or None
@@ -151,26 +180,29 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			worker_name,
 			partner_id,
 			row.get("gender", "").strip(),
-			aadhaar, pan, phone,
+			aadhaar, aadhaar_masked, pan, phone,
 			_parse_date(row.get("dob")),
 			eshram, email,
 			row.get("drivers_license", "").strip()         or None,
+			dl_number,
 			row.get("location_of_work", "").strip()        or None,
 			row.get("operating_bank_account", "").strip()  or None,
 			row.get("uan", "").strip()                     or None,
 			row.get("name_of_aggregator", "").strip()      or agg or None,
 			row.get("name_of_service", "").strip()         or None,
 			agg, "Active",
+			unique_id,
 		))
 		user_batch.append((name, phone, email, worker_name))
 		wpm_batch.append((name, partner_id, worker_name))
 
 		if skip_duplicates:
-			if email:   existing_emails.add(email)
-			if phone:   existing_phones.add(phone)
-			if aadhaar: existing_aadhaar.add(aadhaar)
-			if pan:     existing_pan.add(pan)
-			if eshram:  existing_eshram.add(eshram)
+			if email:     existing_emails.add(email)
+			if phone:     existing_phones.add(phone)
+			if aadhaar:   existing_aadhaar.add(aadhaar)
+			if pan:       existing_pan.add(pan)
+			if eshram:    existing_eshram.add(eshram)
+			if dl_number: existing_dl.add(dl_number.lower())
 
 		processed += 1
 
@@ -246,10 +278,10 @@ def _save_import_log(import_id, file_url, file_name, status, total, inserted,
 def _flush_batch(batch):
 	fields = [
 		"name", "creation", "modified", "modified_by", "owner", "docstatus",
-		"worker_name", "partner_id", "gender", "aadhaar_number", "pan_number", "phone", "dob",
-		"eshram_id", "email", "drivers_license", "location_of_work",
+		"worker_name", "partner_id", "gender", "aadhaar_number", "aadhaar_number_masked", "pan_number", "phone", "dob",
+		"eshram_id", "email", "drivers_license", "drivers_license_number", "location_of_work",
 		"operating_bank_account", "uan", "name_of_aggregator", "name_of_service",
-		"created_by_aggregator", "status",
+		"created_by_aggregator", "status", "unique_id",
 	]
 	frappe.db.bulk_insert("Gig Worker", fields=fields, values=batch, ignore_duplicates=True)
 
@@ -427,7 +459,9 @@ def _parse_date(val):
 
 # Only these Gig Worker fields may ever be interpolated as a column name below —
 # `field` must never be derived from request/CSV input without checking this set.
-_ALLOWED_EXISTING_SET_FIELDS = {"email", "phone", "aadhaar_number", "pan_number", "eshram_id"}
+_ALLOWED_EXISTING_SET_FIELDS = {
+	"email", "phone", "aadhaar_number", "pan_number", "eshram_id", "drivers_license_number",
+}
 
 
 def _get_existing_set(field):

@@ -28,6 +28,14 @@ class GigWorker(Document):
 		self.validate_pan_format()
 		self.validate_dob()
 		self.validate_eshram_id()
+		self.set_aadhaar_number_masked()
+
+	def set_aadhaar_number_masked(self):
+		from gigworkers.gig_workers.doctype.gig_worker_unique_id_settings.gig_worker_unique_id_settings import (
+			mask_aadhar_for_display,
+		)
+
+		self.aadhaar_number_masked = mask_aadhar_for_display(self.aadhaar_number)
 
 	def validate_email_format(self):
 		if self.email:
@@ -131,6 +139,24 @@ class GigWorker(Document):
 			if aggregator:
 				self.created_by_aggregator = aggregator
 
+		if not self.unique_id:
+			self.set_unique_id()
+
+	def set_unique_id(self):
+		from gigworkers.gig_workers.doctype.gig_worker_unique_id_settings.gig_worker_unique_id_settings import (
+			MissingIDProofValue,
+			generate_unique_id,
+		)
+
+		try:
+			self.unique_id = generate_unique_id(self)
+		except MissingIDProofValue as e:
+			frappe.throw(
+				f"❌ Cannot generate Unique ID: <b>{e.proof_type}</b> is required by "
+				"Gig Worker Unique ID Settings but is missing on this record.",
+				title="Missing ID Proof",
+			)
+
 	# --------------------------------------------------------
 	#  gigworkers lifecycle — after insert
 	# --------------------------------------------------------
@@ -219,7 +245,11 @@ class GigWorker(Document):
 		issue_time = datetime.now().strftime("%H:%M:%S")
 		estamp_ref = "KA-GWB-" + hashlib.sha256(self.name.encode()).hexdigest()[:10].upper()
 
-		masked_aadhaar = ("*" * 8 + str(self.aadhaar_number)[-4:]) if self.aadhaar_number else "-"
+		from gigworkers.gig_workers.doctype.gig_worker_unique_id_settings.gig_worker_unique_id_settings import (
+			mask_aadhar_for_display,
+		)
+
+		masked_aadhaar = mask_aadhar_for_display(self.aadhaar_number) if self.aadhaar_number else "-"
 
 		aggregator_name = "-"
 		if self.created_by_aggregator:
