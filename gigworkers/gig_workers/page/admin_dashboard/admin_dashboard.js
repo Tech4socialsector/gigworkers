@@ -748,7 +748,7 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 
 		const worker_cols = [
 			{ label: "Worker ID",      render: w => `<a href="/app/gig-worker/${w.name}" style="color:#4e73df;">${w.name}</a>` },
-			{ label: "Name",           render: w => w.worker_name || "-" },
+			{ label: "Name",           render: w => frappe.utils.escape_html(w.worker_name || "-") },
 			{ label: "Gender",         render: w => w.gender || "-" },
 			{ label: "Status",         render: w => status_badge(w.status) },
 			{ label: "Registered By",  render: w => w.created_by_aggregator || "-" },
@@ -1683,10 +1683,10 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				<tbody>
 					${recent_workers.map(w => `<tr>
 						<td><a href="/app/gig-worker/${w.name}" style="color:#4e73df;">${w.name}</a></td>
-						<td>${w.worker_name || "-"}</td>
-						<td>${w.gender || "-"}</td>
+						<td>${frappe.utils.escape_html(w.worker_name || "-")}</td>
+						<td>${frappe.utils.escape_html(w.gender || "-")}</td>
 						<td>${status_badge(w.status)}</td>
-						<td>${w.created_by_aggregator || "-"}</td>
+						<td>${frappe.utils.escape_html(w.created_by_aggregator || "-")}</td>
 						<td><a href="/app/gig-worker-dashboard?worker=${w.name}" target="_blank"
 							style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
 							border-radius:5px;font-size:12px;font-weight:600;color:#1cc88a;

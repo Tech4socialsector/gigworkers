@@ -256,7 +256,7 @@ class GigWorkerBulkImport {
 
 		this.page.main.find("#gw-file-area").css("border-color", "#ccc");
 		this.page.main.find("#gw-file-label").html(
-			`<strong>${file.name}</strong> &nbsp;(${this._human_size(file.size)})`
+			`<strong>${frappe.utils.escape_html(file.name)}</strong> &nbsp;(${this._human_size(file.size)})`
 		);
 		this.page.main.find("#gw-upload-status")
 			.text("Uploading…")
