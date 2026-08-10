@@ -53,3 +53,24 @@ jspm_packages/
 
 # Aider AI Chat
 .aider*
+
+# Secrets / credentials / site data - never commit real values
+*.env
+.env.*
+site_config.json
+**/site_config.json
+*.pem
+*.key
+*_rsa
+credentials*.json
+secrets*.json
+
+# Data exports / dumps that may contain real PII - keep out of the repo
+*.sql
+*.sql.gz
+*.dump
+*.csv
+!**/fixtures/*.csv
+*.sqlite
+*.sqlite3
+*_backup.*

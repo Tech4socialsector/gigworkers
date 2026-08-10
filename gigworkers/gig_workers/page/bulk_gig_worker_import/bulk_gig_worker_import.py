@@ -115,10 +115,14 @@ def start_import(file_url, created_by_aggregator=None):
 @frappe.whitelist()
 def get_import_progress(import_id):
 	"""Return current progress of a running import job."""
+	frappe.only_for(["System Manager", "Aggregator"])
 	raw = frappe.cache().hget("gw_bulk_import", import_id)
 	if not raw:
 		frappe.throw(_("Import job not found. It may have expired."))
-	return frappe.parse_json(raw)
+	data = frappe.parse_json(raw)
+	if "System Manager" not in frappe.get_roles() and data.get("started_by") != frappe.session.user:
+		frappe.throw(_("Not permitted to access this import job."), frappe.PermissionError)
+	return data
 
 
 @frappe.whitelist()

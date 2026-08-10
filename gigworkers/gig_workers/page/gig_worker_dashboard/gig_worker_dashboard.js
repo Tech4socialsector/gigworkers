@@ -658,10 +658,10 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 		</div>
 
 		<div class="gw-profile">
-			<div class="gw-avatar">${(worker.worker_name || "?")[0].toUpperCase()}</div>
+			<div class="gw-avatar">${frappe.utils.escape_html((worker.worker_name || "?")[0].toUpperCase())}</div>
 			<div class="gw-profile-info">
-				<div class="name">${worker.worker_name || "-"}</div>
-				<div class="meta">${worker_id} &nbsp;|&nbsp; ${worker.email || ""} &nbsp;|&nbsp; ${status_badge(worker.status)}</div>
+				<div class="name">${frappe.utils.escape_html(worker.worker_name || "-")}</div>
+				<div class="meta">${frappe.utils.escape_html(worker_id)} &nbsp;|&nbsp; ${frappe.utils.escape_html(worker.email || "")} &nbsp;|&nbsp; ${status_badge(worker.status)}</div>
 			</div>
 		</div>
 
@@ -733,7 +733,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 						<td><a href="/app/welfare-benefit-withdrawal/${w.name}" style="color:#4e73df;">${w.name}</a></td>
 						<td>${(w.creation || "").substring(0, 10)}</td>
 						<td>${fmt_currency(w.amount)}</td>
-						<td>${w.reason || "-"}</td>
+						<td>${frappe.utils.escape_html(w.reason || "-")}</td>
 						<td>${status_badge(w.status)}</td>
 					</tr>`).join("")}
 				</tbody>
@@ -956,7 +956,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 						{ label: "Request ID", render: w => `<a href="/app/welfare-benefit-withdrawal/${w.name}" style="color:#4e73df;">${w.name}</a>` },
 						{ label: "Date",       render: w => (w.creation || "").substring(0, 10) },
 						{ label: "Amount",     render: w => fmt_currency(w.amount) },
-						{ label: "Reason",     render: w => w.reason || "-" },
+						{ label: "Reason",     render: w => frappe.utils.escape_html(w.reason || "-") },
 						{ label: "Status",     render: w => status_badge(w.status) },
 					],
 					summary: rows => [

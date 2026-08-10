@@ -225,7 +225,7 @@ class GigTransactionBulkImport {
 		}
 		this.page.main.find("#gt-file-area").css("border-color", "#ccc");
 		this.page.main.find("#gt-file-label").html(
-			`<strong>${file.name}</strong> &nbsp;(${this._human_size(file.size)})`
+			`<strong>${frappe.utils.escape_html(file.name)}</strong> &nbsp;(${this._human_size(file.size)})`
 		);
 		this.page.main.find("#gt-upload-status").text("Uploading…").css("color", "#888");
 		this._upload_file(file);
