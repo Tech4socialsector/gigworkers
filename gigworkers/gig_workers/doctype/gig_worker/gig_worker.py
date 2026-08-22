@@ -22,6 +22,7 @@ class GigWorker(Document):
 	# --------------------------------------------------------
 
 	def validate(self):
+		self.validate_id_proof_fields()
 		self.validate_email_format()
 		self.validate_phone_format()
 		self.validate_aadhaar_format()
@@ -29,6 +30,20 @@ class GigWorker(Document):
 		self.validate_dob()
 		self.validate_eshram_id()
 		self.set_aadhaar_number_masked()
+
+	def validate_id_proof_fields(self):
+		from gigworkers.gig_workers.doctype.gig_worker_unique_id_settings.gig_worker_unique_id_settings import (
+			get_required_gig_worker_fields,
+		)
+
+		for fieldname in get_required_gig_worker_fields():
+			if not self.get(fieldname):
+				label = self.meta.get_label(fieldname)
+				frappe.throw(
+					f"❌ <b>{label}</b> is mandatory because Gig Worker Unique ID Settings "
+					"requires it to generate the Unique ID.",
+					title="Missing Mandatory Field",
+				)
 
 	def set_aadhaar_number_masked(self):
 		from gigworkers.gig_workers.doctype.gig_worker_unique_id_settings.gig_worker_unique_id_settings import (
@@ -138,6 +153,8 @@ class GigWorker(Document):
 			)
 			if aggregator:
 				self.created_by_aggregator = aggregator
+
+		self.validate_id_proof_fields()
 
 		if not self.unique_id:
 			self.set_unique_id()

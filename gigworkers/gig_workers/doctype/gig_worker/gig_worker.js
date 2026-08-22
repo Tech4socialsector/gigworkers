@@ -6,6 +6,24 @@
 // ============================================================
 
 
+// ----------------------------------------------------------
+//  gigworkers script — mandatory ID-proof fields, driven by
+//  Gig Worker Unique ID Settings
+// ----------------------------------------------------------
+
+function apply_id_proof_mandatory_fields(frm) {
+	frappe.call({
+		method:
+			"gigworkers.gig_workers.doctype.gig_worker_unique_id_settings.gig_worker_unique_id_settings.get_required_gig_worker_fields_for_client",
+		callback(r) {
+			const required_fields = r.message || [];
+			["pan_number", "drivers_license_number", "aadhaar_number"].forEach((fieldname) => {
+				frm.toggle_reqd(fieldname, required_fields.includes(fieldname));
+			});
+		},
+	});
+}
+
 frappe.ui.form.on("Gig Worker", {
 
 	// ----------------------------------------------------------
@@ -55,6 +73,8 @@ frappe.ui.form.on("Gig Worker", {
 	// ----------------------------------------------------------
 
 	refresh(frm) {
+		apply_id_proof_mandatory_fields(frm);
+
 		// Always show read-only fields regardless of value
 		frm.set_df_property("created_by_aggregator", "hidden", 0);
 		frm.set_df_property("user", "hidden", 0);

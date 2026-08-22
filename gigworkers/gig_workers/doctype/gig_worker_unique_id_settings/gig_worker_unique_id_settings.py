@@ -119,6 +119,22 @@ def get_id_proof_value(values, proof_type):
 	return values.get(fieldname)
 
 
+def get_required_gig_worker_fields(settings=None):
+	"""Gig Worker fieldnames that must be filled in, based on the ID proofs selected
+	in Gig Worker Unique ID Settings for building the Unique ID."""
+	settings = settings or frappe.get_single("Gig Worker Unique ID Settings")
+	return [
+		ID_PROOF_FIELDNAMES[proof_type]
+		for proof_type in settings.get_selected_proof_types()
+		if proof_type in ID_PROOF_FIELDNAMES
+	]
+
+
+@frappe.whitelist()
+def get_required_gig_worker_fields_for_client():
+	return get_required_gig_worker_fields()
+
+
 def reserve_next_suffix():
 	"""Atomically read-and-increment the running suffix on Gig Worker Unique ID Settings.
 
