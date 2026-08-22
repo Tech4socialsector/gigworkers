@@ -3,23 +3,23 @@ from frappe import _
 
 
 # Fields the user may choose to include in the CSV template, in display order.
-# (fieldname, label, sample value, required)
+# (fieldname, label, sample value)
 IMPORTABLE_FIELDS = [
-	("worker_name", "Name", "Ravi Kumar", True),
-	("partner_id", "Partner ID", "PTR-001", True),
-	("phone", "Phone", "9876543210", False),
-	("email", "Email", "ravi@example.com", False),
-	("dob", "Date of Birth", "1995-06-15", False),
-	("gender", "Gender", "Male", False),
-	("pan_number", "PAN Number", "ABCDE1234F", False),
-	("eshram_id", "eShram ID", "UW-123456789012", False),
-	("drivers_license", "Drivers License", "KA1234567890123", True),
-	("location_of_work", "Location of work", "Bengaluru", False),
-	("operating_bank_account", "Operating Bank account", "1234567890", False),
-	("uan", "UAN", "100234567890", False),
-	("aadhaar_number", "Aadhaar Number", "123456789012", False),
-	("name_of_aggregator", "Name of aggregator", "", False),
-	("name_of_service", "Name of Service", "", False),
+	("worker_name", "Name", "Ravi Kumar"),
+	("partner_id", "Partner ID", "PTR-001"),
+	("phone", "Phone", "9876543210"),
+	("email", "Email", "ravi@example.com"),
+	("dob", "Date of Birth", "1995-06-15"),
+	("gender", "Gender", "Male"),
+	("pan_number", "PAN Number", "ABCDE1234F"),
+	("eshram_id", "eShram ID", "UW-123456789012"),
+	("drivers_license", "Drivers License", "KA1234567890123"),
+	("location_of_work", "Location of work", "Bengaluru"),
+	("operating_bank_account", "Operating Bank account", "1234567890"),
+	("uan", "UAN", "100234567890"),
+	("aadhaar_number", "Aadhaar Number", "123456789012"),
+	("name_of_aggregator", "Name of aggregator", ""),
+	("name_of_service", "Name of Service", ""),
 ]
 
 # Columns included in the template when the user hasn't customised the field list
@@ -29,13 +29,34 @@ DEFAULT_FIELDS = [
 	"operating_bank_account", "uan",
 ]
 
+# Fields that are always mandatory for import, regardless of Gig Worker Unique ID Settings.
+_ALWAYS_REQUIRED_IMPORT_FIELDS = {"worker_name", "partner_id"}
+
+# Maps a Gig Worker fieldname (as returned by get_required_gig_worker_fields) to the
+# CSV import column that supplies it, where the two names differ.
+_ID_PROOF_IMPORT_FIELD_ALIASES = {"drivers_license_number": "drivers_license"}
+
+
+def _get_effective_required_fields():
+	"""Fields that must be present in the import: the always-required ones, plus
+	whichever ID proof columns Gig Worker Unique ID Settings currently requires."""
+	from gigworkers.gig_workers.doctype.gig_worker_unique_id_settings.gig_worker_unique_id_settings import (
+		get_required_gig_worker_fields,
+	)
+
+	dynamic_required = {
+		_ID_PROOF_IMPORT_FIELD_ALIASES.get(f, f) for f in get_required_gig_worker_fields()
+	}
+	return _ALWAYS_REQUIRED_IMPORT_FIELDS | dynamic_required
+
 
 @frappe.whitelist()
 def get_importable_fields():
 	"""Return the list of fields the user can choose from for the CSV template."""
+	required = _get_effective_required_fields()
 	return [
-		{"fieldname": f, "label": label, "reqd": reqd}
-		for f, label, _sample, reqd in IMPORTABLE_FIELDS
+		{"fieldname": f, "label": label, "reqd": f in required}
+		for f, label, _sample in IMPORTABLE_FIELDS
 	]
 
 
@@ -47,8 +68,8 @@ def get_import_template(fields=None):
 	user in the "Choose Fields" popup. Required fields are always included
 	even if the caller omits them.
 	"""
-	catalog = {f: (label, sample, reqd) for f, label, sample, reqd in IMPORTABLE_FIELDS}
-	required = [f for f, _l, _s, reqd in IMPORTABLE_FIELDS if reqd]
+	catalog = {f: (label, sample) for f, label, sample in IMPORTABLE_FIELDS}
+	required = _get_effective_required_fields()
 
 	if fields:
 		selected = frappe.parse_json(fields) if isinstance(fields, str) else fields
@@ -57,7 +78,7 @@ def get_import_template(fields=None):
 		selected = list(DEFAULT_FIELDS)
 
 	for f in required:
-		if f not in selected:
+		if f not in selected and f in catalog:
 			selected.append(f)
 
 	# Keep catalog order regardless of how the selection was passed in
