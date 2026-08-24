@@ -18,6 +18,7 @@
         "sec_counts",
         "total_rows",
         "inserted",
+        "mapped",
         "col_break_2",
         "skipped",
         "error_count",
@@ -104,6 +105,13 @@
             "fieldtype": "Int",
             "in_list_view": 1,
             "label": "Inserted",
+            "read_only": 1
+        },
+        {
+            "fieldname": "mapped",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Mapped to Existing Worker",
             "read_only": 1
         },
         {

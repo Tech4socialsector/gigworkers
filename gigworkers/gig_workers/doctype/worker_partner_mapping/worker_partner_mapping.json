@@ -1,14 +1,15 @@
 {
  "actions": [],
- "allow_rename": 1,
- "autoname": "WPM.###",
+ "allow_rename": 0,
+ "autoname": "field:gig_worker_id",
  "creation": "2026-07-30 13:20:48.329134",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "gig_worker_id",
-  "partner_id",
-  "worker_name"
+  "unique_id",
+  "worker_name",
+  "aggregator_mappings"
  ],
  "fields": [
   {
@@ -17,15 +18,17 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Gig Worker ID",
-   "options": "Gig Worker"
+   "options": "Gig Worker",
+   "reqd": 1
   },
   {
-   "fetch_from": "gig_worker_id.partner_id",
-   "fieldname": "partner_id",
+   "fetch_from": "gig_worker_id.unique_id",
+   "fieldname": "unique_id",
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Partner ID"
+   "label": "Unique ID",
+   "read_only": 1
   },
   {
    "fetch_from": "gig_worker_id.worker_name",
@@ -33,7 +36,14 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Worker Name"
+   "label": "Worker Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "aggregator_mappings",
+   "fieldtype": "Table",
+   "label": "Aggregator Mappings",
+   "options": "Worker Aggregator Detail"
   }
  ],
  "grid_page_length": 50,

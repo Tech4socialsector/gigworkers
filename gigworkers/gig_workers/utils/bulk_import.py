@@ -2,6 +2,15 @@
 Bulk Gig Worker Import — background job that processes CSV/XLSX files
 and inserts records in batches of 500 using frappe.db.bulk_insert,
 bypassing slow per-document hooks (email, PDF, user creation).
+
+The same person can work under several aggregators. A row whose PAN,
+Driving Licence, Aadhaar or eShram ID matches an existing Gig Worker is
+never turned into a second Gig Worker record. Instead, each Gig Worker
+has exactly one Worker Partner Mapping parent record (keyed by the Gig
+Worker itself), and every aggregator that worker is mapped to becomes
+one row in that record's Aggregator Mappings child table (aggregator +
+that aggregator's own partner_id for this person) — so a worker's
+record shows at a glance how many aggregators they work under.
 """
 
 import re
@@ -66,41 +75,47 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 
 	existing_emails  = _get_existing_set("email")                    if skip_duplicates else set()
 	existing_phones  = _get_existing_set("phone")                    if skip_duplicates else set()
-	existing_aadhaar = _get_existing_set("aadhaar_number")           if skip_duplicates else set()
-	existing_pan     = _get_existing_set("pan_number")               if skip_duplicates else set()
-	existing_eshram  = _get_existing_set("eshram_id")                if skip_duplicates else set()
-	existing_dl      = _get_existing_set("drivers_license_number")   if skip_duplicates else set()
+	existing_aadhaar = _get_existing_map("aadhaar_number")           if skip_duplicates else {}
+	existing_pan     = _get_existing_map("pan_number")               if skip_duplicates else {}
+	existing_eshram  = _get_existing_map("eshram_id")                if skip_duplicates else {}
+	existing_dl      = _get_existing_map("drivers_license_number")   if skip_duplicates else {}
+
+	wpm_parents, agg_by_parent, next_idx = _get_existing_wpm_state()
+	aggregator_names = _get_aggregator_names()
 
 	uid_settings = frappe.get_single("Gig Worker Unique ID Settings")
 	uid_enabled = bool(uid_settings.get_selected_proof_types())
 
 	processed = 0
 	inserted  = 0
+	mapped    = 0
 	skipped   = 0
 	all_errors = []
 
 	now_ts    = now_datetime()
 	batch     = []
-	user_batch = []   # [(gw_id, phone, email, worker_name)]
-	wpm_batch  = []   # [(gw_id, partner_id, worker_name)]
+	user_batch = []       # [(gw_id, phone, email, worker_name)]
+	wpm_parent_batch = [] # [(gig_worker_id, unique_id, worker_name)]
+	wpm_child_batch  = [] # [(gig_worker_id, aggregator, partner_id, idx)]
 
 	for idx, row in enumerate(rows, start=1):
 		# Check cancel signal at each batch boundary
 		if idx % BATCH_SIZE == 0:
 			if _is_cancelled(import_id):
-				if batch:
-					_flush_batch(batch)
-					inserted += len(batch)
-					_create_users_batch(user_batch, now_ts, user)
-					_flush_wpm_batch(wpm_batch, now_ts, user)
-					batch = []; user_batch = []; wpm_batch = []
+				if batch or wpm_parent_batch or wpm_child_batch:
+					if batch:
+						_flush_batch(batch)
+						inserted += len(batch)
+						_create_users_batch(user_batch, now_ts, user)
+					_flush_wpm_batches(wpm_parent_batch, wpm_child_batch, now_ts, user, aggregator_names)
+					batch = []; user_batch = []; wpm_parent_batch = []; wpm_child_batch = []
 					frappe.db.commit()
 				_update_progress(import_id, status="Cancelled",
-								processed=processed, inserted=inserted,
+								processed=processed, inserted=inserted, mapped=mapped,
 								skipped=skipped, errors=all_errors[-200:])
 				_save_import_log(
 					import_id=import_id, file_url=file_url, file_name=file_name,
-					status="Cancelled", total=total, inserted=inserted,
+					status="Cancelled", total=total, inserted=inserted, mapped=mapped,
 					skipped=skipped, error_count=len(all_errors),
 					created_by_aggregator=created_by_aggregator, user=user, errors=all_errors,
 				)
@@ -132,27 +147,57 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 		eshram  = row.get("eshram_id", "").strip().upper()  if row.get("eshram_id")  else None
 		dl_number = row.get("drivers_license", "").strip() or None
 		aadhaar_masked = mask_aadhar_for_display(aadhaar) if aadhaar else None
+		mapping_aggregator = row.get("name_of_aggregator", "").strip() or created_by_aggregator \
+			or row.get("created_by_aggregator") or None
 
-		# Duplicate check (DB + within-batch)
+		# Same person may already exist as a Gig Worker under a different
+		# aggregator — matched by PAN > Driving Licence > Aadhaar > eShram ID.
+		# In that case, don't create a second Gig Worker: just add a row to
+		# that worker's Worker Partner Mapping child table for this aggregator.
 		if skip_duplicates:
+			matched_gw, conflict = _find_matching_worker(
+				pan, dl_number, aadhaar, eshram,
+				existing_pan, existing_dl, existing_aadhaar, existing_eshram,
+			)
+			if conflict:
+				all_errors.append(
+					f"Row {idx}: ID proofs point to different existing Gig Workers — skipped for manual review."
+				)
+				skipped += 1; processed += 1; continue
+
+			if matched_gw:
+				if not mapping_aggregator:
+					all_errors.append(
+						f"Row {idx}: worker already exists but no aggregator given to map to — skipped."
+					)
+					skipped += 1; processed += 1; continue
+				if mapping_aggregator in agg_by_parent.get(matched_gw, set()):
+					all_errors.append(
+						f"Row {idx}: worker already mapped to aggregator '{mapping_aggregator}' — skipped."
+					)
+					skipped += 1; processed += 1; continue
+
+				if matched_gw not in wpm_parents:
+					# Rare: an existing Gig Worker from before this parent/child
+					# structure existed, with no mapping parent row yet.
+					gw_info = frappe.db.get_value(
+						"Gig Worker", matched_gw, ["unique_id", "worker_name"], as_dict=True
+					) or {}
+					wpm_parent_batch.append((matched_gw, gw_info.get("unique_id"), gw_info.get("worker_name")))
+					wpm_parents.add(matched_gw)
+
+				partner_id = row.get("partner_id", "").strip() or None
+				child_idx = next_idx.get(matched_gw, 0) + 1
+				next_idx[matched_gw] = child_idx
+				wpm_child_batch.append((matched_gw, mapping_aggregator, partner_id, child_idx, today(), "Active"))
+				agg_by_parent.setdefault(matched_gw, set()).add(mapping_aggregator)
+				mapped += 1; processed += 1; continue
+
 			if email and email in existing_emails:
 				all_errors.append(f"Row {idx}: email '{email}' already exists — skipped.")
 				skipped += 1; processed += 1; continue
 			if phone and phone in existing_phones:
 				all_errors.append(f"Row {idx}: phone '{phone}' already exists — skipped.")
-				skipped += 1; processed += 1; continue
-			if aadhaar and aadhaar in existing_aadhaar:
-				_masked = "XXXX-XXXX-" + aadhaar[-4:]
-				all_errors.append(f"Row {idx}: aadhaar '{_masked}' already exists — skipped.")
-				skipped += 1; processed += 1; continue
-			if pan and pan.lower() in existing_pan:
-				all_errors.append(f"Row {idx}: PAN '{pan}' already exists — skipped.")
-				skipped += 1; processed += 1; continue
-			if eshram and eshram.lower() in existing_eshram:
-				all_errors.append(f"Row {idx}: eShram ID '{eshram}' already exists — skipped.")
-				skipped += 1; processed += 1; continue
-			if dl_number and dl_number.lower() in existing_dl:
-				all_errors.append(f"Row {idx}: Driving Licence Number '{dl_number}' already exists — skipped.")
 				skipped += 1; processed += 1; continue
 
 		unique_id = None
@@ -194,43 +239,51 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 			unique_id,
 		))
 		user_batch.append((name, phone, email, worker_name))
-		wpm_batch.append((name, partner_id, worker_name))
+
+		wpm_parent_batch.append((name, unique_id, worker_name))
+		wpm_parents.add(name)
+		if mapping_aggregator:
+			wpm_child_batch.append((name, mapping_aggregator, partner_id, 1, today(), "Active"))
+			agg_by_parent.setdefault(name, set()).add(mapping_aggregator)
+			next_idx[name] = 1
 
 		if skip_duplicates:
 			if email:     existing_emails.add(email)
 			if phone:     existing_phones.add(phone)
-			if aadhaar:   existing_aadhaar.add(aadhaar)
-			if pan:       existing_pan.add(pan)
-			if eshram:    existing_eshram.add(eshram)
-			if dl_number: existing_dl.add(dl_number.lower())
+			if aadhaar:   existing_aadhaar[aadhaar] = name
+			if pan:       existing_pan[pan.lower()] = name
+			if eshram:    existing_eshram[eshram.lower()] = name
+			if dl_number: existing_dl[dl_number.lower()] = name
 
 		processed += 1
 
-		if len(batch) >= BATCH_SIZE:
-			_flush_batch(batch)
-			inserted += len(batch)
-			_create_users_batch(user_batch, now_ts, user)
-			_flush_wpm_batch(wpm_batch, now_ts, user)
-			batch = []; user_batch = []; wpm_batch = []
-			_update_progress(import_id, processed=processed, inserted=inserted,
+		if len(batch) >= BATCH_SIZE or len(wpm_child_batch) >= BATCH_SIZE:
+			if batch:
+				_flush_batch(batch)
+				inserted += len(batch)
+				_create_users_batch(user_batch, now_ts, user)
+			_flush_wpm_batches(wpm_parent_batch, wpm_child_batch, now_ts, user, aggregator_names)
+			batch = []; user_batch = []; wpm_parent_batch = []; wpm_child_batch = []
+			_update_progress(import_id, processed=processed, inserted=inserted, mapped=mapped,
 							skipped=skipped, errors=all_errors[-50:])
 			frappe.db.commit()
 
 	# Flush remaining rows
-	if batch:
-		_flush_batch(batch)
-		inserted += len(batch)
-		_create_users_batch(user_batch, now_ts, user)
-		_flush_wpm_batch(wpm_batch, now_ts, user)
+	if batch or wpm_parent_batch or wpm_child_batch:
+		if batch:
+			_flush_batch(batch)
+			inserted += len(batch)
+			_create_users_batch(user_batch, now_ts, user)
+		_flush_wpm_batches(wpm_parent_batch, wpm_child_batch, now_ts, user, aggregator_names)
 		frappe.db.commit()
 
 	_update_progress(import_id, status="Completed", total=total,
-					processed=processed, inserted=inserted,
+					processed=processed, inserted=inserted, mapped=mapped,
 					skipped=skipped, errors=all_errors[-200:])
 
 	_save_import_log(
 		import_id=import_id, file_url=file_url, file_name=file_name,
-		status="Completed", total=total, inserted=inserted,
+		status="Completed", total=total, inserted=inserted, mapped=mapped,
 		skipped=skipped, error_count=len(all_errors),
 		created_by_aggregator=created_by_aggregator, user=user, errors=all_errors,
 	)
@@ -248,7 +301,7 @@ def process_gig_worker_import(import_id, file_url, skip_duplicates=1, skip_email
 # ---------------------------------------------------------------------------
 
 def _save_import_log(import_id, file_url, file_name, status, total, inserted,
-						skipped, error_count, created_by_aggregator, user, errors):
+						skipped, error_count, created_by_aggregator, user, errors, mapped=0):
 	try:
 		doc = frappe.get_doc({
 			"doctype": "Gig Worker Import Log",
@@ -259,6 +312,7 @@ def _save_import_log(import_id, file_url, file_name, status, total, inserted,
 			"status": status,
 			"total_rows": total,
 			"inserted": inserted,
+			"mapped": mapped,
 			"skipped": skipped,
 			"error_count": error_count,
 			"created_by_aggregator": created_by_aggregator,
@@ -286,22 +340,41 @@ def _flush_batch(batch):
 	frappe.db.bulk_insert("Gig Worker", fields=fields, values=batch, ignore_duplicates=True)
 
 
-def _flush_wpm_batch(wpm_batch, now_ts, user):
-	"""Bulk-insert Worker Partner Mapping records, one per imported Gig Worker."""
-	if not wpm_batch:
-		return
-	rows = [
-		(make_autoname("WPM.###", "Worker Partner Mapping"), now_ts, now_ts, user, user, 0,
-		 gig_worker_id, partner_id, worker_name)
-		for gig_worker_id, partner_id, worker_name in wpm_batch
-	]
-	frappe.db.bulk_insert(
-		"Worker Partner Mapping",
-		fields=["name", "creation", "modified", "modified_by", "owner", "docstatus",
-				"gig_worker_id", "partner_id", "worker_name"],
-		values=rows,
-		ignore_duplicates=True,
-	)
+def _flush_wpm_batches(wpm_parent_batch, wpm_child_batch, now_ts, user, aggregator_names):
+	"""Bulk-insert Worker Partner Mapping parents (one per Gig Worker) and their
+	Aggregator Mapping child rows (one per aggregator that worker is mapped to)."""
+	if wpm_parent_batch:
+		parent_rows = [
+			(gig_worker_id, now_ts, now_ts, user, user, 0, gig_worker_id, unique_id, worker_name)
+			for gig_worker_id, unique_id, worker_name in wpm_parent_batch
+		]
+		frappe.db.bulk_insert(
+			"Worker Partner Mapping",
+			fields=["name", "creation", "modified", "modified_by", "owner", "docstatus",
+					"gig_worker_id", "unique_id", "worker_name"],
+			values=parent_rows,
+			ignore_duplicates=True,
+		)
+		wpm_parent_batch.clear()
+
+	if wpm_child_batch:
+		child_rows = [
+			(frappe.generate_hash(length=10), now_ts, now_ts, user, user, 0,
+			 parent, "aggregator_mappings", "Worker Partner Mapping", idx,
+			 aggregator, aggregator_names.get(aggregator, aggregator), partner_id,
+			 mapped_on, status)
+			for parent, aggregator, partner_id, idx, mapped_on, status in wpm_child_batch
+		]
+		frappe.db.bulk_insert(
+			"Worker Aggregator Detail",
+			fields=["name", "creation", "modified", "modified_by", "owner", "docstatus",
+					"parent", "parentfield", "parenttype", "idx",
+					"aggregator", "aggregator_name", "partner_id",
+					"mapped_on", "status"],
+			values=child_rows,
+			ignore_duplicates=True,
+		)
+		wpm_child_batch.clear()
 
 
 def _create_users_batch(user_data, now_ts, owner):
@@ -459,8 +532,9 @@ def _parse_date(val):
 
 # Only these Gig Worker fields may ever be interpolated as a column name below —
 # `field` must never be derived from request/CSV input without checking this set.
-_ALLOWED_EXISTING_SET_FIELDS = {
-	"email", "phone", "aadhaar_number", "pan_number", "eshram_id", "drivers_license_number",
+_ALLOWED_EXISTING_SET_FIELDS = {"email", "phone"}
+_ALLOWED_EXISTING_MAP_FIELDS = {
+	"aadhaar_number", "pan_number", "eshram_id", "drivers_license_number",
 }
 
 
@@ -471,6 +545,73 @@ def _get_existing_set(field):
 		f"SELECT `{field}` FROM `tabGig Worker` WHERE `{field}` IS NOT NULL", as_list=True
 	)
 	return {r[0].strip().lower() if isinstance(r[0], str) else r[0] for r in rows if r[0]}
+
+
+def _get_existing_map(field):
+	"""value (lower-cased if text) -> Gig Worker name, for identity fields used to
+	detect that an imported row belongs to a person who already has a Gig Worker
+	record (possibly onboarded by a different aggregator)."""
+	if field not in _ALLOWED_EXISTING_MAP_FIELDS:
+		frappe.throw(f"Invalid field for identity lookup: {field}")
+	rows = frappe.db.sql(
+		f"SELECT `{field}`, `name` FROM `tabGig Worker` WHERE `{field}` IS NOT NULL", as_list=True
+	)
+	return {
+		(value.strip().lower() if isinstance(value, str) else value): gw_name
+		for value, gw_name in rows if value
+	}
+
+
+def _get_existing_wpm_state():
+	"""Current Worker Partner Mapping state, keyed by Gig Worker:
+	- parent_names: Gig Workers that already have a mapping parent record
+	- agg_by_parent: gig_worker_id -> set of aggregators already mapped to it
+	- next_idx: gig_worker_id -> highest child row idx used so far (for appending)
+	"""
+	parent_names = set(frappe.db.sql_list("SELECT name FROM `tabWorker Partner Mapping`"))
+
+	rows = frappe.db.sql(
+		"SELECT parent, aggregator, idx FROM `tabWorker Aggregator Detail` "
+		"WHERE parenttype = 'Worker Partner Mapping'",
+		as_list=True,
+	)
+	agg_by_parent = {}
+	next_idx = {}
+	for parent, aggregator, row_idx in rows:
+		if aggregator:
+			agg_by_parent.setdefault(parent, set()).add(aggregator)
+		next_idx[parent] = max(next_idx.get(parent, 0), row_idx or 0)
+
+	return parent_names, agg_by_parent, next_idx
+
+
+def _get_aggregator_names():
+	"""Aggregator name -> aggregator_name (display label), for populating the
+	child table's display field directly since bulk_insert skips fetch_from."""
+	rows = frappe.db.sql("SELECT `name`, `aggregator_name` FROM `tabAggregator`", as_list=True)
+	return dict(rows)
+
+
+def _find_matching_worker(pan, dl_number, aadhaar, eshram, pan_map, dl_map, aadhaar_map, eshram_map):
+	"""Match this row against an existing Gig Worker by identity proof, in priority
+	order PAN > Driving Licence > Aadhaar > eShram ID. Returns (gig_worker_name, conflict)
+	— conflict is True when different proofs on the same row point to different
+	existing workers, which needs manual review rather than a silent merge."""
+	candidates = []
+	if pan and pan.lower() in pan_map:
+		candidates.append(pan_map[pan.lower()])
+	if dl_number and dl_number.lower() in dl_map:
+		candidates.append(dl_map[dl_number.lower()])
+	if aadhaar and aadhaar in aadhaar_map:
+		candidates.append(aadhaar_map[aadhaar])
+	if eshram and eshram.lower() in eshram_map:
+		candidates.append(eshram_map[eshram.lower()])
+
+	if not candidates:
+		return None, False
+	if len(set(candidates)) > 1:
+		return None, True
+	return candidates[0], False
 
 
 def _update_progress(import_id, **kwargs):
