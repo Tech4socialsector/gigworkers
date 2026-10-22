@@ -3,10 +3,7 @@
 
 // Helper: calculate net payout to worker
 function calculate_net_payout(frm) {
-	const base = frm.doc.base_payout || 0;
-	const inc  = frm.doc.incentives  || 0;
-	const ded  = frm.doc.deduction  || 0;
-	frm.set_value("net_payout_to_worker", base + inc - ded);
+	frm.set_value("net_payout_to_worker", frm.doc.amount || 0);
 }
 
 
@@ -26,7 +23,7 @@ frappe.ui.form.on("Gig Transaction", {
 		if (!frappe.user.has_role("System Manager") && !frm.is_new()) {
 			frm.disable_save();
 			[
-				"amount", "base_payout", "incentives", "deduction", "date",
+				"amount", "date",
 				"external_transaction_id", "status_of_order", "gig_worker",
 				"aggregator", "service", "role", "transaction_date",
 				"settlement_status", "status"
@@ -147,9 +144,9 @@ frappe.ui.form.on("Gig Transaction", {
 				frm.set_value("welfare_percentage", r.welfare_percentage_ || 0);
 				frm.set_value("welfare_cap", r.welfare_cap || 0);
 
-				const base_payout = frm.doc.base_payout || 0;
-				if (base_payout && r.welfare_percentage_) {
-					const rate_amount  = (base_payout * r.welfare_percentage_) / 100;
+				const amount = frm.doc.amount || 0;
+				if (amount && r.welfare_percentage_) {
+					const rate_amount  = (amount * r.welfare_percentage_) / 100;
 					const welfare_amount = r.welfare_cap ? Math.min(rate_amount, r.welfare_cap) : rate_amount;
 					frm.set_value("welfare_amount", welfare_amount);
 				}
@@ -157,18 +154,14 @@ frappe.ui.form.on("Gig Transaction", {
 		);
 	},
 
-	base_payout(frm) {
-		if (frm.doc.service && frm.doc.welfare_percentage && frm.doc.base_payout) {
-			const rate_amount  = (frm.doc.base_payout * frm.doc.welfare_percentage) / 100;
+	amount(frm) {
+		if (frm.doc.service && frm.doc.welfare_percentage && frm.doc.amount) {
+			const rate_amount  = (frm.doc.amount * frm.doc.welfare_percentage) / 100;
 			const welfare_amount = frm.doc.welfare_cap ? Math.min(rate_amount, frm.doc.welfare_cap) : rate_amount;
 			frm.set_value("welfare_amount", welfare_amount);
 		}
 		calculate_net_payout(frm);
 	},
-
-	incentives(frm) { calculate_net_payout(frm); },
-
-	deduction(frm) { calculate_net_payout(frm); },
 
 	// ----------------------------------------------------------
 	// TRUST LEVEL CHANGE HANDLER
@@ -239,9 +232,6 @@ function _show_adjustment_history(frm) {
 			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">Current</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;color:#555;">—</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.amount)}</td>
-			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.base_payout)}</td>
-			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.incentives)}</td>
-			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.deduction)}</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_cur(frm.doc.net_payout_to_worker)}</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${fmt_date(frm.doc.date)}</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;font-weight:700;color:#2e7d32;">${frm.doc.status_of_order || "—"}</td>
@@ -256,9 +246,6 @@ function _show_adjustment_history(frm) {
 			</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;font-size:12px;color:#555;">${log.adjusted_by || "—"}</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_amount)}</td>
-			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_base_payout)}</td>
-			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_incentives)}</td>
-			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_deduction)}</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_cur(log.old_net_payout)}</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;">${fmt_date(log.old_date)}</td>
 			<td style="padding:9px 12px;border:1px solid #dee2e6;">${log.old_status_of_order || "—"}</td>
@@ -278,9 +265,6 @@ function _show_adjustment_history(frm) {
 		      <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Snapshot</th>
 		      <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Adjusted By</th>
 		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Amount</th>
-		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Base Payout</th>
-		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Incentives</th>
-		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Deduction</th>
 		      <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Net Payout</th>
 		      <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Date</th>
 		      <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Order Status</th>

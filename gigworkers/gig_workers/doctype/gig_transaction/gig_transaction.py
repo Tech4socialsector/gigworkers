@@ -269,7 +269,7 @@ class GigTransaction(Document):
     def validate(self):
         self.validate_status_transition()
         self.validate_settlement_status_transition()
-        self.validate_base_payout()
+        self.validate_amount()
         self.validate_transaction_date()
         self.prevent_duplicate_transaction()
         self.calculate_welfare_fee()
@@ -342,9 +342,9 @@ class GigTransaction(Document):
             f"{self.get('amount') or 0}"
         )
 
-    def validate_base_payout(self):
-        if not self.base_payout or self.base_payout <= 0:
-            frappe.throw("Base payout must be greater than zero.")
+    def validate_amount(self):
+        if not self.amount or self.amount <= 0:
+            frappe.throw("Amount must be greater than zero.")
 
     def validate_transaction_date(self):
         if self.date and getdate(self.date) > getdate(today()):
@@ -365,8 +365,8 @@ class GigTransaction(Document):
             )
 
     def calculate_welfare_fee(self):
-        # Welfare cess: base_payout * welfare% from the Service rate card, capped at welfare_cap.
-        if not self.base_payout or not self.service:
+        # Welfare cess: amount * welfare% from the Service rate card, capped at welfare_cap.
+        if not self.amount or not self.service:
             return
         service_data = frappe.db.get_value(
             "Service", self.service,
@@ -391,7 +391,7 @@ class GigTransaction(Document):
         self.welfare_cap        = service_data.welfare_cap
         if not self.welfare_percentage:
             return
-        rate_amount = (self.base_payout * self.welfare_percentage) / 100
+        rate_amount = (self.amount * self.welfare_percentage) / 100
         # Cap applies only when set — an unset/zero cap means "uncapped".
         self.welfare_amount = (
             min(rate_amount, self.welfare_cap) if self.welfare_cap else rate_amount
@@ -401,10 +401,7 @@ class GigTransaction(Document):
 
     def calculate_net_payout(self):
         # Worker's actual take-home — welfare_amount goes to the welfare fund, not the worker.
-        base    = self.base_payout or 0
-        inc     = self.incentives or 0
-        ded     = self.deduction or 0
-        self.net_payout_to_worker = base + inc - ded
+        self.net_payout_to_worker = self.amount or 0
 
     def before_save(self):
         if self.flags.get("is_adjustment"):
@@ -457,10 +454,8 @@ def register_gig_transaction(
     aggregator_id,
     service_id,
     amount,
-    base_payout,
     role=None,
     date=None,
-    incentives=0,
     trust_level="High",
     external_transaction_id=None,
 ):
@@ -493,8 +488,6 @@ def register_gig_transaction(
         "aggregator":             aggregator_id,
         "service":                service_id,
         "amount":                 float(amount),
-        "base_payout":            float(base_payout),
-        "incentives":             float(incentives) if incentives else 0,
         "role":                   role,
         "date":                   date or today(),
         "trust_level":            trust_level,
@@ -880,9 +873,6 @@ def _build_log_entry(doc, adjustment_number):
         "adjusted_at":              now(),
         "adjusted_by":              frappe.session.user,
         "old_amount":               doc.amount or 0,
-        "old_base_payout":          doc.base_payout or 0,
-        "old_incentives":           doc.incentives or 0,
-        "old_deduction":            doc.deduction or 0,
         "old_net_payout":           doc.net_payout_to_worker or 0,
         "old_date":                 str(doc.date) if doc.date else "",
         "old_external_transaction_id": doc.external_transaction_id or "",
@@ -891,8 +881,7 @@ def _build_log_entry(doc, adjustment_number):
 
 
 @frappe.whitelist()
-def apply_adjustment(transaction_name, amount=None, base_payout=None,
-                     incentives=None, deduction=None, date=None,
+def apply_adjustment(transaction_name, amount=None, date=None,
                      external_transaction_id=None, status_of_order=None):
     """Apply a single adjustment to a Gig Transaction (max attempts enforced)."""
     doc = frappe.get_doc("Gig Transaction", transaction_name)
@@ -917,12 +906,6 @@ def apply_adjustment(transaction_name, amount=None, base_payout=None,
 
     if amount is not None:
         doc.amount = float(amount)
-    if base_payout is not None:
-        doc.base_payout = float(base_payout)
-    if incentives is not None:
-        doc.incentives = float(incentives)
-    if deduction is not None:
-        doc.deduction = float(deduction)
     if date is not None:
         doc.date = date
     if external_transaction_id is not None:
@@ -954,8 +937,7 @@ def apply_bulk_adjustment(transaction_names, data):
     values = json.loads(data) if isinstance(data, str) else data
 
     max_attempts = _get_max_adjustment_attempts()
-    allowed_fields = {"amount", "base_payout", "incentives", "deduction",
-                      "date", "external_transaction_id", "status_of_order"}
+    allowed_fields = {"amount", "date", "external_transaction_id", "status_of_order"}
 
     updated = 0
     skipped = 0
@@ -981,7 +963,7 @@ def apply_bulk_adjustment(transaction_names, data):
             for field, value in values.items():
                 if field not in allowed_fields:
                     continue
-                if field in ("amount", "base_payout", "incentives", "deduction"):
+                if field == "amount":
                     setattr(doc, field, float(value))
                 else:
                     setattr(doc, field, value)

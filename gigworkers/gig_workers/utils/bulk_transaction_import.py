@@ -24,7 +24,7 @@ CACHE_KEY  = "gt_bulk_import"
 # even if the doctype marks them reqd. `gig_worker` is resolved from the
 # `partner_id` column rather than being collected directly.
 _GT_IMPORT_COMPUTED = {"status", "service_category", "transaction_date",
-                       "incentives", "deduction", "status_of_order", "gig_worker"}
+                       "status_of_order", "gig_worker"}
 
 VALID_STATUS_ORDER = {"", "Order delivered", "Order cancelled"}
 
@@ -109,9 +109,6 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 		aggregator  = default_aggregator or row.get("aggregator", "").strip() or ""
 		service     = row.get("service", "").strip()
 		amount      = _to_float(row.get("amount"))
-		base_payout = _to_float(row.get("base_payout"))
-		incentives  = _to_float(row.get("incentives", 0))
-		deduction   = _to_float(row.get("deduction", 0))
 		date        = _parse_date(row.get("date", ""))
 		trust_level = (row.get("trust_level") or default_trust_level or "High").strip()
 		ext_id      = row.get("external_transaction_id", "").strip() or None
@@ -130,12 +127,12 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 		welfare_pct    = svc.get("welfare_percentage_") or 0.0
 		welfare_cap    = svc.get("welfare_cap") or None
 		welfare_amount = 0.0
-		if welfare_pct and base_payout:
-			raw_welfare = (base_payout * welfare_pct) / 100
+		if welfare_pct and amount:
+			raw_welfare = (amount * welfare_pct) / 100
 			welfare_amount = min(raw_welfare, welfare_cap) if welfare_cap else raw_welfare
 			welfare_amount = max(welfare_amount, 0.0)
 
-		net_payout = base_payout + incentives - deduction
+		net_payout = amount
 
 		dup_key = f"{gig_worker} | {aggregator} | {svc_category or service} | {date} | {amount}"
 
@@ -153,7 +150,7 @@ def process_gig_transaction_import(import_id, file_url, skip_duplicates=1,
 			name,           # transaction_id = name
 			gig_worker, partner_id, aggregator, service,
 			svc_category, svc_type,
-			amount, base_payout, incentives, deduction,
+			amount,
 			welfare_pct, welfare_amount, welfare_cap,
 			net_payout,
 			date, date,     # date + transaction_date
@@ -211,7 +208,7 @@ def _flush_batch(batch):
 		"transaction_id",
 		"gig_worker", "partner_id", "aggregator", "service",
 		"service_category", "service_type",
-		"amount", "base_payout", "incentives", "deduction",
+		"amount",
 		"welfare_percentage", "welfare_amount", "welfare_cap",
 		"net_payout_to_worker",
 		"date", "transaction_date",
@@ -341,14 +338,9 @@ def _validate_row(row, idx, worker_by_partner, valid_aggregators,
 		errors.append(f"Row {idx}: Service '{service}' not found.")
 
 	try:
-		bp = float(row.get("base_payout", 0))
-		if bp <= 0:
-			errors.append(f"Row {idx}: base_payout must be greater than zero.")
-	except (ValueError, TypeError):
-		errors.append(f"Row {idx}: base_payout is not a valid number.")
-
-	try:
-		float(row.get("amount", 0))
+		amt = float(row.get("amount", 0))
+		if amt <= 0:
+			errors.append(f"Row {idx}: amount must be greater than zero.")
 	except (ValueError, TypeError):
 		errors.append(f"Row {idx}: amount is not a valid number.")
 

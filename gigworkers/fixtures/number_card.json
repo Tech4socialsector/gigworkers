@@ -336,7 +336,7 @@
   "type": "Document Type"
  },
  {
-  "aggregate_function_based_on": "base_payout",
+  "aggregate_function_based_on": "amount",
   "background_color": null,
   "color": "#166534",
   "currency": "INR",

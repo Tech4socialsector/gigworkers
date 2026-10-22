@@ -39,6 +39,7 @@
    "reqd": 1
   },
   {
+   "description": "Maximum welfare fee charged per transaction, regardless of amount. If (amount × Welfare %) exceeds this cap, the welfare fee is capped at this value instead — e.g. a cap of ₹1 means every transaction on this service is charged only ₹1 welfare fee, no matter how large the amount is. Set this high (or leave it uncapped by removing this requirement) if welfare should scale with the transaction amount.",
    "fieldname": "welfare_cap",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -46,7 +47,7 @@
    "reqd": 1
   },
   {
-   "description": "Percentage of base payout to be deducted as welfare fee (e.g. 1.0 = 1%)",
+   "description": "Percentage of the transaction amount charged as welfare fee (e.g. 1.0 = 1%). The resulting fee is capped at Welfare Cap.",
    "fieldname": "welfare_percentage_",
    "fieldtype": "Float",
    "label": "Welfare Percentage (%)",

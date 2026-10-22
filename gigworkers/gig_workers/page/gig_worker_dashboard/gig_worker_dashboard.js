@@ -501,7 +501,6 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 				{ label: "Total Transactions",        value: d.stats.total_transactions },
 				{ label: "Completed",                 value: d.stats.completed_transactions },
 				{ label: "Total Earnings (INR)",       value: fmt_currency_plain(d.stats.total_earnings) },
-				{ label: "Base Payout Total (INR)",    value: fmt_currency_plain(d.stats.total_base_payout) },
 				{ label: "Welfare Deducted (INR)",     value: fmt_currency_plain(d.stats.total_welfare_deducted) },
 			]);
 
@@ -530,11 +529,11 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 			// Transactions table
 			section_heading("Transaction Details");
 			pdf_table(
-				["Txn ID", "Date", "Aggregator", "Service", "Service Category", "Amount (INR)", "Base Payout (INR)", "Welfare (INR)", "Status"],
+				["Txn ID", "Date", "Aggregator", "Service", "Service Category", "Amount (INR)", "Welfare (INR)", "Status"],
 				d.recent_transactions.map(t => [
 					t.name, t.date || "-", t.aggregator || "-", t.service || "-",
 					t.service_category || "-",
-					fmt_currency_plain(t.amount), fmt_currency_plain(t.base_payout),
+					fmt_currency_plain(t.amount),
 					fmt_currency_plain(t.welfare_amount), t.status || "-",
 				])
 			);
@@ -701,7 +700,7 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 			<table id="gw-txn-table" class="display" style="width:100%">
 				<thead><tr>
 					<th>Transaction ID</th><th>Date</th><th>Aggregator</th><th>Service</th>
-					<th>Service Category</th><th>Amount</th><th>Base Payout</th><th>Welfare</th><th>Status</th>
+					<th>Service Category</th><th>Amount</th><th>Welfare</th><th>Status</th>
 				</tr></thead>
 				<tbody>
 					${recent_transactions.map(t => `<tr>
@@ -711,7 +710,6 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 						<td>${t.service || "-"}</td>
 						<td>${t.service_category || "-"}</td>
 						<td>${fmt_currency(t.amount)}</td>
-						<td>${fmt_currency(t.base_payout)}</td>
 						<td>${fmt_currency(t.welfare_amount)}</td>
 						<td>${status_badge(t.status)}</td>
 					</tr>`).join("")}
@@ -863,7 +861,6 @@ frappe.pages["gig-worker-dashboard"].on_page_load = function (wrapper) {
 				{ label: "Service",          render: t => t.service || "-" },
 				{ label: "Service Category", render: t => t.service_category || "-" },
 				{ label: "Amount",           render: t => fmt_currency(t.amount) },
-				{ label: "Base Payout",      render: t => fmt_currency(t.base_payout) },
 				{ label: "Welfare",          render: t => fmt_currency(t.welfare_amount) },
 				{ label: "Status",           render: t => status_badge(t.status) },
 			];

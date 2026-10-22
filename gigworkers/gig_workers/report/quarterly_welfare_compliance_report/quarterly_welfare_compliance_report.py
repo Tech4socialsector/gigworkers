@@ -56,18 +56,6 @@ def get_columns() -> list[dict]:
 			"width": 140,
 		},
 		{
-			"label": _("Total Base Payout"),
-			"fieldname": "total_base_payout",
-			"fieldtype": "Currency",
-			"width": 150,
-		},
-		{
-			"label": _("Total Incentives"),
-			"fieldname": "total_incentives",
-			"fieldtype": "Currency",
-			"width": 140,
-		},
-		{
 			"label": _("Total Welfare Amount"),
 			"fieldname": "total_welfare_amount",
 			"fieldtype": "Currency",
@@ -107,8 +95,6 @@ def get_data(filters: dict) -> list[dict]:
 			gt.role,
 			COUNT(gt.name) AS total_transactions,
 			SUM(gt.amount) AS total_amount,
-			SUM(gt.base_payout) AS total_base_payout,
-			SUM(IFNULL(gt.incentives, 0)) AS total_incentives,
 			SUM(IFNULL(gt.welfare_amount, 0)) AS total_welfare_amount,
 			AVG(gt.welfare_percentage) AS welfare_percentage,
 			gt.status,

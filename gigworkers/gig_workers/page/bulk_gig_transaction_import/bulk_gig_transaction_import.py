@@ -13,12 +13,9 @@ from frappe import _
 IMPORTABLE_FIELDS = [
 	("partner_id", "Partner ID", "PTR-001", True),
 	("amount", "Final Payout Amount", "500.00", True),
-	("base_payout", "Base Payout to Worker", "450.00", True),
 	("date", "Date", "2026-05-25", True),
 	("aggregator", "Aggregator", "AG001", False),
 	("service", "Service", "SE001", False),
-	("incentives", "Incentives", "0.00", False),
-	("deduction", "Deduction", "0.00", False),
 	("status_of_order", "Status of Order", "Order delivered", False),
 	("role", "Role", "", False),
 	("external_transaction_id", "External Transaction ID", "", False),
@@ -28,8 +25,7 @@ IMPORTABLE_FIELDS = [
 
 # Columns included in the template when the user hasn't customised the field list
 DEFAULT_FIELDS = [
-	"partner_id", "aggregator", "service", "amount", "base_payout",
-	"deduction", "incentives", "date", "status_of_order",
+	"partner_id", "aggregator", "service", "amount", "date", "status_of_order",
 ]
 
 

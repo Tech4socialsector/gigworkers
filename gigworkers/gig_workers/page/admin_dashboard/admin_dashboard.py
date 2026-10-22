@@ -43,7 +43,6 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         SELECT
             COUNT(*)                         AS total_transactions,
             COALESCE(SUM(amount), 0)         AS total_amount,
-            COALESCE(SUM(base_payout), 0)    AS total_base_payout,
             COALESCE(SUM(welfare_amount), 0) AS total_welfare,
             SUM(CASE WHEN status = 'Payment complete'  THEN 1 ELSE 0 END) AS completed_count,
             SUM(CASE WHEN status = 'Payment pending'   THEN 1 ELSE 0 END) AS pending_count,
@@ -55,7 +54,6 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     txn_stats = frappe._dict({
         "total_transactions": txn_stats_row.total_transactions,
         "total_amount":       txn_stats_row.total_amount,
-        "total_base_payout":  txn_stats_row.total_base_payout,
         "total_welfare":      txn_stats_row.total_welfare,
     })
     completed_count = txn_stats_row.completed_count or 0
@@ -172,7 +170,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
         "Gig Transaction",
         filters=txn_list_filters,
         fields=["name", "date", "gig_worker", "aggregator", "service", "service_category",
-                "amount", "base_payout", "welfare_amount", "status"],
+                "amount", "welfare_amount", "status"],
         order_by="date desc",
         limit=500,
     )
@@ -259,7 +257,7 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
     duplicate_txns = frappe.db.sql(f"""
         SELECT
             name, date, gig_worker, aggregator, service, service_category,
-            amount, base_payout, welfare_amount, status,
+            amount, welfare_amount, status,
             duplicate_of, suspected_duplicate, creation
         FROM `tabGig Transaction`
         WHERE status = 'Suspected duplicate'
@@ -319,7 +317,6 @@ def get_dashboard_data(from_date=None, to_date=None, aggregator=None):
             "cancelled_transactions": cancelled_count or 0,
             "suspected_duplicates": int(suspected_count or 0),
             "total_amount": float(txn_stats.total_amount or 0),
-            "total_base_payout": float(txn_stats.total_base_payout or 0),
             "total_welfare": float(txn_stats.total_welfare or 0),
         },
         "aggregators": {
