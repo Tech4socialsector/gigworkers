@@ -86,7 +86,6 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         SELECT
             COUNT(*)                         AS total_transactions,
             COALESCE(SUM(amount), 0)         AS total_amount,
-            COALESCE(SUM(base_payout), 0)    AS total_base_payout,
             COALESCE(SUM(welfare_amount), 0) AS total_welfare
         FROM `tabGig Transaction`
         {sql_cond}
@@ -142,7 +141,7 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
         "Gig Transaction",
         filters=orm_filter,
         fields=["name", "date", "gig_worker", "service", "service_category",
-                "amount", "base_payout", "welfare_amount", "status"],
+                "amount", "welfare_amount", "status"],
         order_by="date desc",
     )
 
@@ -190,7 +189,7 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
     # respects the same date + service category filters as everything else) ---
     suspected_dups = frappe.db.sql(f"""
         SELECT name, date, gig_worker, service, service_category, amount,
-               base_payout, welfare_amount, duplicate_of
+               welfare_amount, duplicate_of
         FROM `tabGig Transaction`
         {sql_cond} AND status = 'Suspected duplicate'
         ORDER BY creation DESC
@@ -303,7 +302,6 @@ def get_dashboard_data(from_date=None, to_date=None, service_category=None, aggr
             "cancelled_transactions": int(cancelled_count or 0),
             "suspected_duplicates":   len(suspected_dups),
             "total_amount":           float(txn_stats.total_amount or 0),
-            "total_base_payout":      float(txn_stats.total_base_payout or 0),
             "total_welfare":          float(txn_stats.total_welfare or 0),
         },
         "welfare_payments": {
@@ -347,7 +345,7 @@ def get_worker_detail(gig_worker, aggregator_override=None):
         "Gig Transaction",
         filters={"aggregator": aggregator_name, "gig_worker": gig_worker},
         fields=["name", "date", "service", "service_category",
-                "amount", "base_payout", "welfare_amount", "status"],
+                "amount", "welfare_amount", "status"],
         order_by="date desc",
     )
 
@@ -400,8 +398,8 @@ def get_transaction_detail(transaction, aggregator_override=None):
         [
             "name", "date", "transaction_date", "gig_worker", "service", "service_category",
             "service_type", "role", "status", "status_of_order", "settlement_status",
-            "amount", "base_payout", "incentives", "welfare_percentage", "welfare_amount",
-            "welfare_cap", "deduction", "net_payout_to_worker", "external_transaction_id",
+            "amount", "welfare_percentage", "welfare_amount",
+            "welfare_cap", "net_payout_to_worker", "external_transaction_id",
             "suspected_duplicate", "duplicate_of", "confirmed_at", "district", "city",
             "adjustment_count", "creation", "modified",
         ],

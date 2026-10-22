@@ -9,9 +9,6 @@
   "adjusted_by",
   "col_break1",
   "old_amount",
-  "old_base_payout",
-  "old_incentives",
-  "old_deduction",
   "old_net_payout",
   "col_break2",
   "old_date",
@@ -48,27 +45,6 @@
    "fieldname": "old_amount",
    "fieldtype": "Currency",
    "label": "Amount (Before)",
-   "options": "INR",
-   "read_only": 1
-  },
-  {
-   "fieldname": "old_base_payout",
-   "fieldtype": "Currency",
-   "label": "Base Payout (Before)",
-   "options": "INR",
-   "read_only": 1
-  },
-  {
-   "fieldname": "old_incentives",
-   "fieldtype": "Currency",
-   "label": "Incentives (Before)",
-   "options": "INR",
-   "read_only": 1
-  },
-  {
-   "fieldname": "old_deduction",
-   "fieldtype": "Currency",
-   "label": "Deduction (Before)",
    "options": "INR",
    "read_only": 1
   },

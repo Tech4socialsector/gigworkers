@@ -23,9 +23,6 @@
   "date",
   "account_details_section",
   "amount",
-  "base_payout",
-  "deduction",
-  "incentives",
   "net_payout_to_worker",
   "welfare_percentage",
   "welfare_cap",
@@ -145,6 +142,7 @@
    "read_only": 1
   },
   {
+   "description": "amount × Welfare % from the Service, capped at the Service's Welfare Cap.",
    "fieldname": "welfare_amount",
    "fieldtype": "Currency",
    "label": "Welfare Amount",
@@ -203,20 +201,6 @@
    "options": "Gig Transaction OTP"
   },
   {
-   "fieldname": "base_payout",
-   "fieldtype": "Currency",
-   "label": "Base Payout to worker",
-   "options": "INR",
-   "reqd": 1
-  },
-  {
-   "fieldname": "incentives",
-   "fieldtype": "Currency",
-   "label": "Incentives",
-   "options": "INR",
-   "reqd": 1
-  },
-  {
    "fetch_from": "service.welfare_cap",
    "fieldname": "welfare_cap",
    "fieldtype": "Currency",
@@ -225,7 +209,7 @@
    "read_only": 1
   },
   {
-   "description": "Base payout to worker + Incentive - Deduction",
+   "description": "Final payout to worker",
    "fieldname": "net_payout_to_worker",
    "fieldtype": "Currency",
    "label": "Final payout to worker",
@@ -255,13 +239,6 @@
   {
    "fieldname": "column_break_phea",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "deduction",
-   "fieldtype": "Currency",
-   "label": "Deduction",
-   "options": "INR",
-   "reqd": 1
   },
   {
    "default": "0",

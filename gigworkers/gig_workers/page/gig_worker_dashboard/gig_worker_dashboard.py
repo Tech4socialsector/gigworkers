@@ -58,7 +58,6 @@ def get_dashboard_data(aggregator=None, service_category=None, worker_override=N
         SELECT
             COUNT(*) AS total_transactions,
             COALESCE(SUM(amount), 0) AS total_earnings,
-            COALESCE(SUM(base_payout), 0) AS total_base_payout,
             COALESCE(SUM(welfare_amount), 0) AS total_welfare_deducted
         FROM `tabGig Transaction`
         {sql_conditions}
@@ -116,7 +115,7 @@ def get_dashboard_data(aggregator=None, service_category=None, worker_override=N
         "Gig Transaction",
         filters=orm_filters,
         fields=["name", "date", "aggregator", "service", "service_category",
-                "amount", "base_payout", "welfare_amount", "status"],
+                "amount", "welfare_amount", "status"],
         order_by="date desc",
     )
 
@@ -151,7 +150,6 @@ def get_dashboard_data(aggregator=None, service_category=None, worker_override=N
             "cancelled_transactions": cancelled_count or 0,
             "suspected_duplicates": suspected_count or 0,
             "total_earnings": float(txn_stats.total_earnings or 0),
-            "total_base_payout": float(txn_stats.total_base_payout or 0),
             "total_welfare_deducted": float(txn_stats.total_welfare_deducted or 0),
         },
         "fund": {

@@ -319,7 +319,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			{ label: "Service",        render: t => t.service || "-" },
 			{ label: "Service Category", render: t => t.service_category || "-" },
 			{ label: "Amount",         render: t => fmt_currency(t.amount) },
-			{ label: "Base Payout",    render: t => fmt_currency(t.base_payout) },
 			{ label: "Welfare",        render: t => fmt_currency(t.welfare_amount) },
 			{ label: "Status",         render: t => status_badge(t.status) },
 		];
@@ -408,7 +407,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				cols: txn_cols,
 				summary: rows => [
 					{ label: "Total Amount", value: fmt_currency(rows.reduce((s, t) => s + (t.amount || 0), 0)), color: "#36b9cc" },
-					{ label: "Base Payout", value: fmt_currency(rows.reduce((s, t) => s + (t.base_payout || 0), 0)) },
 					{ label: "Total Welfare", value: fmt_currency(rows.reduce((s, t) => s + (t.welfare_amount || 0), 0)) },
 				],
 				chart: rows => {
@@ -417,22 +415,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 					const labels = Object.keys(map).sort();
 					if (!labels.length) return null;
 					return { type: "line", data: { labels, datasets: [{ name: "Amount (₹)", values: labels.map(k => map[k]) }] }, colors: ["#36b9cc"] };
-				},
-			},
-			base_payout: {
-				title: "Base Payout Breakdown",
-				rows: () => recent_transactions,
-				cols: txn_cols,
-				summary: rows => [
-					{ label: "Total Base Payout", value: fmt_currency(rows.reduce((s, t) => s + (t.base_payout || 0), 0)), color: "#4e73df" },
-					{ label: "Avg per Transaction", value: fmt_currency(rows.length ? rows.reduce((s, t) => s + (t.base_payout || 0), 0) / rows.length : 0) },
-				],
-				chart: rows => {
-					const map = {};
-					rows.forEach(t => { const m = (t.date || "").substring(0, 7) || "?"; map[m] = (map[m] || 0) + (t.base_payout || 0); });
-					const labels = Object.keys(map).sort();
-					if (!labels.length) return null;
-					return { type: "bar", data: { labels, datasets: [{ name: "Base Payout (₹)", values: labels.map(k => map[k]) }] }, colors: ["#4e73df"] };
 				},
 			},
 			total_welfare_collected: {
@@ -724,7 +706,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 			render_dd_summary([
 				{ label: "Amount", value: fmt_currency(t.amount), color: "#36b9cc" },
-				{ label: "Base Payout", value: fmt_currency(t.base_payout) },
 				{ label: "Welfare", value: fmt_currency(t.welfare_amount), color: "#1cc88a" },
 				{ label: "Net Payout to Worker", value: fmt_currency(t.net_payout_to_worker) },
 			]);
@@ -751,10 +732,8 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 					${field("Status of Order", t.status_of_order)}
 					${field("Settlement Status", t.settlement_status)}
 					${field("External Transaction ID", t.external_transaction_id)}
-					${field("Incentives", t.incentives != null ? fmt_currency(t.incentives) : null)}
 					${field("Welfare %", t.welfare_percentage != null ? t.welfare_percentage + "%" : null)}
 					${field("Welfare Cap", t.welfare_cap != null ? fmt_currency(t.welfare_cap) : null)}
-					${field("Deduction", t.deduction != null ? fmt_currency(t.deduction) : null)}
 					${field("District", t.district)}
 					${field("City", t.city)}
 					${field("Adjustment Count", t.adjustment_count)}
@@ -1025,7 +1004,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				{ label: "Completed",               value: d.stats.completed_transactions },
 				{ label: "Pending",                 value: d.stats.pending_transactions },
 				{ label: "Total Amount (INR)",       value: fmt_currency_plain(d.stats.total_amount) },
-				{ label: "Total Base Payout (INR)",  value: fmt_currency_plain(d.stats.total_base_payout) },
 				{ label: "Total Welfare (INR)",      value: fmt_currency_plain(d.stats.total_welfare) },
 			]);
 
@@ -1043,10 +1021,10 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 
 			section_heading("Transaction Details");
 			pdf_table(
-				["Txn ID", "Date", "Gig Worker", "Service", "Amount (INR)", "Base Payout (INR)", "Welfare (INR)", "Status"],
+				["Txn ID", "Date", "Gig Worker", "Service", "Amount (INR)", "Welfare (INR)", "Status"],
 				(d.recent_transactions || []).map(t => [
 					t.name, t.date || "-", t.gig_worker || "-", t.service || "-",
-					fmt_currency_plain(t.amount), fmt_currency_plain(t.base_payout),
+					fmt_currency_plain(t.amount),
 					fmt_currency_plain(t.welfare_amount), t.status || "-",
 				])
 			);
@@ -1565,11 +1543,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 				<div class="value" style="font-size:20px;">${fmt_currency_compact(stats.total_amount)}</div>
 				<div class="sub">${fmt_currency(stats.total_amount)}</div>
 			</div>
-			<div class="agg-stat-card agg-drillable" style="--card-color:#4e73df;" data-drilldown="base_payout">
-				<div class="label">Total Base Payout</div>
-				<div class="value" style="font-size:20px;">${fmt_currency_compact(stats.total_base_payout)}</div>
-				<div class="sub">${fmt_currency(stats.total_base_payout)}</div>
-			</div>
 			<div class="agg-stat-card agg-drillable" style="--card-color:#1cc88a;" data-drilldown="total_welfare_collected">
 				<div class="label">Total Welfare Collected</div>
 				<div class="value" style="font-size:20px;">${fmt_currency_compact(stats.total_welfare)}</div>
@@ -1689,7 +1662,7 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 			<table id="agg-txn-table" class="display" style="width:100%">
 				<thead><tr>
 					<th>Transaction ID</th><th>Date</th><th>Gig Worker</th><th>Service</th><th>Service Category</th>
-					<th>Amount</th><th>Base Payout</th><th>Welfare</th><th>Status</th>
+					<th>Amount</th><th>Welfare</th><th>Status</th>
 				</tr></thead>
 				<tbody>
 					${recent_transactions.map(t => `<tr>
@@ -1699,7 +1672,6 @@ frappe.pages["aggregator-dashboard"].on_page_load = function (wrapper) {
 						<td>${t.service || "-"}</td>
 						<td>${t.service_category || "-"}</td>
 						<td>${fmt_currency(t.amount)}</td>
-						<td>${fmt_currency(t.base_payout)}</td>
 						<td>${fmt_currency(t.welfare_amount)}</td>
 						<td>${status_badge(t.status)}</td>
 					</tr>`).join("")}

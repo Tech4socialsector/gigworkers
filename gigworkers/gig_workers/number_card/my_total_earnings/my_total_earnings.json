@@ -1,5 +1,5 @@
 {
- "aggregate_function_based_on": "base_payout",
+ "aggregate_function_based_on": "amount",
  "color": "#166534",
  "creation": "2026-09-22 11:59:33.201126",
  "currency": "INR",

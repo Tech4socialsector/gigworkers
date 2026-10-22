@@ -644,7 +644,6 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				{ label: "Pending",               value: d.stats.pending_transactions },
 				{ label: "Total Amount (INR)",     value: fmt_currency_plain(d.stats.total_amount) },
 				{ label: "Welfare Collected (INR)",value: fmt_currency_plain(d.stats.total_welfare) },
-				{ label: "Base Payout Total (INR)",value: fmt_currency_plain(d.stats.total_base_payout) },
 			]);
 
 			// ── PLATFORM OVERVIEW ────────────────────────────────────────────
@@ -742,7 +741,6 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 			{ label: "Service Category", render: t => t.service_category || "-" },
 			{ label: "Amount",         render: t => fmt_currency(t.amount) },
 			{ label: "Welfare",        render: t => fmt_currency(t.welfare_amount) },
-			{ label: "Base Payout",    render: t => fmt_currency(t.base_payout) },
 			{ label: "Status",         render: t => status_badge(t.status) },
 		];
 
@@ -953,20 +951,6 @@ frappe.pages["admin-dashboard"].on_page_load = function (wrapper) {
 				chart: rows => {
 					const { labels, values } = group_by_date(rows, t => t.welfare_amount);
 					return { type: "line", data: { labels, datasets: [{ name: "Welfare (₹)", values }] }, colors: ["#e74a3b"] };
-				},
-			},
-
-			base_payout: {
-				title: "Transactions — Base Payout",
-				rows:    () => [...d.recent_transactions].sort((a, b) => (b.base_payout || 0) - (a.base_payout || 0)),
-				cols:    txn_cols,
-				summary: rows => [
-					{ label: "Total Base Payout", value: fmt_currency(rows.reduce((s, t) => s + (t.base_payout || 0), 0)), color: "#858796" },
-					{ label: "Transactions",      value: rows.length },
-				],
-				chart: rows => {
-					const { labels, values } = group_by_date(rows, t => t.base_payout);
-					return { type: "line", data: { labels, datasets: [{ name: "Base Payout (₹)", values }] }, colors: ["#858796"] };
 				},
 			},
 

@@ -250,19 +250,6 @@ function _show_adjustment_dialog(adjustable_names, info, prefill_doc, listview) 
 				default: is_single ? prefill_doc.amount : undefined,
 				reqd:    is_single ? 1 : 0
 			},
-			{
-				label: "Base Payout", fieldname: "base_payout", fieldtype: "Currency",
-				default: is_single ? prefill_doc.base_payout : undefined,
-				reqd:    is_single ? 1 : 0
-			},
-			{
-				label: "Incentives", fieldname: "incentives", fieldtype: "Currency",
-				default: is_single ? prefill_doc.incentives : undefined
-			},
-			{
-				label: "Deduction", fieldname: "deduction", fieldtype: "Currency",
-				default: is_single ? prefill_doc.deduction : undefined
-			},
 			{ fieldtype: "Column Break" },
 			{
 				label: "Date", fieldname: "date", fieldtype: "Date",
