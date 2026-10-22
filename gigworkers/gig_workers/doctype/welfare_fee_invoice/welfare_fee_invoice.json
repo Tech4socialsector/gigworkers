@@ -218,7 +218,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-03 20:31:02.097420",
+ "modified": "2026-10-22 10:31:22.173696",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Welfare Fee Invoice",
@@ -252,6 +252,11 @@
    "read": 1,
    "role": "System Manager",
    "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Aggregator"
   }
  ],
  "row_format": "Dynamic",

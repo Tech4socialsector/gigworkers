@@ -121,7 +121,11 @@ frappe.listview_settings["Welfare Fee Payment"] = {
 
 		// ----------------------------------------------------------
 		// BULK UPDATE: PAYMENT + SETTLEMENT STATUS
+		// Statuses are permlevel 1 — aggregators can read them but only the
+		// Board (System Manager) may change them, since Completed credits workers.
 		// ----------------------------------------------------------
+		if (!frappe.user.has_role("System Manager")) return;
+
 		listview.page.add_button(__("Update Status"), function () {
 
 			let selected = listview.get_checked_items();

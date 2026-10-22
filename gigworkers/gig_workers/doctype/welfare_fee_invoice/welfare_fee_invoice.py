@@ -66,9 +66,12 @@ class WelfareFeeInvoice(Document):
 			self.send_payment_confirmation_email()
 
 	def settle_welfare_fee_payments(self):
-		"""Mark all linked Welfare Fee Payments as Completed and credit each gig worker's Welfare Fund Account."""
-		from gigworkers.gig_workers.doctype.welfare_fund_account.welfare_fund_account import WelfareFundAccount
+		"""Mark all linked Welfare Fee Payments as Completed.
 
+		Crediting the gig worker's Welfare Fund Account happens in
+		WelfareFeePayment.on_update when the payment transitions to Completed —
+		crediting here as well would double-count every fee.
+		"""
 		for item in self.welfare_fee_items:
 			if not item.welfare_fee_payment:
 				continue
@@ -79,20 +82,10 @@ class WelfareFeeInvoice(Document):
 
 			wfp.payment_status = "Completed"
 			wfp.payment_date = self.last_payment_date or today()
-			wfp.mode_of_payment = self.payment_mode or "Online"
+			# Invoice payment modes (NEFT/UPI/Cheque/…) collapse to the fee payment's Online/Offline
+			wfp.mode_of_payment = "Offline" if self.payment_mode in ("Cheque", "Cash") else "Online"
 			wfp.bank_reference = self.payment_reference or ""
 			wfp.save(ignore_permissions=True)
-
-			# Credit the gig worker's Welfare Fund Account with the paid fee amount
-			if item.gig_worker and item.fee_amount:
-				wfa = WelfareFundAccount.get_or_create(item.gig_worker)
-				wfa.credit(
-					amount=item.fee_amount,
-					reference_doctype="Welfare Fee Invoice",
-					reference_name=self.name,
-					remarks=f"Welfare fee from invoice {self.name} – {self.quarter} {self.year}",
-					gig_transaction=item.transaction,
-				)
 
 			frappe.db.commit()
 
