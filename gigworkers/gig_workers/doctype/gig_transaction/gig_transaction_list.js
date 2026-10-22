@@ -13,6 +13,18 @@ frappe.listview_settings["Gig Transaction"] = {
 
 	onload(listview) {
 
+		// Aggregator scoping is already enforced server-side (permission_query_conditions).
+		// A stale/incorrectly-resolved standard filter (e.g. a Link field's display label
+		// getting persisted instead of its actual value) can otherwise hide all rows for
+		// this role. Force a clean, filter-free load every time to guarantee the aggregator
+		// always sees their own records.
+		if (frappe.user.has_role("Aggregator") && !frappe.user.has_role("System Manager")) {
+			frappe.route_options = {};
+			if (listview.filter_area) {
+				listview.filter_area.clear();
+			}
+		}
+
 		if (!frappe.user.has_role("Gig Worker")) {
 			listview.page.add_button(__("Bulk Import"), function () {
 				frappe.set_route("bulk-gig-transaction-import");

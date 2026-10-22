@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "gig_worker",
+  "worker_name",
   "total_collected",
   "total_withdrawn",
   "account_balance",
@@ -21,30 +22,48 @@
   {
    "fieldname": "gig_worker",
    "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Gig Worker",
    "options": "Gig Worker"
   },
   {
+   "fetch_from": "gig_worker.worker_name",
+   "fieldname": "worker_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Worker Name",
+   "read_only": 1
+  },
+  {
    "fieldname": "account_balance",
-   "fieldtype": "Float",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "Account Balance",
+   "options": "INR",
    "precision": 2
   },
   {
    "fieldname": "last_updated",
    "fieldtype": "Datetime",
+   "in_list_view": 0,
    "label": "Last Updated"
   },
   {
    "fieldname": "total_collected",
-   "fieldtype": "Float",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "Total Collected",
+   "options": "INR",
    "precision": 2
   },
   {
    "fieldname": "total_withdrawn",
-   "fieldtype": "Float",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "Total Withdrawn",
+   "options": "INR",
    "precision": 2
   },
   {
@@ -75,7 +94,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-28 03:01:01.892642",
+ "modified": "2026-10-22 10:01:28.578616",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Welfare Fund Account",

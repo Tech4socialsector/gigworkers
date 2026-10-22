@@ -123,7 +123,10 @@ def _resolve_fund_account_scope():
 		return "aggregator", aggregator
 
 	if "Gig Worker" in roles:
-		gig_worker = frappe.db.get_value("Gig Worker", {"email": user}, "name")
+		# Same lookup as the permission hooks: login user first, then email —
+		# workers created via import have no email but log in as gwXXXX@<site>.
+		from gigworkers.permissions import _get_gig_worker_name
+		gig_worker = _get_gig_worker_name(user)
 		if not gig_worker:
 			return "none", None
 		return "gig_worker", gig_worker
