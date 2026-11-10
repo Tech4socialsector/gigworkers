@@ -27,12 +27,9 @@ frappe.query_reports["Admin Summary Report"] = {
 		},
 	],
 
-	get_datatable_options: function (options) {
-		return Object.assign(options, { layout: "fluid" });
-	},
-
 	formatter: function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
+		if (!data) return value;
 		const is_unattributed_row = !data.aggregator;
 
 		if (column.fieldname === "aggregator_name" && is_unattributed_row) {
@@ -68,12 +65,8 @@ frappe.query_reports["Admin Summary Report"] = {
 			value = `<span style="color: #d63031; font-weight: 600;">${value}</span>`;
 		}
 
-		const zero_muted_columns = [
-			"inactive_workers",
-			"pending_transactions",
-			"suspected_duplicate_transactions",
-		];
-		if (zero_muted_columns.includes(column.fieldname) && Number(data[column.fieldname]) === 0) {
+		// Zero counts recede so the real numbers stand out
+		if (["Int", "Currency"].includes(column.fieldtype) && !Number(data[column.fieldname])) {
 			value = `<span style="color: var(--text-muted);">${value}</span>`;
 		}
 
