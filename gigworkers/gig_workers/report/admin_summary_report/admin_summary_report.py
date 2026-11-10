@@ -36,13 +36,13 @@ def get_columns() -> list[dict]:
 			"label": _("Name"),
 			"fieldname": "aggregator_name",
 			"fieldtype": "Data",
-			"width": 170,
+			"width": 230,
 		},
 		{
 			"label": _("Status"),
 			"fieldname": "aggregator_status",
 			"fieldtype": "Data",
-			"width": 140,
+			"width": 190,
 		},
 		{
 			"label": _("Total Workers"),
@@ -166,7 +166,7 @@ def get_data(filters: dict) -> list[dict]:
 
 		FROM `tabAggregator` agg
 		WHERE {agg_condition}
-		ORDER BY agg.aggregator_name
+		ORDER BY agg.creation DESC
 		""",
 		values,
 		as_dict=True,

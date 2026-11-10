@@ -11,37 +11,23 @@ frappe.query_reports["Welfare Fund Report"] = {
 		},
 	],
 
-	get_datatable_options: function (options) {
-		return Object.assign(options, { layout: "fluid" });
-	},
-
 	formatter: function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
-		const is_unattributed_row = !data.aggregator;
+		if (!data) return value;
 
-		if (column.fieldname === "aggregator_name" && is_unattributed_row) {
-			value = `<span style="font-style: italic; color: var(--text-muted);">${value}</span>`;
+		if (column.fieldname === "aggregator_name" && !data.aggregator) {
+			return `<span style="font-style: italic; color: var(--text-muted);">${value}</span>`;
 		}
-
-		if (
-			["welfare_fund_balance", "total_welfare_collected"].includes(column.fieldname)
-		) {
-			value = `<strong>${value}</strong>`;
+		if (column.fieldname === "fees_outstanding" && data.fees_outstanding > 0) {
+			return `<span style="color: var(--red-600, #c0392b); font-weight: 600;">${value}</span>`;
 		}
-
-		if (column.fieldname === "pending_withdrawals") {
-			if (data.pending_withdrawals > 0) {
-				value = `<span style="color: #e67e22; font-weight: 600;">${value}</span>`;
-			} else {
-				value = `<span style="color: var(--text-muted);">${value}</span>`;
-			}
+		if (column.fieldname === "pending_withdrawals" && data.pending_withdrawals > 0) {
+			return `<span style="color: var(--orange-600, #e67e22); font-weight: 600;">${value}</span>`;
 		}
-
-		const zero_muted_columns = ["total_fee_payments", "total_withdrawals_paid"];
-		if (zero_muted_columns.includes(column.fieldname) && Number(data[column.fieldname]) === 0) {
-			value = `<span style="color: var(--text-muted);">${value}</span>`;
+		// Zero amounts recede so the real money stands out
+		if (column.fieldtype === "Currency" || column.fieldtype === "Int") {
+			if (!Number(data[column.fieldname])) return `<span style="color: var(--text-muted);">${value}</span>`;
 		}
-
 		return value;
 	},
 };

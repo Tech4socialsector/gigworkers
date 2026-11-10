@@ -106,8 +106,10 @@ function color_rate_log_rows(frm) {
 			else if (row.effective_start_date && row.effective_start_date > today) live_status = "Scheduled";
 			else live_status = "Active";
 
+			// Display only: writing it to the row would mark the form "Not Saved" on
+			// every open. The stored status is refreshed by the server on save.
 			if (row.status !== live_status) {
-				frappe.model.set_value(row.doctype, row.name, "status", live_status);
+				$row.row.find("[data-fieldname='status'] .static-area").text(__(live_status));
 			}
 
 			// Color coding
@@ -127,6 +129,13 @@ function color_rate_log_rows(frm) {
 			if (all_rows.length > RATE_LOG_LIMIT && idx < all_rows.length - RATE_LOG_LIMIT) {
 				$row.row.hide();
 			}
+		});
+
+		// Newest first: the log is stored oldest → newest, show it the other way round
+		const $rows = grid.wrapper.find(".grid-body .rows");
+		all_rows.forEach(function (row) {
+			const r = grid.grid_rows_by_docname[row.name];
+			if (r && r.row) $rows.prepend(r.row);
 		});
 
 		// Footer: hidden count + "View All" link
