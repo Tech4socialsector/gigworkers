@@ -4,9 +4,11 @@
 // Every DocType here belongs to the "Gig Workers" module, so whenever Frappe can't keep
 // the current sidebar (page reload, direct link, new tab) it falls back to the sidebar
 // named after the module — the gig worker's "Gig Workers" menu — even for aggregators.
+// Pages listed only in the admin's "Database Flow" sidebar (e.g. Vehicle Type) would
+// otherwise switch portal users into the admin menu.
 (function () {
 	const ROLE_SIDEBAR = { Aggregator: "Aggregators", "Gig Worker": "Gig Workers" };
-	const PORTAL_SIDEBARS = Object.values(ROLE_SIDEBAR);
+	const PORTAL_SIDEBARS = [...Object.values(ROLE_SIDEBAR), "Database Flow", "Doctypes Flow"];
 
 	function preferred_sidebar() {
 		if (frappe.user.has_role("System Manager")) return null;

@@ -10,7 +10,8 @@ class WelfareBenefitWithdrawal(Document):
 
 	def before_insert(self):
 		if not self.gig_worker:
-			worker = frappe.db.get_value("Gig Worker", {"email": frappe.session.user}, "name")
+			from gigworkers.permissions import _get_gig_worker_name
+			worker = _get_gig_worker_name(frappe.session.user)
 			if worker:
 				self.gig_worker = worker
 		self.status = "Requested"

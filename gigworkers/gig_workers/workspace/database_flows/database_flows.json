@@ -70,7 +70,7 @@
    "doc_view": "List",
    "label": "Admin Dashboard",
    "type": "URL",
-   "url": "/app/admin-dashboard"
+   "url": "/app/welfare-board-dashboard"
   },
   {
    "color": "Grey",

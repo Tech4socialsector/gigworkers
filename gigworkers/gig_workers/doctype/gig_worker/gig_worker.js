@@ -102,15 +102,18 @@ frappe.ui.form.on("Gig Worker", {
 			});
 		}
 
-		// -- Phone: digits only, max 10 --
-		frm.fields_dict["phone"].$input.on("keypress", function (e) {
-			if (e.which < 48 || e.which > 57) e.preventDefault();
-		});
-		frm.fields_dict["phone"].$input.on("input", function () {
-			let val = $(this).val().replace(/\D/g, "").substring(0, 10);
-			$(this).val(val);
-			frm.set_value("phone", val);
-		});
+		// -- Phone: digits only, max 10 (no $input when the field is read-only) --
+		const $phone = frm.fields_dict["phone"].$input;
+		if ($phone) {
+			$phone.on("keypress", function (e) {
+				if (e.which < 48 || e.which > 57) e.preventDefault();
+			});
+			$phone.on("input", function () {
+				let val = $(this).val().replace(/\D/g, "").substring(0, 10);
+				$(this).val(val);
+				frm.set_value("phone", val);
+			});
+		}
 	},
 
 	// ----------------------------------------------------------

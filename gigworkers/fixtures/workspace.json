@@ -459,7 +459,7 @@
     "restrict_to_domain": null,
     "stats_filter": null,
     "type": "URL",
-    "url": "/app/admin-dashboard"
+    "url": "/app/welfare-board-dashboard"
    },
    {
     "color": "Grey",

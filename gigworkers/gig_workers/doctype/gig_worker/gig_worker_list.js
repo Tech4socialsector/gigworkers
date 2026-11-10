@@ -20,6 +20,15 @@ frappe.listview_settings["Gig Worker"] = {
 	},
 
 	onload(listview) {
+		// A gig worker only ever sees their own record — "My Profile" opens it directly
+		if (frappe.user.has_role("Gig Worker")
+			&& !frappe.user.has_role("Aggregator") && !frappe.user.has_role("System Manager")) {
+			frappe.db.get_value("Gig Worker", { user: frappe.session.user }, "name").then((r) => {
+				const name = r.message && r.message.name;
+				if (name) frappe.set_route("Form", "Gig Worker", name);
+			});
+		}
+
 		// 1. Override can_create so Frappe never re-adds the button
 		listview.can_create = false;
 
