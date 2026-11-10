@@ -36,7 +36,9 @@ frappe.listview_settings["Gig Worker"] = {
 		listview.page.clear_primary_action();
 
 		// 3. Bulk Import button — navigates to the custom import page
-		if (!frappe.user.has_role("Gig Worker")) {
+		// Admins and aggregators import; checking "not a Gig Worker" would hide it from
+		// Administrator, who holds every role.
+		if (frappe.user.has_role("System Manager") || frappe.user.has_role("Aggregator")) {
 			listview.page.add_button(__("Bulk Import"), function () {
 				frappe.set_route("bulk-gig-worker-import");
 			}, { icon: "upload" });

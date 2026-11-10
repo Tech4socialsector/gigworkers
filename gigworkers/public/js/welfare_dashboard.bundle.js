@@ -55,7 +55,9 @@ class WelfareBoardDashboard {
 		this.page = page;
 		this.opts = opts;
 		this.view = opts.view || 'admin';
-		this.$root = $(wrapper).find('.page-content');
+		// Render inside the page body, after Frappe's page form (it holds the admin's
+		// aggregator / worker picker) — replacing .page-content would delete that form.
+		this.$root = $('<div class="wbd-host"></div>').appendTo(page.main);
 		this.meta = null;
 		this.data = null;
 		this.analytics = null;
@@ -1260,3 +1262,172 @@ const WBD_CSS = `
 @media (max-width:900px) { .wbd-fun-row { grid-template-columns:120px minmax(0,1fr) 100px; } }
 .wbd-agg-tl { cursor:pointer; }
 `;
+
+// ── Home page (/desk/welfare-home) ──────────────────────────────────────────
+// Greeting → "Needs your attention" → quick actions | key numbers → recent activity.
+const WBH_RECENT_KEY = 'wbh-recent-open';
+const WBH_ICONS = {
+	chart: 'chart-column', check: 'badge-check', receipt: 'receipt', wallet: 'wallet', users: 'users', file: 'file-text',
+	upload: 'upload', building: 'building-2', list: 'list', hand: 'hand-coins', user: 'user'
+};
+
+function wbd_make_home(wrapper) {
+	if (!document.getElementById('wbd-font')) {
+		$('head').append('<link id="wbd-font" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Merriweather:opsz,wght@18..144,300..900&display=swap">');
+	}
+	const page = frappe.ui.make_app_page({ parent: wrapper, title: __('Home'), single_column: true });
+	const $root = $(wrapper).find('.page-content');
+	const esc = (v) => frappe.utils.escape_html(v === null || v === undefined ? '' : String(v));
+	$root.html(`<style>${WBD_CSS}${WBH_CSS}</style><div class="wbd-root wbh"><div class="wbd-empty">${__('Loading…')}</div></div>`);
+
+	const render = (h) => {
+		const hour = new Date().getHours();
+		const greet = hour < 12 ? __('Good morning') : hour < 17 ? __('Good afternoon') : __('Good evening');
+		const who = h.who || {};
+		const status = who.status ? `<span class="wbd-pill" style="--c:${WBD_STATUS_COLORS[who.status] || '#64748B'}">${esc(who.status)}</span>` : '';
+		const id = who.id ? `<span class="wbh-id">${esc(who.id)}</span>` : '';
+		const todos = (h.todos || []).map(t => `
+			<a class="wbh-todo" href="${esc(t.route)}" data-route="${esc(t.route)}" style="--k:${WBD_TONES[t.tone] || WBD_TONES.info}">
+				<span class="wbh-todo-dot"></span>
+				<span class="wbh-todo-text"><b>${esc(t.title)}</b><small>${esc(t.sub)}</small></span>
+				<span class="wbh-todo-btn">${esc(t.label)} →</span>
+			</a>`).join('') || `<div class="wbh-clear"><span>✓</span><div><b>${__('All clear')}</b><small>${__('Nothing needs your attention right now.')}</small></div></div>`;
+		const stats = (h.stats || []).map(s => `<div class="wbd-tl-kpi" style="--c:${WBD_TONES[s.tone] || WBD_TONES.info}">
+			<div class="wbd-tl-kpi-top"><span>${esc(s.label)}</span></div><b>${esc(s.value)}</b></div>`).join('');
+		const actions = (h.actions || []).map(a => `
+			<a class="wbh-action" href="${esc(a.route)}" data-route="${esc(a.route)}">
+				<span class="wbh-action-icon">${frappe.utils.icon(WBH_ICONS[a.icon] || 'circle', 'md')}</span>
+				<span><b>${esc(a.label)}</b><small>${esc(a.desc)}</small></span>
+			</a>`).join('');
+		const acts = (h.activity || []).map(a => {
+			const k = WBD_KIND_COLORS[a.kind] || '#6B7A8A';
+			const link = a.doctype && a.name ? `<a class="wbd-tli-doc" href="/desk/${frappe.router.slug(a.doctype)}/${encodeURIComponent(a.name)}">${esc(a.name)} ↗</a>` : '';
+			return `<div class="wbh-act" style="--k:${k}">
+				<div class="wbh-act-date">${esc(frappe.datetime.str_to_user(a.when.slice(0, 10)))}</div>
+				<div class="wbh-act-body"><span class="wbd-tli-kind">${esc(a.kind)}</span> <b>${esc(a.title)}</b>
+					${a.meta ? `<small>${esc(a.meta)}</small>` : ''}${link}</div>
+			</div>`;
+		}).join('') || `<div class="wbd-empty">${__('No activity yet.')}</div>`;
+		const n_todo = (h.todos || []).length;
+		let open_recent = false;
+		try { open_recent = localStorage.getItem(WBH_RECENT_KEY) === '1'; } catch (err) { /* private mode */ }
+
+		$root.find('.wbh').html(`
+			<div class="wbh-hero">
+				<div class="wbd-tlp-avatar wbh-avatar" style="--c:#920c24">${esc(String(who.name || '?').charAt(0).toUpperCase())}</div>
+				<div class="wbh-hero-text">
+					<div class="wbh-greet">${greet}, ${esc(who.name || '')}</div>
+					<div class="wbh-sub">${esc(who.role || '')} ${id} ${status}</div>
+				</div>
+				<div class="wbh-hero-side">
+					<span>${__('Today')}</span><b>${esc(frappe.datetime.str_to_user(frappe.datetime.get_today()))}</b>
+					${h.view !== 'worker' ? `<span>${__('Next invoice run')}</span><b>${esc(h.next_invoice_run)}</b>` : ''}
+				</div>
+			</div>
+			<div class="wbh-grid">
+				<div class="wbd-panel wbh-attn">
+					<div class="wbd-panel-head"><div><div class="wbd-panel-title">${__('Needs your attention')}
+						${n_todo ? `<span class="wbh-count">${n_todo}</span>` : ''}</div>
+						<div class="wbd-panel-sub">${__('Things waiting on you, most important first')}</div></div></div>
+					<div class="wbh-todos">${todos}</div>
+				</div>
+				<div class="wbh-side">
+					<div class="wbd-section-title" style="margin-top:0"><span>${__('Key numbers')}</span></div>
+					<div class="wbh-stats">${stats}</div>
+				</div>
+			</div>
+			<div class="wbd-section-title"><span>${__('Quick actions')}</span></div>
+			<div class="wbh-actions">${actions}</div>
+			<div class="wbd-panel wbh-recent ${open_recent ? 'is-open' : ''}">
+				<button class="wbd-panel-head wbh-recent-head" type="button" aria-expanded="${open_recent}">
+					<div><div class="wbd-panel-title">${__('Recent activity')} <span class="wbh-count wbh-count-muted">${(h.activity || []).length}</span></div>
+						<div class="wbd-panel-sub">${__('Latest first')}</div></div>
+					<span class="wbh-chevron">${frappe.utils.icon('chevron-down', 'sm')}</span>
+				</button>
+				<div class="wbh-acts">${acts}</div>
+			</div>`);
+		$root.find('.wbh-recent-head').on('click', (e) => {
+			const $p = $(e.currentTarget).closest('.wbh-recent').toggleClass('is-open');
+			const open = $p.hasClass('is-open');
+			$(e.currentTarget).attr('aria-expanded', open);
+			try { localStorage.setItem(WBH_RECENT_KEY, open ? '1' : '0'); } catch (err) { /* private mode */ }
+		});
+		// Desk links navigate inside the app (no full reload); ctrl/cmd-click still opens a tab.
+		$root.find('[data-route]').on('click', (e) => {
+			if (e.ctrlKey || e.metaKey || e.button === 1) return;
+			e.preventDefault();
+			const route = $(e.currentTarget).data('route');
+			const [path, query] = String(route).split('?');
+			if (query) frappe.route_options = Object.fromEntries(new URLSearchParams(query));
+			frappe.set_route(path.replace(/^\/desk\//, '').split('/').map(decodeURIComponent));
+		});
+	};
+
+	frappe.xcall(WBD_API + 'get_home').then(render).catch(() => {
+		$root.find('.wbh').html(`<div class="wbd-empty">${__('Could not load your home page. Please refresh.')}</div>`);
+	});
+}
+
+const WBH_CSS = `
+.wbh-hero { display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:var(--bg); border:1px solid var(--border); border-left:4px solid var(--brand);
+	border-radius:10px; padding:18px 22px; margin-bottom:18px; box-shadow:var(--shadow); }
+.wbh-avatar { width:54px; height:54px; font-size:22px; }
+.wbh-hero-text { flex:1; min-width:220px; }
+.wbh-greet { font-size:22px; font-weight:700; color:var(--text); line-height:1.25; }
+.wbh-sub { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:13px; color:var(--muted); }
+.wbh-id { font-weight:700; color:var(--link); }
+.wbh-hero-side { display:grid; grid-template-columns:auto auto; gap:2px 12px; font-size:12px; color:var(--muted); align-items:baseline; }
+.wbh-hero-side b { color:var(--text); font-size:13px; }
+.wbh-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:18px; align-items:start; }
+.wbh-attn { margin-bottom:0; }
+.wbh-actions { margin-bottom:18px; }
+@media (max-width:1000px) { .wbh-grid { grid-template-columns:minmax(0,1fr); } }
+.wbh-count { display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 6px; margin-left:8px; border-radius:10px;
+	background:var(--brand); color:#fff; font-size:11px; vertical-align:2px; }
+.wbh-todos { display:flex; flex-direction:column; }
+.wbh-todo { display:grid; grid-template-columns:10px minmax(0,1fr) auto; gap:14px; align-items:center; padding:12px 16px;
+	border-bottom:1px solid var(--border-soft); text-decoration:none !important; color:var(--text); border-left:3px solid var(--k); }
+.wbh-todo:last-child { border-bottom:0; }
+.wbh-todo:hover { background:var(--hover); }
+.wbh-todo-dot { width:10px; height:10px; border-radius:50%; background:var(--k); }
+.wbh-todo-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.wbh-todo-text b { font-size:13.5px; }
+.wbh-todo-text small, .wbh-action small, .wbh-act small { font-size:12px; color:var(--muted); }
+.wbh-todo-btn { font-size:12px; font-weight:700; color:var(--k); border:1px solid color-mix(in srgb, var(--k) 40%, transparent);
+	background:color-mix(in srgb, var(--k) 8%, var(--bg)); border-radius:20px; padding:4px 12px; white-space:nowrap; }
+.wbh-clear { display:flex; gap:12px; align-items:center; padding:18px 16px; }
+.wbh-clear > span { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; background:color-mix(in srgb, #1d6b3a 14%, var(--bg)); color:#1d6b3a; font-weight:700; }
+.wbh-clear b { display:block; } .wbh-clear small { color:var(--muted); font-size:12px; }
+.wbh-actions { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+@media (max-width:1000px) { .wbh-actions { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+@media (max-width:600px) { .wbh-actions { grid-template-columns:minmax(0,1fr); } }
+.wbh-action { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+	box-shadow:var(--shadow); text-decoration:none !important; color:var(--text); }
+.wbh-action:hover { border-color:color-mix(in srgb, var(--brand) 45%, var(--border)); background:var(--hover); }
+.wbh-action b { display:block; font-size:13.5px; margin-bottom:2px; }
+.wbh-action-icon { flex:none; width:36px; height:36px; border-radius:8px; display:grid; place-items:center; color:var(--brand); background:var(--brand-tint); }
+.wbh-action-icon svg { width:18px; height:18px; stroke:currentColor; }
+.wbh-stats { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+.wbh-stats .wbd-tl-kpi b { font-size:19px; }
+.wbh-recent-head { width:100%; border:0; background:none; text-align:left; cursor:pointer; align-items:center; }
+.wbh-recent:not(.is-open) .wbh-recent-head { border-bottom:0; }
+.wbh-recent-head:hover { background:var(--hover); }
+.wbh-chevron { color:var(--muted); transition:transform .15s; display:inline-flex; }
+.wbh-recent.is-open .wbh-chevron { transform:rotate(180deg); }
+.wbh-count-muted { background:var(--bg-soft); color:var(--text-2); border:1px solid var(--border); }
+.wbh-acts { display:none; flex-direction:column; padding:6px 0; }
+.wbh-recent.is-open .wbh-acts { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:12px; }
+@media (max-width:900px) { .wbh-recent.is-open .wbh-acts { grid-template-columns:minmax(0,1fr); } }
+.wbh-act { display:grid; grid-template-columns:86px minmax(0,1fr); gap:12px; padding:9px 14px; border-left:3px solid transparent; }
+.wbh-act:hover { background:var(--hover); border-left-color:var(--k); }
+.wbh-act-date { font-size:12px; color:var(--muted); padding-top:2px; font-variant-numeric:tabular-nums; }
+.wbh-act-body { font-size:13px; color:var(--text); min-width:0; }
+.wbh-act-body small { display:block; margin-top:1px; }
+.wbh-act-body .wbd-tli-doc { display:inline-block; margin-top:2px; font-size:11.5px; }
+`;
+
+// Bundled code is module-scoped; expose what the page scripts use.
+Object.assign(window, {
+	wbd_make_page, wbd_make_home, WelfareBoardDashboard,
+	WBD_CSS, WBD_TONES, WBD_STATUS_COLORS, WBD_KIND_COLORS, WBD_PALETTE,
+});

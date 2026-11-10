@@ -1,6 +1,6 @@
 import frappe
 import json
-from frappe.utils import add_days, now_datetime
+from frappe.utils import add_days, getdate, now_datetime, nowdate
 
 
 @frappe.whitelist()
@@ -72,11 +72,33 @@ def get_pending_aggregators(status_filter=None):
         "Aggregator",
         filters=filters,
         fields=[
-            "name", "aggregator_name", "email", "mobile", "status", "creation",
-            "clarification_comments", "clarification_response"
+            "name", "aggregator_name", "email", "mobile", "status", "creation", "modified",
+            "clarification_comments", "clarification_response",
+            # full application, shown in the review panel
+            "name1", "desigination", "gender", "company_type", "company_id", "cin_number",
+            "pan_number", "gstin", "registered_address", "website_url", "app_url",
+            "pan_file", "gstin_file", "aadhaar_file",
         ],
         order_by="creation asc",
     )
+    if not rows:
+        return rows
+
+    # Service categories applied for (child table → display names)
+    services = {}
+    for parent, label in frappe.db.sql("""
+        SELECT link.parent, IFNULL(sc.category_name, link.service_category)
+        FROM `tabAggregator Service Category` link
+        LEFT JOIN `tabService Category` sc ON sc.name = link.service_category
+        WHERE link.parenttype = 'Aggregator' AND link.parent IN %(names)s
+        ORDER BY link.idx
+    """, {"names": tuple(r.name for r in rows)}):
+        services.setdefault(parent, []).append(label)
+
+    today = getdate(nowdate())
+    for r in rows:
+        r.services = services.get(r.name, [])
+        r.days_waiting = (today - getdate(r.creation)).days
     return rows
 
 
