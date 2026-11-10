@@ -47,9 +47,11 @@ has_permission = {
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/gigworkers/css/gigworkers.css"
+# Bundles: `bench build` / `bench watch` emit content-hashed files and Frappe links the
+# current hash, so browsers always load the latest code despite the 12-hour asset cache.
 app_include_js = [
-	"/assets/gigworkers/js/desk_overrides.js",
-	"/assets/gigworkers/js/welfare_dashboard.js",
+	"desk_overrides.bundle.js",
+	"welfare_dashboard.bundle.js",
 ]
 
 # include js, css files in header of web template

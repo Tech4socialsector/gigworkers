@@ -71,7 +71,8 @@ class GigTransactionBulkImport {
 					</div>
 				</div>
 
-				<div class="form-group mb-4">
+				<!-- Aggregator override — visible only to System Manager -->
+				<div class="form-group mb-4" id="div-aggregator" style="display:none;">
 					<label class="control-label">Default Aggregator <small class="text-muted">(optional — overrides CSV column)</small></label>
 					<input type="text" id="inp-aggregator" class="form-control"
 						placeholder="Aggregator ID, e.g. AGG-001">
@@ -162,6 +163,21 @@ class GigTransactionBulkImport {
 		`);
 
 		this._bind_events();
+
+		// Admins import on behalf of an aggregator: a searchable Aggregator picker.
+		// (Aggregators always import as themselves — the server enforces it.)
+		if (frappe.user.has_role("System Manager")) {
+			const $div = this.page.main.find("#div-aggregator").show();
+			$div.find("#inp-aggregator").remove();
+			this.agg_control = frappe.ui.form.make_control({
+				df: { fieldtype: "Link", options: "Aggregator", fieldname: "default_aggregator",
+					placeholder: __("Search aggregator by name or ID") },
+				parent: $div,
+				render_input: true,
+				only_input: true,
+			});
+			this.agg_control.refresh();
+		}
 		this._load_import_logs();
 	}
 
@@ -277,7 +293,7 @@ class GigTransactionBulkImport {
 			return;
 		}
 
-		const aggregator = this.page.main.find("#inp-aggregator").val().trim() || null;
+		const aggregator = (this.agg_control && this.agg_control.get_value()) || null;
 
 		this.page.main.find("#btn-start-import").prop("disabled", true)
 			.html('<i class="fa fa-spinner fa-spin"></i>&nbsp; Starting…');

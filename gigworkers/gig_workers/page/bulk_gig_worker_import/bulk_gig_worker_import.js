@@ -173,9 +173,19 @@ class GigWorkerBulkImport {
 		this._bind_events();
 		this._load_import_logs();
 
-		// Show Default Aggregator field only for System Manager
+		// Admins import on behalf of an aggregator: a searchable Aggregator picker.
+		// (Aggregators always import as themselves — the server enforces it.)
 		if (frappe.user.has_role("System Manager")) {
-			this.page.main.find("#div-aggregator").show();
+			const $div = this.page.main.find("#div-aggregator").show();
+			$div.find("#inp-aggregator").remove();
+			this.agg_control = frappe.ui.form.make_control({
+				df: { fieldtype: "Link", options: "Aggregator", fieldname: "default_aggregator",
+					placeholder: __("Search aggregator by name or ID") },
+				parent: $div,
+				render_input: true,
+				only_input: true,
+			});
+			this.agg_control.refresh();
 		}
 	}
 
@@ -331,7 +341,7 @@ class GigWorkerBulkImport {
 			return;
 		}
 
-		const aggregator = this.page.main.find("#inp-aggregator").val().trim() || null;
+		const aggregator = (this.agg_control && this.agg_control.get_value()) || null;
 
 		this.page.main.find("#btn-start-import").prop("disabled", true).html(
 			'<i class="fa fa-spinner fa-spin"></i>&nbsp; Starting…'

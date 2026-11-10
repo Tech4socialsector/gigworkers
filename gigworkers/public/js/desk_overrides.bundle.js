@@ -1,17 +1,17 @@
 // Gigworkers desk overrides
 
-// Keep portal users on their own workspace sidebar.
-// Every DocType here belongs to the "Gig Workers" module, so whenever Frappe can't keep
-// the current sidebar (page reload, direct link, new tab) it falls back to the sidebar
-// named after the module — the gig worker's "Gig Workers" menu — even for aggregators.
-// Pages listed only in the admin's "Database Flow" sidebar (e.g. Vehicle Type) would
-// otherwise switch portal users into the admin menu.
+// Keep every user on their own role's workspace sidebar.
+// Every DocType here belongs to the "Gig Workers" module and appears in more than one
+// role's menu (e.g. Gig Worker is in the admin, aggregator and worker menus), so Frappe
+// often switches to another role's menu on navigation or reload. Each role has one menu:
+// admin → "Database Flow", aggregator → "Aggregators", gig worker → "Gig Workers".
 (function () {
-	const ROLE_SIDEBAR = { Aggregator: "Aggregators", "Gig Worker": "Gig Workers" };
-	const PORTAL_SIDEBARS = [...Object.values(ROLE_SIDEBAR), "Database Flow", "Doctypes Flow"];
+	const ROLE_SIDEBAR = { "System Manager": "Database Flow", Aggregator: "Aggregators", "Gig Worker": "Gig Workers" };
+	// Only these menus are ever swapped; Frappe's own menus (Users, Build, …) are left alone.
+	const PORTAL_SIDEBARS = [...Object.values(ROLE_SIDEBAR), "Doctypes Flow"];
 
 	function preferred_sidebar() {
-		if (frappe.user.has_role("System Manager")) return null;
+		// first match wins: an admin who is also an aggregator gets the admin menu
 		for (const [role, sidebar] of Object.entries(ROLE_SIDEBAR)) {
 			if (frappe.user.has_role(role)) return sidebar;
 		}

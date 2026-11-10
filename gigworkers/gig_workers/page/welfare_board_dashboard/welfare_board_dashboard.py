@@ -1044,3 +1044,236 @@ def _months(f, scope):
 	paid = {r["key"]: r["value"] for r in _group("fee", f, scope, month, "COALESCE(SUM(m.fee_amount), 0)",
 		"m.payment_status = 'Completed'", order="k ASC")}
 	return [{"month": m, "raised": raised.get(m, 0), "paid": paid.get(m, 0)} for m in sorted(set(raised) | set(paid)) if m][-12:]
+
+
+# ── home page (/desk/welfare-home) ───────────────────────────────────────
+def _home_view():
+	roles = frappe.get_roles()
+	if ADMIN in roles:
+		return "admin"
+	if "Aggregator" in roles:
+		return "aggregator"
+	if "Gig Worker" in roles:
+		return "worker"
+	frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
+def _next_invoice_run():
+	"""Quarterly invoices are generated at 02:00 on 1 Jan / Apr / Jul / Oct (hooks.py)."""
+	today = getdate(nowdate())
+	for month in (1, 4, 7, 10):
+		run = getdate(f"{today.year}-{month:02d}-01")
+		if run > today:
+			return run
+	return getdate(f"{today.year + 1}-01-01")
+
+
+def _count(kind, scope, cond=None, sum_expr=None):
+	conds, params = _where(kind, frappe._dict({k: [] for k in LIST_FILTERS}), scope)
+	if cond:
+		conds.append(cond)
+	src = SOURCES[kind]
+	row = frappe.db.sql(f"SELECT COUNT(*), COALESCE(SUM({sum_expr or '0'}), 0) FROM {src['from']} {_where_sql(conds)}", params)[0]
+	return cint(row[0]), flt(row[1])
+
+
+def _todo(tone, title, sub, label, route):
+	return {"tone": tone, "title": title, "sub": sub, "label": label, "route": route}
+
+
+def _act(when, kind, title, meta=None, doctype=None, name=None):
+	return {"when": str(when), "kind": kind, "title": title, "meta": meta, "doctype": doctype, "name": name}
+
+
+_COLLAPSE = {"credit": "{0} welfare fee credits to your fund", "fee": "{0} welfare fees raised for you",
+	"transaction": "{0} transactions recorded", "invoice": "Your fees were placed on {0} invoices"}
+
+
+def _collapse(acts):
+	"""Same-day events of one kind become one line, so a busy day doesn't flood the feed."""
+	groups = {}
+	for a in acts:
+		groups.setdefault((a["when"][:10], a["kind"]), []).append(a)
+	out = []
+	for (day, kind), items in groups.items():
+		if len(items) > 1 and kind in _COLLAPSE:
+			out.append(_act(max(i["when"] for i in items), kind, _(_COLLAPSE[kind]).format(len(items))))
+		else:
+			out.extend(items)
+	return out
+
+
+@frappe.whitelist()
+def get_home():
+	view = _home_view()
+	scope = _scope(view)
+	money = _money
+	next_run = _next_invoice_run()
+	todos, acts = [], []
+
+	if view == "admin":
+		pending_apps, _a = _count("agg", scope, "m.status IN ('Submitted', 'Under Process')")
+		clarify, _a = _count("agg", scope, "m.status = 'Pending with Clarification'")
+		overdue, overdue_amt = _count("invoice", scope, "m.invoice_status = 'Overdue'", "m.balance_due")
+		wd_req, wd_req_amt = _count("wd", scope, "m.status = 'Requested'", "m.amount")
+		wd_appr, wd_appr_amt = _count("wd", scope, "m.status = 'Approved'", "m.amount")
+		dups, _a = _count("txn", scope, "m.status = 'Suspected duplicate'")
+		uninvoiced, uninvoiced_amt = _count("fee", scope, "NOT " + INVOICED, "m.fee_amount")
+		if pending_apps:
+			todos.append(_todo("action", _("{0} aggregator application(s) to review").format(pending_apps),
+				_("Submitted or under process"), _("Review"), "/desk/aggregator-approval"))
+		if clarify:
+			todos.append(_todo("info", _("{0} application(s) waiting on the aggregator's clarification").format(clarify),
+				_("Nothing to do until they reply"), _("View"), "/desk/aggregator-approval"))
+		if overdue:
+			todos.append(_todo("bad", _("{0} invoice(s) overdue · {1} outstanding").format(overdue, money(overdue_amt)),
+				_("Follow up with the aggregators"), _("Open"), "/desk/welfare-fee-invoice?invoice_status=Overdue"))
+		if wd_req:
+			todos.append(_todo("action", _("{0} benefit withdrawal(s) to review · {1}").format(wd_req, money(wd_req_amt)),
+				_("Approve or reject"), _("Review"), "/desk/welfare-benefit-withdrawal?status=Requested"))
+		if wd_appr:
+			todos.append(_todo("action", _("{0} approved withdrawal(s) to pay out · {1}").format(wd_appr, money(wd_appr_amt)),
+				_("Mark as paid once transferred"), _("Pay out"), "/desk/welfare-benefit-withdrawal?status=Approved"))
+		if dups:
+			todos.append(_todo("bad", _("{0} suspected duplicate transaction(s)").format(dups),
+				_("Confirm or dismiss"), _("Check"), "/desk/gig-transaction?status=Suspected%20duplicate"))
+		if uninvoiced:
+			todos.append(_todo("info", _("{0} welfare fee(s) not yet invoiced · {1}").format(uninvoiced, money(uninvoiced_amt)),
+				_("Billed automatically on {0}").format(frappe.utils.formatdate(next_run)), _("View"), "/desk/welfare-board-dashboard"))
+		approved, _a = _count("agg", scope, "m.status = 'Approved'")
+		workers, _a = _count("worker", scope)
+		_n, fees = _count("fee", scope, None, "m.fee_amount")
+		_n, fund = _count("fund", scope, None, "m.account_balance")
+		stats = [
+			{"label": _("Approved aggregators"), "value": f"{approved:,}", "tone": "good"},
+			{"label": _("Gig workers"), "value": f"{workers:,}", "tone": "info"},
+			{"label": _("Welfare fees raised"), "value": money(fees), "tone": "time"},
+			{"label": _("Held in worker funds"), "value": money(fund), "tone": "good"},
+		]
+		actions = [
+			{"label": _("Welfare Board Dashboard"), "desc": _("The whole scheme — cards, timelines, analytics"), "route": "/desk/welfare-board-dashboard", "icon": "chart"},
+			{"label": _("Aggregator Approval"), "desc": _("Review and approve registrations"), "route": "/desk/aggregator-approval", "icon": "check"},
+			{"label": _("Welfare Fee Invoices"), "desc": _("Quarterly invoices and payments"), "route": "/desk/welfare-fee-invoice", "icon": "receipt"},
+			{"label": _("Benefit Withdrawals"), "desc": _("Review requests and pay out"), "route": "/desk/welfare-benefit-withdrawal", "icon": "wallet"},
+			{"label": _("Import Gig Workers"), "desc": _("Bulk upload workers from CSV"), "route": "/desk/bulk-gig-worker-import", "icon": "users"},
+			{"label": _("Quarterly Compliance"), "desc": _("Report of fees and payments per quarter"), "route": "/desk/query-report/Quarterly Welfare Compliance Report", "icon": "file"},
+		]
+		for r in frappe.db.sql("SELECT name, aggregator_name, status, creation FROM `tabAggregator` ORDER BY creation DESC LIMIT 3", as_dict=True):
+			acts.append(_act(r.creation, "registration", _("{0} registered as an aggregator").format(r.aggregator_name), r.status, "Aggregator", r.name))
+		for r in frappe.db.sql("""SELECT p.payment_date, p.amount, p.payment_mode, i.name, i.aggregator_name FROM `tabWelfare Invoice Payment` p
+			JOIN `tabWelfare Fee Invoice` i ON i.name = p.parent ORDER BY p.payment_date DESC, p.creation DESC LIMIT 3""", as_dict=True):
+			acts.append(_act(r.payment_date, "payment", _("{0} paid {1} on an invoice").format(r.aggregator_name, money(r.amount)), r.payment_mode, "Welfare Fee Invoice", r.name))
+		for r in frappe.db.sql("SELECT name, import_date, created_by_aggregator AS agg, inserted FROM `tabGig Worker Import Log` WHERE inserted > 0 ORDER BY import_date DESC LIMIT 2", as_dict=True):
+			acts.append(_act(r.import_date, "import", (_("{0} gig worker imported") if cint(r.inserted) == 1 else _("{0} gig workers imported")).format(f"{cint(r.inserted):,}"), r.agg, "Gig Worker Import Log", r.name))
+		for r in frappe.db.sql("SELECT name, requested_date, amount, status, gig_worker FROM `tabWelfare Benefit Withdrawal` ORDER BY creation DESC LIMIT 2", as_dict=True):
+			acts.append(_act(r.requested_date, "withdrawal", _("Withdrawal of {0} requested").format(money(r.amount)), f"{r.gig_worker} · {r.status}", "Welfare Benefit Withdrawal", r.name))
+		for r in frappe.db.sql("SELECT name, date, amount, aggregator, gig_worker FROM `tabGig Transaction` ORDER BY creation DESC LIMIT 3", as_dict=True):
+			acts.append(_act(r.date, "transaction", _("Transaction {0}").format(money(r.amount)), f"{r.aggregator} · {r.gig_worker}", "Gig Transaction", r.name))
+		who = {"name": frappe.utils.get_fullname(), "id": None, "status": None, "role": _("Welfare Board")}
+
+	elif view == "aggregator":
+		agg = frappe.db.get_value("Aggregator", scope.agg, ["name", "aggregator_name", "status", "clarification_comments"], as_dict=True)
+		overdue, overdue_amt = _count("invoice", scope, "m.invoice_status = 'Overdue'", "m.balance_due")
+		open_inv, open_amt = _count("invoice", scope, "m.invoice_status IN ('Pending', 'Partially Paid')", "m.balance_due")
+		pending_txn, _a = _count("txn", scope, "m.status = 'Payment pending'")
+		dups, _a = _count("txn", scope, "m.status = 'Suspected duplicate'")
+		uninvoiced, uninvoiced_amt = _count("fee", scope, "NOT " + INVOICED, "m.fee_amount")
+		if agg.status == "Pending with Clarification":
+			todos.append(_todo("action", _("The Board asked for clarification on your registration"),
+				agg.clarification_comments or _("Open your profile to reply"), _("Reply"), f"/desk/aggregator/{agg.name}"))
+		if overdue:
+			todos.append(_todo("bad", _("{0} invoice(s) overdue · {1} to pay").format(overdue, money(overdue_amt)),
+				_("Pay now so your workers' welfare is credited"), _("Open"), "/desk/welfare-fee-invoice?invoice_status=Overdue"))
+		if open_inv:
+			todos.append(_todo("action", _("{0} invoice(s) awaiting payment · {1}").format(open_inv, money(open_amt)),
+				_("Pending or partially paid"), _("Open"), "/desk/welfare-fee-invoice"))
+		if pending_txn:
+			todos.append(_todo("action", _("{0} transaction(s) waiting for payment confirmation").format(pending_txn),
+				_("Workers confirm by OTP"), _("View"), "/desk/aggregator-dashboard"))
+		if dups:
+			todos.append(_todo("bad", _("{0} transaction(s) flagged as possible duplicates").format(dups),
+				_("The Board will review them"), _("View"), "/desk/aggregator-dashboard"))
+		if uninvoiced:
+			todos.append(_todo("info", _("{0} welfare fee(s) will be on your next invoice · {1}").format(uninvoiced, money(uninvoiced_amt)),
+				_("Generated on {0}").format(frappe.utils.formatdate(next_run)), _("View"), "/desk/aggregator-dashboard"))
+		workers, _a = _count("worker", scope)
+		txns, txn_amt = _count("txn", scope, None, "m.amount")
+		_n, fees = _count("fee", scope, None, "m.fee_amount")
+		_n, due = _count("invoice", scope, "m.invoice_status != 'Draft'", "m.balance_due")
+		stats = [
+			{"label": _("My gig workers"), "value": f"{workers:,}", "tone": "info"},
+			{"label": _("Transactions"), "value": f"{txns:,} · {money(txn_amt)}", "tone": "info"},
+			{"label": _("Welfare fees raised"), "value": money(fees), "tone": "time"},
+			{"label": _("Invoice balance due"), "value": money(due), "tone": "bad" if overdue else "good"},
+		]
+		actions = [
+			{"label": _("Dashboard"), "desc": _("Your workers, fees and invoices in detail"), "route": "/desk/aggregator-dashboard", "icon": "chart"},
+			{"label": _("Import Gig Workers"), "desc": _("Upload your workers from CSV"), "route": "/desk/bulk-gig-worker-import", "icon": "users"},
+			{"label": _("Import Transactions"), "desc": _("Upload rides / orders from CSV"), "route": "/desk/bulk-gig-transaction-import", "icon": "upload"},
+			{"label": _("My Invoices"), "desc": _("Quarterly welfare fee invoices"), "route": "/desk/welfare-fee-invoice", "icon": "receipt"},
+			{"label": _("My Gig Workers"), "desc": _("Everyone registered under you"), "route": "/desk/gig-worker", "icon": "users"},
+			{"label": _("Company Profile"), "desc": _("Registration details and KYC"), "route": f"/desk/aggregator/{agg.name}", "icon": "building"},
+		]
+		for r in frappe.db.sql("""SELECT p.payment_date, p.amount, p.payment_mode, i.name, i.quarter, i.year FROM `tabWelfare Invoice Payment` p
+			JOIN `tabWelfare Fee Invoice` i ON i.name = p.parent WHERE i.aggregator = %s ORDER BY p.payment_date DESC LIMIT 3""", agg.name, as_dict=True):
+			acts.append(_act(r.payment_date, "payment", _("You paid {0} on the {1} {2} invoice").format(money(r.amount), r.quarter, r.year), r.payment_mode, "Welfare Fee Invoice", r.name))
+		for r in frappe.db.sql("SELECT name, creation, quarter, year, total_due_amount, invoice_status FROM `tabWelfare Fee Invoice` WHERE aggregator = %s ORDER BY creation DESC LIMIT 3", agg.name, as_dict=True):
+			acts.append(_act(r.creation, "invoice", _("{0} {1} invoice · {2}").format(r.quarter, r.year, money(r.total_due_amount)), r.invoice_status, "Welfare Fee Invoice", r.name))
+		for r in frappe.db.sql("""(SELECT name, import_date, inserted, 'Gig Worker Import Log' AS dt, 'workers' AS what FROM `tabGig Worker Import Log` WHERE created_by_aggregator = %(a)s AND inserted > 0)
+			UNION ALL (SELECT name, import_date, inserted, 'Gig Transaction Import Log', 'transactions' FROM `tabGig Transaction Import Log` WHERE default_aggregator = %(a)s AND inserted > 0)
+			ORDER BY import_date DESC LIMIT 3""", {"a": agg.name}, as_dict=True):
+			what = r.what[:-1] if cint(r.inserted) == 1 else r.what   # "1 worker", "2 workers"
+			acts.append(_act(r.import_date, "import", _("{0} {1} imported").format(f"{cint(r.inserted):,}", _(what)), None, r.dt, r.name))
+		for r in frappe.db.sql("""SELECT t.name, t.date, t.amount, w.worker_name FROM `tabGig Transaction` t LEFT JOIN `tabGig Worker` w ON w.name = t.gig_worker
+			WHERE t.aggregator = %s ORDER BY t.creation DESC LIMIT 4""", agg.name, as_dict=True):
+			acts.append(_act(r.date, "transaction", _("Transaction {0}").format(money(r.amount)), r.worker_name, "Gig Transaction", r.name))
+		who = {"name": agg.aggregator_name, "id": agg.name, "status": agg.status, "role": _("Aggregator")}
+
+	else:
+		w = frappe.db.get_value("Gig Worker", scope.worker, ["name", "worker_name", "status"], as_dict=True)
+		_n, balance = _count("fund", scope, None, "m.account_balance")
+		fee_pending, fee_pending_amt = _count("fee", scope, "m.payment_status = 'Pending'", "m.fee_amount")
+		wd_req, wd_req_amt = _count("wd", scope, "m.status = 'Requested'", "m.amount")
+		wd_appr, wd_appr_amt = _count("wd", scope, "m.status = 'Approved'", "m.amount")
+		if wd_appr:
+			todos.append(_todo("good", _("Your withdrawal of {0} is approved").format(money(wd_appr_amt)),
+				_("It will be paid to your bank account"), _("View"), "/desk/welfare-benefit-withdrawal"))
+		if wd_req:
+			todos.append(_todo("info", _("{0} withdrawal request(s) in review · {1}").format(wd_req, money(wd_req_amt)),
+				_("The Board will review it"), _("View"), "/desk/welfare-benefit-withdrawal"))
+		if balance > 0:
+			todos.append(_todo("good", _("You have {0} in your welfare fund").format(money(balance)),
+				_("Apply for a medical, education, housing or emergency benefit"), _("Apply"), "/desk/welfare-benefit-withdrawal/new"))
+		if fee_pending:
+			todos.append(_todo("info", _("{0} of welfare fees are on their way to your fund").format(money(fee_pending_amt)),
+				_("Credited once your aggregator pays the invoice"), _("View"), "/desk/gig-worker-dashboard"))
+		txns, _a = _count("txn", scope)
+		_n, earned = _count("txn", scope, "m.status = 'Payment complete'", "m.net_payout_to_worker")
+		_n, fees = _count("fee", scope, None, "m.fee_amount")
+		stats = [
+			{"label": _("My transactions"), "value": f"{txns:,}", "tone": "info"},
+			{"label": _("Earnings received"), "value": money(earned), "tone": "good"},
+			{"label": _("Welfare fees for me"), "value": money(fees), "tone": "time"},
+			{"label": _("Welfare fund balance"), "value": money(balance), "tone": "good"},
+		]
+		actions = [
+			{"label": _("My Dashboard"), "desc": _("Earnings, fees and fund in detail"), "route": "/desk/gig-worker-dashboard", "icon": "chart"},
+			{"label": _("My Transactions"), "desc": _("Every ride / order recorded for you"), "route": "/desk/gig-transaction", "icon": "list"},
+			{"label": _("My Welfare Fund"), "desc": _("Balance and every credit"), "route": "/desk/welfare-fund-account", "icon": "wallet"},
+			{"label": _("Apply for a Benefit"), "desc": _("Withdraw from your welfare fund"), "route": "/desk/welfare-benefit-withdrawal/new", "icon": "hand"},
+			{"label": _("My Profile"), "desc": _("Your registration details"), "route": f"/desk/gig-worker/{w.name}", "icon": "user"},
+		]
+		acts = _collapse([_act(e["when"], e["kind"], e["title"], e.get("meta"), e.get("doctype"), e.get("name"))
+			for e in _worker_timeline(w.name)["events"]])
+		who = {"name": w.worker_name, "id": w.name, "status": w.status, "role": _("Gig Worker")}
+
+	acts.sort(key=lambda a: a["when"], reverse=True)
+	return {
+		"view": view,
+		"who": who,
+		"todos": todos,
+		"stats": stats,
+		"actions": actions,
+		"activity": acts[:8],
+		"next_invoice_run": frappe.utils.formatdate(next_run),
+	}
