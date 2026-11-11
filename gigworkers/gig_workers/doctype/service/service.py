@@ -100,6 +100,8 @@ def update_rate(docname, close_current_on, new_welfare_percentage,
 				new_welfare_cap, new_start_date, new_end_date=None):
 
 	doc = frappe.get_doc("Service", docname)
+	if not frappe.has_permission("Service", "write", doc):
+		frappe.throw("Only the Welfare Board can change welfare rates.", frappe.PermissionError)
 
 	# Validate dates
 	if str(close_current_on) < str(doc.effective_start_date or ""):
