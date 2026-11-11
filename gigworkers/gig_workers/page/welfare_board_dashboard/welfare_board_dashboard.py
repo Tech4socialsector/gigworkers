@@ -352,7 +352,6 @@ BOARD = [
 	{"key": "aggregators", "title": "Aggregators", "tiles": [
 		{"title": "Registration pipeline", "cards": ["agg_submitted", "agg_process"]},
 		{"title": "Decision", "cards": ["agg_clarify", "agg_approved"]},
-		{"title": "Bulk imports", "cards": ["imp_workers", "imp_txns"]},
 	]},
 	{"key": "workers", "title": "Gig workers", "tiles": [
 		{"title": "Gender", "cards": ["worker_female", "worker_male"]},
@@ -408,9 +407,6 @@ AGG_BOARD = [
 	{"key": "invoices", "title": "Quarterly invoices", "tiles": [
 		{"title": "Awaiting payment", "cards": ["inv_pending", "inv_overdue"]},
 		{"title": "Payment received", "cards": ["inv_partial", "inv_paid"]},
-	]},
-	{"key": "imports", "title": "Bulk imports", "tiles": [
-		{"title": "Imports", "cards": ["imp_workers", "imp_txns"]},
 	]},
 ]
 
