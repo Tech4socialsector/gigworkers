@@ -38,3 +38,9 @@ def validate(doc, method=None):
 		existing = frappe.db.get_value("Aggregator", {"email": doc.email, "name": ("!=", doc.name)}, "name")
 		if existing:
 			frappe.throw(f"An Aggregator with email {doc.email} already exists.")
+
+
+@frappe.whitelist(allow_guest=True)
+def get_service_category_titles():
+	"""Category names for the public registration form (records are named by random ID)."""
+	return frappe.get_all("Service Category", fields=["name", "category_name"], ignore_permissions=True)
