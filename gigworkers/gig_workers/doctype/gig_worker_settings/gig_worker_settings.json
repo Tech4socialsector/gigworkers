@@ -1,18 +1,39 @@
 {
  "actions": [],
- "creation": "2026-07-30 00:00:00.000000",
+ "creation": "2026-11-11 12:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "auto_approve_days"
+  "aggregator_approval_section",
+  "auto_approve_days",
+  "gig_transaction_section",
+  "max_adjustment_attempts"
  ],
  "fields": [
   {
-   "default": "7",
+   "fieldname": "aggregator_approval_section",
+   "fieldtype": "Section Break",
+   "label": "Aggregator Approval"
+  },
+  {
+   "default": "0",
    "description": "If an aggregator application stays in 'Submitted' status for this many days without any admin action, it is automatically approved by the daily background job. Set to 0 to disable auto-approval.",
    "fieldname": "auto_approve_days",
    "fieldtype": "Int",
    "label": "Auto Approve After (Days)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "gig_transaction_section",
+   "fieldtype": "Section Break",
+   "label": "Gig Transactions"
+  },
+  {
+   "default": "3",
+   "description": "Maximum number of times an Aggregator can adjust a Gig Transaction after import.",
+   "fieldname": "max_adjustment_attempts",
+   "fieldtype": "Int",
+   "label": "Max Adjustment Attempts",
    "non_negative": 1,
    "reqd": 1
   }
@@ -20,10 +41,10 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-07-30 00:00:00.000000",
+ "modified": "2026-11-11 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gig Workers",
- "name": "Aggregator Approval Settings",
+ "name": "Gig Worker Settings",
  "owner": "Administrator",
  "permissions": [
   {

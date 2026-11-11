@@ -20,7 +20,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-11 15:24:18.278438",
+ "modified": "2026-11-11 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gig Workers",
  "name": "Vehicle Type",
@@ -50,5 +50,7 @@
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],
- "title_field": "vehicle_type"
+ "title_field": "vehicle_type",
+ "autoname": "VT.###",
+ "naming_rule": "Expression"
 }

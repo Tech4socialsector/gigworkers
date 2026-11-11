@@ -6,6 +6,7 @@ gigworkers.patches.snapshot_worker_partner_mapping_before_restructure
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 gigworkers.patches.backfill_ledger_gig_transaction
-gigworkers.patches.create_default_gig_transaction_settings
 gigworkers.patches.add_aggregator_data_import_permission
 gigworkers.patches.migrate_worker_partner_mapping_to_child_table
+gigworkers.patches.merge_settings_into_gig_worker_settings
+gigworkers.patches.rename_service_category_vehicle_type_ids

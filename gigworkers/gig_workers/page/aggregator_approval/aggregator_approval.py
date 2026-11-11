@@ -7,7 +7,7 @@ from frappe.utils import add_days, getdate, now_datetime, nowdate
 def get_auto_approve_days():
     """Return the configured number of days after which a Submitted application auto-approves."""
     frappe.only_for("System Manager")
-    return frappe.db.get_single_value("Aggregator Approval Settings", "auto_approve_days") or 0
+    return frappe.db.get_single_value("Gig Worker Settings", "auto_approve_days") or 0
 
 
 @frappe.whitelist()
@@ -23,7 +23,7 @@ def set_auto_approve_days(days):
     if days < 0:
         frappe.throw("Days cannot be negative.")
 
-    frappe.db.set_single_value("Aggregator Approval Settings", "auto_approve_days", days)
+    frappe.db.set_single_value("Gig Worker Settings", "auto_approve_days", days)
     frappe.db.commit()
     return {"auto_approve_days": days}
 
@@ -31,7 +31,7 @@ def set_auto_approve_days(days):
 def auto_approve_stale_aggregators():
     """Daily scheduled job: auto-approve applications left in 'Submitted' status
     for longer than the configured number of days."""
-    days = frappe.db.get_single_value("Aggregator Approval Settings", "auto_approve_days") or 0
+    days = frappe.db.get_single_value("Gig Worker Settings", "auto_approve_days") or 0
     if not days:
         return
 

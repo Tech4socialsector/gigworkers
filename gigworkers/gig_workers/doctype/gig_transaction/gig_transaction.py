@@ -797,37 +797,15 @@ def bulk_dismiss_suspected_duplicate(transaction_names):
 
 # ── Gig Adjustment Transaction ────────────────────────────────────────────────
 
-def _ensure_gig_settings():
-    """Insert default row into tabSingles if not present.
-    Uses direct SQL to avoid DoesNotExistError from get_single_value on a brand-new install.
-    """
-    has_row = frappe.db.sql(
-        "SELECT COUNT(*) FROM `tabSingles` WHERE `doctype` = 'Gig Transaction Settings'",
-        as_list=True,
-    )[0][0]
-    if not has_row:
-        frappe.db.sql(
-            "INSERT INTO `tabSingles` (`doctype`, `field`, `value`) "
-            "VALUES ('Gig Transaction Settings', 'max_adjustment_attempts', '3')"
-        )
-        frappe.db.commit()
-
-
 def _get_max_adjustment_attempts():
-    try:
-        _ensure_gig_settings()
-        val = frappe.db.get_single_value("Gig Transaction Settings", "max_adjustment_attempts")
-        return int(val) if val else 3
-    except Exception:
-        return 3
+    val = frappe.db.get_single_value("Gig Worker Settings", "max_adjustment_attempts")
+    return int(val) if val else 3
 
 
 @frappe.whitelist()
 def get_max_adjustment_attempts_setting():
-    """Return max_adjustment_attempts, auto-creating the settings row if missing."""
-    _ensure_gig_settings()
-    val = frappe.db.get_single_value("Gig Transaction Settings", "max_adjustment_attempts")
-    return int(val) if val else 3
+    """Return max_adjustment_attempts from Gig Worker Settings."""
+    return _get_max_adjustment_attempts()
 
 
 @frappe.whitelist()
@@ -837,12 +815,7 @@ def set_max_adjustment_attempts_setting(value):
     value = int(value)
     if value < 1:
         frappe.throw("Adjustment limit must be at least 1.")
-    _ensure_gig_settings()
-    frappe.db.sql(
-        "UPDATE `tabSingles` SET `value` = %s "
-        "WHERE `doctype` = 'Gig Transaction Settings' AND `field` = 'max_adjustment_attempts'",
-        (str(value),),
-    )
+    frappe.db.set_single_value("Gig Worker Settings", "max_adjustment_attempts", value)
     frappe.db.commit()
 
 
