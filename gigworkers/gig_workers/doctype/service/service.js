@@ -29,7 +29,8 @@ frappe.ui.form.on("Service", {
 		frm.fields_dict.rate_log && frm.fields_dict.rate_log.grid.wrapper
 			.find(".grid-add-row, .grid-remove-rows").hide();
 
-		if (!frm.is_new()) {
+		// Only users who may edit rates (the Board) get the button; aggregators view rates read-only
+		if (!frm.is_new() && frappe.model.can_write("Service")) {
 			frm.add_custom_button(__("Update Rate"), function () {
 				open_update_rate_dialog(frm);
 			}).addClass("btn-primary");
