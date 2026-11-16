@@ -30,14 +30,14 @@ frappe.ready(function () {
 		}
 
 		// PAN Validation
-		let pan = frappe.web_form.get_value('pan');
+		let pan = frappe.web_form.get_value('pan_number');
 		if (pan) {
 			let pan_regex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 			if (!pan_regex.test(pan.toUpperCase())) {
 				frappe.msgprint(__('Invalid PAN Format. A valid PAN should be 5 letters, 4 numbers, and 1 letter (e.g., ABCDE1234F).'));
 				return false;
 			}
-			frappe.web_form.set_value('pan', pan.toUpperCase());
+			frappe.web_form.set_value('pan_number', pan.toUpperCase());
 		}
 
 		// Mobile Validation — 10-digit Indian mobile number starting with 6-9
@@ -106,9 +106,9 @@ frappe.ready(function () {
 	};
 
 	// Auto-uppercase PAN on input
-	frappe.web_form.on('pan', (_field, value) => {
+	frappe.web_form.on('pan_number', (_field, value) => {
 		if (value) {
-			frappe.web_form.set_value('pan', value.toUpperCase());
+			frappe.web_form.set_value('pan_number', value.toUpperCase());
 		}
 	});
 
