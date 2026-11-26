@@ -38,3 +38,10 @@ This app can use GitHub Actions for CI. The following workflows are configured:
 ### License
 
 mit
+
+### Releases
+
+- [CHANGELOG.md](CHANGELOG.md): full change history
+- [RELEASE_NOTES.md](RELEASE_NOTES.md): summary of the latest release
+- [docs/releases/](docs/releases/): detailed release documents and template
+- [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md): how releases are prepared and published

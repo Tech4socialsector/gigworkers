@@ -1,0 +1,46 @@
+# Configures GitHub's "Generate release notes" button.
+# PRs are grouped by label, top to bottom; a PR appears in the first category it matches.
+# See docs/RELEASE_PROCESS.md §9. Create these labels under Settings → Labels before first use.
+# Docs: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+      - ci
+      - chore
+    authors:
+      - dependabot
+      - dependabot[bot]
+      - github-actions
+      - github-actions[bot]
+      - pre-commit-ci
+      - pre-commit-ci[bot]
+  categories:
+    - title: ⚠️ Breaking Changes
+      labels:
+        - breaking-change
+    - title: 🔒 Security
+      labels:
+        - security
+    - title: 🚀 New Features & Improvements
+      labels:
+        - feature
+        - enhancement
+    - title: 🐛 Bug Fixes
+      labels:
+        - bug
+        - fix
+    - title: 🗄️ Database & Migrations
+      labels:
+        - database
+        - migration
+    - title: 📝 Documentation
+      labels:
+        - documentation
+    - title: 📦 Dependencies
+      labels:
+        - dependencies
+    - title: 🧰 Other Changes
+      labels:
+        - "*"
